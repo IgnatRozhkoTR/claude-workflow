@@ -1,0 +1,182 @@
+/* ═══════════════════════════════════════════════ */
+/*  PLAN REVIEW                                    */
+/* ═══════════════════════════════════════════════ */
+.plan-group {
+  margin-bottom: 14px;
+}
+
+.plan-group-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-group-progress {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.plan-task {
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+  transition: var(--transition);
+}
+
+.plan-task.expanded {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  margin-bottom: 4px;
+}
+
+.plan-task-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.plan-task-header:hover {
+  background: var(--bg-hover);
+}
+
+.plan-task-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  flex-shrink: 0;
+}
+
+.plan-task-dot.done {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.plan-task-dot.in_progress {
+  background: var(--warning);
+  border-color: var(--warning);
+  animation: phasePulse 2s ease-in-out infinite;
+}
+
+.plan-task-dot.pending {
+  background: transparent;
+  border-color: var(--text-muted);
+}
+
+.plan-task-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.plan-task-detail {
+  display: none;
+  padding: 4px 10px 8px 26px;
+}
+
+.plan-task.expanded .plan-task-detail {
+  display: block;
+}
+
+.plan-task-description {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.plan-task-files {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* Mermaid diagram containers */
+#planDiagram {
+  position: relative;
+  padding: 8px 0;
+  max-height: 400px;
+  overflow: auto;
+  cursor: grab;
+}
+
+#planDiagram.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+#planDiagram svg {
+  display: block;
+  transform-origin: top left;
+}
+
+#systemDiagram {
+  position: relative;
+  padding: 8px 0;
+  min-height: 200px;
+  max-height: 60vh;
+  overflow: auto;
+  cursor: grab;
+}
+
+#systemDiagram.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+#systemDiagram svg {
+  display: block;
+  transform-origin: top left;
+  max-width: none;
+}
+
+.diagram-zoom-controls {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.diagram-zoom-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  transition: var(--transition);
+}
+
+.diagram-zoom-btn:hover {
+  border-color: var(--border-active);
+  color: var(--accent);
+}
+
+.diagram-zoom-level {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  min-width: 36px;
+  justify-content: center;
+}

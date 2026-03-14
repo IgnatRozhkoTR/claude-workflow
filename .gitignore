@@ -1,0 +1,37 @@
+# Exclude everything by default
+*
+
+# Include workflow components
+!.gitignore
+!.github/
+!.github/**
+!README.md
+!CLAUDE.md
+!settings.json
+!statusline-command.sh
+
+!admin-panel/
+!admin-panel/**
+!agents/
+!agents/**
+!hooks/
+!hooks/**
+!rules/
+!rules/**
+!defaults/
+!defaults/**
+!skills/
+!skills/**
+skills/code-review/
+skills/evy-sync/
+skills/pack-sessions-skill/
+skills/postman-collection/
+
+# Re-exclude unwanted files within included dirs
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+*.db
+*.zip
+admin-panel/server/projects.json
+admin-panel/.reviews/

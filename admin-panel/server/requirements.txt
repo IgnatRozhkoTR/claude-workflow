@@ -1,0 +1,4 @@
+flask
+pytest
+mcp[cli]
+jsonschema

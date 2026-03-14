@@ -1,0 +1,401 @@
+/* ═══════════════════════════════════════════════ */
+/*  DIFF VIEWER                                    */
+/* ═══════════════════════════════════════════════ */
+/* Make the Code Changes and Files panels fill the entire content area */
+#panel-changes,
+#panel-files {
+  margin: -24px;
+}
+
+#panel-changes > .card,
+#panel-files > .card {
+  border: none !important;
+  border-radius: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.diff-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.toggle-group {
+  display: flex;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.toggle-opt {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.toggle-opt:not(:last-child) { border-right: 1px solid var(--border); }
+
+.toggle-opt.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.diff-layout {
+  display: flex;
+  height: calc(100vh - 150px);
+  min-height: 400px;
+  overflow: hidden;
+}
+
+.diff-file-list {
+  width: 260px;
+  min-width: 140px;
+  max-width: 50%;
+  border-right: none;
+  overflow: auto;
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.diff-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.diff-resize-handle:hover,
+.diff-resize-handle.active {
+  background: var(--accent);
+}
+
+.diff-file-list-header {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+  z-index: 5;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  border-left: 2px solid transparent;
+}
+
+.file-item:hover { background: var(--bg-hover); }
+.file-item.active { background: var(--accent-dim); border-left-color: var(--accent); color: var(--text-primary); }
+
+/* Ensure hover/active highlights span full scrollable width when scrolled */
+.diff-file-list .file-item { white-space: nowrap; }
+.diff-file-list .file-dir { white-space: nowrap; }
+
+.file-stat {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  font-size: 0.68rem;
+}
+
+.file-stat-add { color: var(--success); }
+.file-stat-del { color: var(--danger); }
+
+.file-dir {
+  padding: 7px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.file-dir .arrow {
+  font-size: 10px;
+  transition: transform var(--transition);
+  display: inline-block;
+}
+
+.file-dir.collapsed .arrow { transform: rotate(-90deg); }
+.file-dir.collapsed + .dir-children { display: none; }
+
+/* padding-left set dynamically per depth level in JS */
+
+.diff-content {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+  position: relative;
+}
+
+/* ═══ File Explorer Content ═══ */
+.explorer-file-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.explorer-line-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.explorer-file-body {
+  overflow: auto;
+  height: calc(100% - 36px);
+}
+
+.explorer-code-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.explorer-line-num {
+  width: 1px;
+  padding: 0 12px;
+  text-align: right;
+  color: var(--text-muted);
+  user-select: none;
+  white-space: nowrap;
+  vertical-align: top;
+  opacity: 0.5;
+}
+
+.explorer-line-code {
+  padding: 0 16px;
+  white-space: pre;
+}
+
+.explorer-code-table tr:hover {
+  background: var(--bg-hover);
+}
+
+.explorer-markdown {
+  padding: 16px 24px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.explorer-markdown h1, .explorer-markdown h2, .explorer-markdown h3 {
+  color: var(--text-primary);
+  margin-top: 1em;
+}
+
+.explorer-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--bg-raised);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.explorer-markdown pre {
+  background: var(--bg-raised);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+
+.explorer-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+
+.diff-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  diff2html overrides                            */
+/* ═══════════════════════════════════════════════ */
+.d2h-wrapper { font-family: var(--font-mono) !important; }
+.d2h-wrapper .hljs { background: transparent !important; }
+.d2h-file-header { display: none !important; }
+.d2h-code-line, .d2h-code-side-line {
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  line-height: 21px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Fix: line numbers must scroll with content, not stay sticky */
+/* font-size MUST match .d2h-code-line / .d2h-code-side-line (0.72rem)
+   so both compute the same line-height and td heights match exactly */
+/* High specificity to override diff2html CDN's display:inline-block */
+.d2h-diff-table .d2h-code-linenumber,
+.d2h-diff-table td.d2h-code-linenumber,
+.d2h-diff-table .d2h-code-side-linenumber,
+.d2h-diff-table td.d2h-code-side-linenumber {
+  display: table-cell !important;
+  position: relative !important;
+  overflow: visible !important;
+  line-height: 1.35 !important;
+  padding: 0 6px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: 0.72rem !important;
+  border: none !important;
+  vertical-align: middle !important;
+}
+
+/* Remove all borders from diff table cells to eliminate gaps */
+.d2h-diff-table td {
+  border: none !important;
+}
+
+.d2h-diff-tbody tr {
+  border: none !important;
+}
+
+.d2h-diff-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  background: var(--bg-raised) !important;
+}
+
+
+/* Fix wrapper borders — diff2html default is white, use theme border color */
+.d2h-file-wrapper {
+  border-color: var(--border) !important;
+}
+
+/* Fix: word-level highlight suppression */
+.d2h-ins .d2h-code-line-ctn ins,
+.d2h-del .d2h-code-line-ctn del,
+.d2h-ins .d2h-code-side-line-ctn ins,
+.d2h-del .d2h-code-side-line-ctn del {
+  background: none !important;
+  text-decoration: none !important;
+}
+
+/* ─── DARK THEME ─── */
+[data-theme="dark"] .d2h-wrapper {
+  --d2h-bg-color: var(--bg-surface);
+  --d2h-dark-color: var(--text-primary);
+}
+[data-theme="dark"] .d2h-file-diff { background: var(--bg-surface) !important; }
+[data-theme="dark"] .d2h-code-linenumber,
+[data-theme="dark"] .d2h-code-side-linenumber { background: transparent !important; color: var(--text-primary) !important; border: none !important; }
+[data-theme="dark"] .d2h-code-line { background: var(--bg-surface) !important; color: var(--text-secondary) !important; }
+[data-theme="dark"] .d2h-code-side-line { background: var(--bg-surface) !important; color: var(--text-secondary) !important; }
+/* Inside ins/del cells, make the inner div transparent so the td's green/red shows through */
+[data-theme="dark"] .d2h-ins .d2h-code-side-line,
+[data-theme="dark"] .d2h-ins .d2h-code-line { background: transparent !important; }
+[data-theme="dark"] .d2h-del .d2h-code-side-line,
+[data-theme="dark"] .d2h-del .d2h-code-line { background: transparent !important; }
+[data-theme="dark"] .d2h-ins { background: var(--diff-add-bg) !important; }
+[data-theme="dark"] .d2h-del { background: var(--diff-del-bg) !important; }
+[data-theme="dark"] .d2h-ins .d2h-code-line-ctn { color: var(--diff-add-text) !important; background: none !important; }
+[data-theme="dark"] .d2h-del .d2h-code-line-ctn { color: var(--diff-del-text) !important; background: none !important; }
+[data-theme="dark"] .d2h-ins .d2h-code-side-line-ctn { color: var(--diff-add-text) !important; background: none !important; }
+[data-theme="dark"] .d2h-del .d2h-code-side-line-ctn { color: var(--diff-del-text) !important; background: none !important; }
+/* Side-by-side mode line backgrounds */
+[data-theme="dark"] .d2h-ins.d2h-code-side-line { background: var(--diff-add-bg) !important; }
+[data-theme="dark"] .d2h-del.d2h-code-side-line { background: var(--diff-del-bg) !important; }
+[data-theme="dark"] .d2h-info { background: var(--bg-raised) !important; color: var(--text-muted) !important; border-color: var(--border) !important; }
+[data-theme="dark"] .d2h-emptyplaceholder { background: var(--bg-raised) !important; border: none !important; }
+[data-theme="dark"] .d2h-code-side-emptyplaceholder { background: var(--bg-raised) !important; border: none !important; }
+[data-theme="dark"] .d2h-file-side-diff { border: none !important; background: var(--bg-surface) !important; }
+[data-theme="dark"] td.d2h-code-side-linenumber.d2h-ins,
+[data-theme="dark"] td.d2h-code-linenumber.d2h-ins {
+  background: #1e2d23 !important;
+  color: #82a582 !important;
+}
+[data-theme="dark"] td.d2h-code-side-linenumber.d2h-del,
+[data-theme="dark"] td.d2h-code-linenumber.d2h-del {
+  background: #301e22 !important;
+  color: #a58282 !important;
+}
+/* Fix white borders on diff wrapper — use theme border */
+[data-theme="dark"] .d2h-file-wrapper {
+  border-color: var(--border) !important;
+}
+
+/* ─── LIGHT THEME ─── */
+[data-theme="light"] .d2h-wrapper {
+  --d2h-bg-color: var(--bg-surface);
+  --d2h-dark-color: var(--text-primary);
+}
+[data-theme="light"] .d2h-file-diff { background: var(--bg-surface) !important; }
+[data-theme="light"] .d2h-code-linenumber,
+[data-theme="light"] .d2h-code-side-linenumber { background: transparent !important; color: var(--text-muted) !important; border: none !important; }
+[data-theme="light"] .d2h-code-line { background: var(--bg-surface) !important; }
+[data-theme="light"] .d2h-code-side-line { background: var(--bg-surface) !important; }
+[data-theme="light"] .d2h-ins .d2h-code-side-line,
+[data-theme="light"] .d2h-ins .d2h-code-line { background: transparent !important; }
+[data-theme="light"] .d2h-del .d2h-code-side-line,
+[data-theme="light"] .d2h-del .d2h-code-line { background: transparent !important; }
+[data-theme="light"] .d2h-ins { background: var(--diff-add-bg) !important; }
+[data-theme="light"] .d2h-del { background: var(--diff-del-bg) !important; }
+[data-theme="light"] .d2h-ins .d2h-code-line-ctn { color: var(--diff-add-text) !important; background: none !important; }
+[data-theme="light"] .d2h-del .d2h-code-line-ctn { color: var(--diff-del-text) !important; background: none !important; }
+[data-theme="light"] .d2h-ins .d2h-code-side-line-ctn { color: var(--diff-add-text) !important; background: none !important; }
+[data-theme="light"] .d2h-del .d2h-code-side-line-ctn { color: var(--diff-del-text) !important; background: none !important; }
+/* Side-by-side mode line backgrounds */
+[data-theme="light"] .d2h-ins.d2h-code-side-line { background: var(--diff-add-bg) !important; }
+[data-theme="light"] .d2h-del.d2h-code-side-line { background: var(--diff-del-bg) !important; }
+[data-theme="light"] .d2h-info { background: var(--bg-raised) !important; color: var(--text-muted) !important; border-color: var(--border) !important; }
+[data-theme="light"] .d2h-emptyplaceholder { background: var(--bg-raised) !important; border: none !important; }
+[data-theme="light"] .d2h-code-side-emptyplaceholder { background: var(--bg-raised) !important; border: none !important; }
+[data-theme="light"] .d2h-file-side-diff { border: none !important; background: var(--bg-surface) !important; }
+
+/* ═══════════════════════════════════════════════ */
+/*  CLICKABLE DIFF LINE NUMBERS                   */
+/* ═══════════════════════════════════════════════ */
+td.d2h-code-linenumber,
+td.d2h-code-side-linenumber {
+  cursor: pointer;
+}
+td.d2h-code-linenumber:hover,
+td.d2h-code-side-linenumber:hover {
+  background: var(--accent-dim) !important;
+}

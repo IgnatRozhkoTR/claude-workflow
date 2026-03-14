@@ -1,0 +1,154 @@
+"""Tests for file read and diff routes."""
+import os
+from pathlib import Path
+
+from testing_utils import _git
+
+
+def test_read_file(client, workspace):
+    Path(workspace["working_dir"]).joinpath("test.txt").write_text("line1\nline2\nline3\n")
+    r = client.get("/api/ws/test-project/feature/test/file?path=test.txt")
+    assert r.status_code == 200
+    assert r.json["lines"] == ["line1", "line2", "line3"]
+    assert r.json["path"] == "test.txt"
+    assert r.json["total_lines"] == 3
+
+
+def test_read_file_with_range(client, workspace):
+    content = "\n".join(f"line{i}" for i in range(1, 21)) + "\n"
+    Path(workspace["working_dir"]).joinpath("big.txt").write_text(content)
+    r = client.get("/api/ws/test-project/feature/test/file?path=big.txt&start=8&end=12")
+    assert r.status_code == 200
+    data = r.json
+    assert data["highlight_start"] == 8
+    assert data["highlight_end"] == 12
+    # context window is ±5 lines: start=max(0, 8-1-5)=2, end=min(20, 12+5)=17
+    assert data["start"] == 3
+    assert data["end"] == 17
+    assert "line8" in data["lines"]
+    assert "line12" in data["lines"]
+
+
+def test_read_file_missing_path(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/file")
+    assert r.status_code == 400
+    assert "path" in r.json["error"].lower()
+
+
+def test_read_file_not_found(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/file?path=nonexistent.txt")
+    assert r.status_code == 404
+
+
+def test_read_file_path_traversal(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/file?path=../../etc/passwd")
+    assert r.status_code == 403
+
+
+def test_read_file_absolute_path(client, workspace):
+    """Read a file using absolute path (for research references to other projects)."""
+    import tempfile
+    fd, temp_path = tempfile.mkstemp(suffix=".py")
+    try:
+        os.write(fd, b"external_code = True\n")
+        os.close(fd)
+        r = client.get(f"/api/ws/test-project/feature/test/file?path={temp_path}&absolute=true")
+        assert r.status_code == 200
+        assert "external_code" in r.json["lines"][0]
+    finally:
+        os.unlink(temp_path)
+
+
+def test_read_file_absolute_without_flag(client, workspace):
+    """Absolute-looking path without flag is still blocked."""
+    r = client.get("/api/ws/test-project/feature/test/file?path=/etc/passwd")
+    assert r.status_code == 403
+
+
+def test_list_files(client, workspace):
+    Path(workspace["working_dir"]).joinpath("hello.py").write_text("print('hi')")
+    _git(workspace["working_dir"], "add", "hello.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add file")
+    r = client.get("/api/ws/test-project/feature/test/files")
+    assert r.status_code == 200
+    assert "hello.py" in r.json["files"]
+
+
+def test_list_files_workspace_not_found(client, project):
+    r = client.get("/api/ws/test-project/nonexistent/branch/files")
+    assert r.status_code == 404
+
+
+def test_get_diff_with_changes(client, workspace):
+    _git(workspace["working_dir"], "checkout", "-b", "feature/test")
+    Path(workspace["working_dir"]).joinpath("new.py").write_text("x = 1\n")
+    _git(workspace["working_dir"], "add", "new.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add new.py")
+    r = client.get("/api/ws/test-project/feature/test/diff")
+    assert r.status_code == 200
+    paths = [f["path"] for f in r.json["files"]]
+    assert "new.py" in paths
+
+
+def test_get_diff_no_changes(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/diff")
+    assert r.status_code == 200
+    assert r.json["files"] == []
+
+
+def test_get_diff_untracked_files(client, workspace):
+    Path(workspace["working_dir"]).joinpath("untracked.py").write_text("y = 2\n")
+    r = client.get("/api/ws/test-project/feature/test/diff")
+    assert r.status_code == 200
+    untracked = [f for f in r.json["files"] if f["path"] == "untracked.py"]
+    assert len(untracked) == 1
+    assert untracked[0]["status"] == "new"
+
+
+def test_get_diff_untracked_files_in_new_directory(client, workspace):
+    newpkg_dir = Path(workspace["working_dir"]) / "newpkg"
+    newpkg_dir.mkdir()
+    (newpkg_dir / "service.py").write_text("class Service:\n    pass\n")
+    r = client.get("/api/ws/test-project/feature/test/diff")
+    assert r.status_code == 200
+    matched = [f for f in r.json["files"] if f["path"] == "newpkg/service.py"]
+    assert len(matched) == 1
+    assert matched[0]["status"] == "new"
+
+
+def test_get_diff_uncommitted_mode(client, workspace):
+    working_dir = workspace["working_dir"]
+    # Create and commit a base file
+    Path(working_dir).joinpath("base.py").write_text("x = 1\n")
+    _git(working_dir, "add", "base.py")
+    _git(working_dir, "commit", "-m", "Add base.py")
+    # Stage a modification (creates staged change)
+    Path(working_dir).joinpath("base.py").write_text("x = 1\ny = 2\n")
+    _git(working_dir, "add", "base.py")
+    # Make an unstaged modification on top
+    Path(working_dir).joinpath("base.py").write_text("x = 1\ny = 2\nz = 3\n")
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=uncommitted")
+    assert r.status_code == 200
+    assert r.json["mode"] == "uncommitted"
+    paths = [f["path"] for f in r.json["files"]]
+    assert "base.py" in paths
+    combined_diff = " ".join(f["diff"] for f in r.json["files"] if f["path"] == "base.py")
+    assert "+y = 2" in combined_diff
+    assert "+z = 3" in combined_diff
+
+
+def test_get_diff_uncommitted_mode_untracked(client, workspace):
+    Path(workspace["working_dir"]).joinpath("newfile.py").write_text("a = 42\n")
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=uncommitted")
+    assert r.status_code == 200
+    assert r.json["mode"] == "uncommitted"
+    matched = [f for f in r.json["files"] if f["path"] == "newfile.py"]
+    assert len(matched) == 1
+    assert matched[0]["status"] == "new"
+
+
+def test_get_diff_branch_mode_explicit(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=branch")
+    assert r.status_code == 200
+    assert r.json["mode"] == "branch"
+    assert isinstance(r.json["files"], list)

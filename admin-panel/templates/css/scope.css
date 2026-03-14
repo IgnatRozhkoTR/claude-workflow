@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════ */
+/*  SCOPE LIST                                     */
+/* ═══════════════════════════════════════════════ */
+.scope-section {
+  margin-bottom: 20px;
+}
+
+.scope-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scope-list {
+  list-style: none;
+}
+
+.scope-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.scope-item:hover { background: var(--bg-hover); border-color: var(--border); }
+
+.scope-icon { font-size: 14px; }
+.scope-may .scope-icon { color: var(--info); }
+.scope-must .scope-icon { color: var(--warning); }
+
+.scope-path { flex: 1; }
+
+.scope-remove {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.scope-item:hover .scope-remove { opacity: 1; }
+.scope-remove:hover { background: var(--danger-dim); }
+
+.scope-add-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  margin-left: 4px;
+}
+
+.scope-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.scope-input-field {
+  width: 100%;
+  padding: 4px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.scope-input-field:focus { outline: none; }
+
+/* ═══════════════════════════════════════════════ */
+/*  SCOPE SUB-PHASE TABS                           */
+/* ═══════════════════════════════════════════════ */
+#scopeSubTabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scope-sub-tab {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.scope-sub-tab:hover {
+  border-color: var(--border-active);
+  color: var(--text-secondary);
+}
+
+.scope-sub-tab.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}

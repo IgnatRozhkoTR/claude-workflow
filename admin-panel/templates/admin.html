@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workspace Control</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-theme" />
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  function getMermaidTheme() {
+    var t = localStorage.getItem('admin-panel-theme') || 'dark';
+    return t === 'light'
+      ? { theme: 'default', themeVariables: {
+          primaryColor: '#e8edf3', primaryTextColor: '#1a1a2e', primaryBorderColor: '#c5cdd8', lineColor: '#8b8fa3', secondaryColor: '#f0f2f5', tertiaryColor: '#f8f9fa',
+          actorBkg: '#e8edf3', actorBorder: '#c5cdd8', actorTextColor: '#1a1a2e',
+          activationBkgColor: '#dde3ed', activationBorderColor: '#c5cdd8',
+          signalColor: '#4a5078', signalTextColor: '#1a1a2e',
+          labelBoxBkgColor: '#f0f2f5', labelBoxBorderColor: '#c5cdd8', labelTextColor: '#1a1a2e',
+          loopTextColor: '#1a1a2e',
+          noteBkgColor: '#fff8e1', noteBorderColor: '#b8860b', noteTextColor: '#1a1a2e'
+        } }
+      : { theme: 'dark', themeVariables: {
+          primaryColor: '#2d3250', primaryTextColor: '#f0ede8', primaryBorderColor: '#4a5078', lineColor: '#8888a0', secondaryColor: '#252840', tertiaryColor: '#1e2035',
+          actorBkg: '#2d3250', actorBorder: '#4a5078', actorTextColor: '#f0ede8',
+          activationBkgColor: '#252840', activationBorderColor: '#4a5078',
+          signalColor: '#8888a0', signalTextColor: '#f0ede8',
+          labelBoxBkgColor: '#1e2035', labelBoxBorderColor: '#4a5078', labelTextColor: '#f0ede8',
+          loopTextColor: '#f0ede8',
+          noteBkgColor: '#3a3a2d', noteBorderColor: '#c7b76b', noteTextColor: '#f0ede8'
+        } };
+  }
+  function getMermaidInit() { var t = getMermaidTheme(); var vars = Object.assign({}, t.themeVariables || {}, {fontSize: '12px'}); var varsStr = Object.keys(vars).map(function(k) { return "'" + k + "': '" + vars[k] + "'"; }).join(', '); return "%%{init: {'theme': '" + t.theme + "', 'themeVariables': {" + varsStr + "}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 45, 'padding': 10, 'useMaxWidth': false}}}%%"; }
+  mermaid.initialize(Object.assign({ startOnLoad: false }, getMermaidTheme()));
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/phase.css">
+<link rel="stylesheet" href="css/scope.css">
+<link rel="stylesheet" href="css/research.css">
+<link rel="stylesheet" href="css/plan.css">
+<link rel="stylesheet" href="css/cards.css">
+<link rel="stylesheet" href="css/comments-ui.css">
+<link rel="stylesheet" href="css/modals.css">
+<link rel="stylesheet" href="css/context.css">
+<link rel="stylesheet" href="css/diff-viewer.css">
+</head>
+<body>
+
+<!-- ═══ PROJECT SELECTOR ═══ -->
+<div class="project-selector" id="project-selector">
+  <div class="selector-container">
+    <div class="selector-title" data-i18n="workspace.workspaceControl">Workspace Control</div>
+    <div class="selector-subtitle" data-i18n="workspace.selectProject">Select a project to begin</div>
+    <div id="selectorContent"></div>
+  </div>
+</div>
+
+<div id="app-content" style="display:none;">
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">W</div>
+    <span class="header-title" data-i18n="header.title">Workspace Control</span>
+    <span class="header-branch" id="branchName">feature/scope-locked-flow</span>
+  </div>
+  <div class="header-right">
+    <select id="localeSelect" class="locale-select" onchange="onLocaleChange(this.value)">
+      <option value="en">EN</option>
+      <option value="ru">RU</option>
+    </select>
+    <button class="header-refresh-btn" onclick="location.reload()" title="Refresh page" data-i18n-title="header.refresh">&#x21bb;</button>
+    <button class="btn btn-sm" onclick="showProjectSelector()" title="Switch project" id="switchProjectBtn" data-i18n="header.switch">Switch</button>
+    <span class="badge badge-warning" id="phaseLabel">Phase 3 — Planning</span>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">☀</button>
+  </div>
+</header>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <button class="sidebar-btn" data-tab="files" title="Files" data-i18n-title="sidebar.files">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+  </button>
+  <button class="sidebar-btn" data-tab="changes" title="Code Changes" data-i18n-title="sidebar.changes">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+  </button>
+  <button class="sidebar-btn" data-tab="plan" title="Plan Review" data-i18n-title="sidebar.plan">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+  </button>
+  <button class="sidebar-btn" data-tab="review" title="Review" data-i18n-title="tabs.review">
+    <span data-i18n-title="tabs.review">💬</span>
+    <span class="review-badge" id="reviewBadge" style="display:none"></span>
+  </button>
+</aside>
+
+<!-- ═══ TAB BAR ═══ -->
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="dashboard" data-i18n="tabs.mainPage">Main Page</button>
+  <button class="tab-btn" data-tab="research" data-i18n="tabs.research">Research</button>
+  <button class="tab-btn" data-tab="phases" data-i18n="tabs.phaseControl">Phase Control</button>
+</nav>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main">
+
+  <!-- ─── DASHBOARD ─── -->
+  <div class="tab-panel active" id="panel-dashboard">
+
+    <!-- Commands -->
+    <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+      <span style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-right: 2px;" data-i18n="labels.claude">Claude</span>
+      <button class="btn btn-sm" onclick="copyStartCommand()" title="Copy start command" data-i18n="buttons.start">Start</button>
+      <div id="sessionBlock" style="display:none;">
+        <button class="btn btn-sm" onclick="copyResumeCommand()" title="Copy resume command" data-i18n="buttons.resume">Resume</button>
+      </div>
+      <div id="sessionsHistoryBlock" style="display:none;">
+        <button class="btn btn-sm" onclick="toggleSessionsHistory()" title="Browse session history" id="sessionsHistoryBtn" data-i18n="buttons.sessions">Sessions</button>
+      </div>
+    </div>
+    <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>
+
+    <!-- Git Configuration -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.gitConfiguration">Git Configuration</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div class="context-fields">
+          <div class="context-row">
+            <div class="context-field">
+              <label class="context-label" data-i18n="labels.provider">Provider</label>
+              <select class="context-input" id="gitProvider" style="min-width: 140px;" onchange="toggleGitLabFields()">
+                <option value="local" data-i18n="gitProvider.local">Local</option>
+                <option value="github" data-i18n="gitProvider.github">GitHub</option>
+                <option value="gitlab" data-i18n="gitProvider.gitlab">GitLab</option>
+              </select>
+            </div>
+            <div id="gitLabFields" style="display:none; gap: inherit; flex: 1; flex-wrap: wrap;">
+            <div class="context-field context-field-grow">
+              <label class="context-label" data-i18n="labels.host">Host</label>
+              <input type="text" class="context-input" id="gitHost" placeholder="e.g. gitlab.example.com" data-i18n-placeholder="placeholders.gitHost">
+            </div>
+            <div class="context-field context-field-grow">
+              <label class="context-label" data-i18n="labels.apiToken">API Token</label>
+              <input type="password" class="context-input" id="gitToken" placeholder="Enter token..." data-i18n-placeholder="placeholders.enterToken">
+            </div>
+            </div>
+          </div>
+          <div class="context-row">
+            <div class="context-field">
+              <label class="context-label" data-i18n="labels.defaultBranch">Default Branch</label>
+              <input type="text" class="context-input" id="gitDefaultBranch" placeholder="develop" style="width: 160px;" data-i18n-placeholder="placeholders.develop">
+            </div>
+            <div style="margin-left: auto; display: flex; align-items: flex-end;">
+              <button class="btn btn-sm btn-primary" onclick="saveGitConfig()" data-i18n="buttons.saveGitConfig">Save Git Config</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Git Rules (placeholder) -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.gitRules">Git Rules</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom: 8px; font-size: 0.75rem; color: var(--text-muted);" id="gitRulesSource">Source: Not configured</div>
+        <textarea class="context-textarea" id="gitRulesContent" style="width: 100%; min-height: 300px; font-family: monospace; font-size: 13px;" placeholder="Git rules will appear here..." data-i18n-placeholder="placeholders.gitRules"></textarea>
+        <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-sm btn-primary" onclick="saveGitRules()" data-i18n="buttons.saveRules">Save Rules</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task Context (moved from Context tab) -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.taskContext">Task Context</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div class="context-fields">
+          <div class="context-row">
+            <div class="context-field">
+              <label class="context-label" data-i18n="labels.ticketId">Ticket ID</label>
+              <input type="text" class="context-input" id="contextTicketId" readonly>
+            </div>
+            <div class="context-field context-field-grow">
+              <label class="context-label" data-i18n="labels.ticketName">Ticket Name</label>
+              <input type="text" class="context-input" id="contextTicketName" placeholder="Enter ticket/task name..." data-i18n-placeholder="placeholders.enterTicketName">
+            </div>
+          </div>
+          <div class="context-field">
+            <label class="context-label" data-i18n="labels.context">Context</label>
+            <textarea class="context-textarea" id="contextText" placeholder="Describe the task, requirements, acceptance criteria..." data-i18n-placeholder="placeholders.describeTask"></textarea>
+          </div>
+          <div class="context-field" style="margin-top: 4px;">
+            <label class="context-label" data-i18n="labels.fileDirectoryReferences">File &amp; Directory References</label>
+            <div style="position: relative;">
+              <input type="text" id="contextRefSearch" class="context-input"
+                     placeholder="Type to search files and directories..."
+                     data-i18n-placeholder="placeholders.searchFilesAndDirs"
+                     autocomplete="off"
+                     oninput="searchContextRefs(this.value)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();addManualContextRef(this.value);}">
+              <div id="contextRefDropdown" class="ref-dropdown" style="display:none;"></div>
+            </div>
+            <div id="contextRefsList" class="refs-list" style="margin-top: 8px;"></div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button class="btn btn-sm" onclick="saveContext()" data-i18n="buttons.saveContext">Save Context</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Discussions -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.discussions">Discussions</span>
+        <span class="badge badge-info" id="qaBadge">0</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div id="discussionsList"></div>
+        <div class="qa-add-form">
+          <select id="newDiscussionType" class="phase-select" style="width:auto;min-width:90px;font-size:0.75rem;padding:4px 6px;">
+            <option value="general" data-i18n="discussionType.general">General</option>
+            <option value="research" data-i18n="discussionType.research">Research</option>
+          </select>
+          <input type="text" class="context-input" id="newDiscussionInput" placeholder="Raise a discussion point..." data-i18n-placeholder="placeholders.raiseDiscussion" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addNewDiscussion();}">
+          <button class="btn btn-sm" onclick="addNewDiscussion()" data-i18n="buttons.add">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acceptance Criteria -->
+    <div class="card collapsed" id="criteriaCard">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.acceptanceCriteria">Acceptance Criteria</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body" id="criteriaBody">
+        <div class="criteria-add-form" style="margin-bottom: 12px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <select id="criteriaType" class="context-input" style="flex: 0 0 180px;">
+              <option value="unit_test" data-i18n="criteria.unitTest">Unit Test</option>
+              <option value="integration_test" data-i18n="criteria.integrationTest">Integration Test</option>
+              <option value="bdd_scenario" data-i18n="criteria.bddScenario">BDD Scenario</option>
+              <option value="custom" data-i18n="criteria.custom">Custom</option>
+            </select>
+            <input type="text" id="criteriaDesc" class="context-input" placeholder="Description..." data-i18n-placeholder="placeholders.description" style="flex: 1;">
+            <button class="btn btn-sm" onclick="addCriterion()" data-i18n="buttons.add">Add</button>
+          </div>
+          <div id="criteriaDetailsForm" style="display: none; margin-bottom: 8px;">
+            <div class="criteria-detail-fields">
+              <input type="text" id="criteriaFile" class="context-input" placeholder="File path (e.g. src/test/UserServiceTest.java)" data-i18n-placeholder="placeholders.filePath" style="margin-bottom: 4px;">
+              <input type="text" id="criteriaTestNames" class="context-input" placeholder="Test/scenario names (comma-separated)" data-i18n-placeholder="placeholders.testNames">
+            </div>
+          </div>
+        </div>
+        <div id="criteriaList"></div>
+      </div>
+    </div>
+
+    <!-- Saved Context (raw) -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.savedContextRaw">Saved Context (raw)</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <pre class="context-raw" id="contextRaw"></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── PLAN REVIEW ─── -->
+  <div class="tab-panel" id="panel-plan">
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.systemArchitecture">System Architecture</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="comment-icon-header" onclick="toggleCommentThread('architecture', 'System Diagram', event)" title="Comments" data-i18n-title="comments.title">💬</span>
+          <div class="diagram-zoom-controls">
+            <button class="diagram-zoom-btn" onclick="zoomSystemDiagram(-0.15)" title="Zoom out">−</button>
+            <span class="diagram-zoom-level" id="systemDiagramZoomLevel">100%</span>
+            <button class="diagram-zoom-btn" onclick="zoomSystemDiagram(0.15)" title="Zoom in">+</button>
+          </div>
+          <button class="diagram-expand-btn" onclick="expandDiagram('systemDiagram')" title="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="systemDiagram"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.executionFlow">Execution Flow</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="diagram-zoom-controls">
+            <button class="diagram-zoom-btn" onclick="zoomDiagram(-0.15)" title="Zoom out">−</button>
+            <span class="diagram-zoom-level" id="diagramZoomLevel">100%</span>
+            <button class="diagram-zoom-btn" onclick="zoomDiagram(0.15)" title="Zoom in">+</button>
+          </div>
+          <button class="diagram-expand-btn" onclick="expandDiagram('planDiagram')" title="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="planDiagram"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" id="scopeTitle" data-i18n="cards.scopeContract">Scope Contract</span>
+        <div style="display: flex; gap: 8px;">
+          <span id="scopeStatusBadge" class="badge badge-warning" data-i18n="badges.pending" style="margin-right: 8px;">Pending</span>
+          <button class="btn btn-sm btn-primary" id="scopeApproveBtn" onclick="setScopeStatus('approved')" data-i18n="buttons.approve">Approve</button>
+          <button class="btn btn-sm btn-danger-outline" id="scopeRejectBtn" onclick="setScopeStatus('rejected')" data-i18n="buttons.reject">Reject</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="scopeSubTabs" style="display: none; margin-bottom: 14px;"></div>
+        <div class="scope-section">
+          <div class="scope-heading">
+            <span style="color: var(--warning);">◆</span> <span data-i18n="scope.mustModify">Must Modify</span>
+            <button class="scope-add-btn" onclick="addScopeEntry('must')" title="Add entry">+</button>
+          </div>
+          <ul class="scope-list" id="scopeMust"></ul>
+        </div>
+        <div class="scope-section">
+          <div class="scope-heading">
+            <span style="color: var(--info);">◇</span> <span data-i18n="scope.mayModify">May Modify</span>
+            <button class="scope-add-btn" onclick="addScopeEntry('may')" title="Add entry">+</button>
+          </div>
+          <ul class="scope-list" id="scopeMay"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-primary">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.executionPlan">Execution Plan</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span id="planStatusBadge" class="badge badge-warning" data-i18n="badges.pending">Pending</span>
+          <button class="btn btn-sm btn-primary" id="planApproveBtn" data-i18n="buttons.approve">Approve</button>
+          <button class="btn btn-sm btn-danger-outline" id="planRejectBtn" data-i18n="buttons.reject">Reject</button>
+          <button class="btn btn-sm btn-outline" id="planRestoreBtn" onclick="restorePlan()" style="display: none;" title="Restore previous plan version" data-i18n="buttons.restore">↩ Restore</button>
+        </div>
+      </div>
+      <div class="card-body" id="planContent"></div>
+    </div>
+  </div>
+
+  <!-- ─── RESEARCH ─── -->
+  <div class="tab-panel" id="panel-research">
+    <div class="card card-primary" id="researchCard">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.researchFindings">Research Findings</span>
+        <span class="badge badge-warning" id="researchStatus"></span>
+      </div>
+      <div class="card-body" id="researchFindings"></div>
+    </div>
+  </div>
+
+  <!-- ─── CODE CHANGES ─── -->
+  <div class="tab-panel" id="panel-changes">
+    <div class="card" style="overflow: hidden;">
+      <div class="diff-controls">
+        <div class="toggle-group" id="viewModeToggle">
+          <button class="toggle-opt active" data-mode="tree" onclick="setFileView('tree')" data-i18n="diff.tree">Tree</button>
+          <button class="toggle-opt" data-mode="flat" onclick="setFileView('flat')" data-i18n="diff.list">List</button>
+        </div>
+        <div class="toggle-group" id="diffModeToggle">
+          <button class="toggle-opt active" data-mode="side-by-side" onclick="setDiffMode('side-by-side')" data-i18n="diff.sideBySide">Side by Side</button>
+          <button class="toggle-opt" data-mode="line-by-line" onclick="setDiffMode('line-by-line')" data-i18n="diff.inline">Inline</button>
+        </div>
+        <div class="toggle-group" id="diffSourceToggle">
+          <button class="toggle-opt active" data-mode="branch" onclick="setDiffSource('branch')" data-i18n="diff.branch">Branch</button>
+          <button class="toggle-opt" data-mode="uncommitted" onclick="setDiffSource('uncommitted')" data-i18n="diff.uncommitted">Uncommitted</button>
+        </div>
+        <input type="text" id="diffFileSearch" class="ws-input" placeholder="Filter files..." data-i18n-placeholder="diff.filterFiles" style="flex: 1; max-width: 300px; height: 28px; font-size: 0.75rem;" oninput="filterDiffFiles(this.value)">
+        <button class="btn btn-sm" id="viewFileBtn" style="margin-left: auto; display: none;" onclick="openSelectedFile()" data-i18n="buttons.viewFile">View File</button>
+        <span class="badge badge-info" id="diffFileCount">3 files changed</span>
+      </div>
+      <div class="diff-layout">
+        <div class="diff-file-list" id="diffFileList">
+          <div class="diff-file-list-header">
+            <span data-i18n="diff.changedFiles">Changed Files</span>
+            <span style="font-family: var(--font-mono);" id="fileCount">3</span>
+          </div>
+        </div>
+        <div class="diff-resize-handle" id="diffResizeHandle"></div>
+        <div class="diff-content" id="diffContent">
+          <div class="diff-placeholder" data-i18n="diff.selectFile">Select a file to view changes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FILES ─── -->
+  <div class="tab-panel" id="panel-files">
+    <div class="card" style="overflow: hidden;">
+      <div class="diff-controls">
+        <input type="text" id="fileExplorerSearch" class="ws-input" placeholder="Filter files..." data-i18n-placeholder="placeholders.filterFiles" style="flex: 1; max-width: 300px; height: 28px; font-size: 0.75rem;" oninput="filterExplorerFiles(this.value)">
+        <span class="badge badge-info" id="explorerFileCount">0 files</span>
+      </div>
+      <div class="diff-layout">
+        <div class="diff-file-list" id="explorerFileList">
+          <div class="diff-file-list-header">
+            <span data-i18n="explorer.projectFiles">Project Files</span>
+            <span style="font-family: var(--font-mono);" id="explorerCount">0</span>
+          </div>
+        </div>
+        <div class="diff-resize-handle" id="explorerResizeHandle"></div>
+        <div class="diff-content" id="explorerContent">
+          <div class="diff-placeholder" data-i18n="explorer.selectFile">Select a file to view its contents</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── REVIEW ─── -->
+  <div class="tab-panel" id="panel-review">
+    <div class="card">
+      <div class="card-header">
+        <span data-i18n="tabs.review">Review</span>
+        <button class="btn btn-sm" id="reviewShowResolvedBtn" onclick="toggleReviewResolved()" data-i18n="review.showResolved">Show resolved</button>
+      </div>
+      <div id="reviewCommentsList"></div>
+    </div>
+  </div>
+
+  <!-- ─── PHASE CONTROL ─── -->
+  <div class="tab-panel" id="panel-phases">
+    <div class="card card-primary">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.phaseProgression">Phase Progression</span>
+      </div>
+      <div class="card-body">
+        <div class="phase-bar" id="phaseBarControl"></div>
+        <div class="phase-labels" id="phaseLabelsControl"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.approvalStatus">Approval Status</span>
+      </div>
+      <div class="card-body" id="approvalStatusPanel"></div>
+    </div>
+    <div class="phase-action-grid" id="phaseActions"></div>
+  </div>
+
+
+
+</main>
+</div>
+
+<script>
+  var I18N_MESSAGES = {{ i18n_default | safe }};
+  var I18N_LOCALE = 'en';
+</script>
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/state.js"></script>
+<script src="js/review-thread.js"></script>
+<script src="js/review-tab.js"></script>
+<script src="js/comments.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/phase.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/scope.js"></script>
+<script src="js/research.js"></script>
+<script src="js/diff-viewer.js"></script>
+<script src="js/file-explorer.js"></script>
+<script src="js/context.js"></script>
+<script src="js/criteria.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/app.js"></script>
+<script src="js/workspace.js"></script>
+
+<div id="diagramOverlay" class="diagram-overlay" style="display:none" onclick="closeDiagramOverlay(event)">
+  <div class="diagram-overlay-content" onclick="event.stopPropagation()">
+    <button class="diagram-overlay-close" onclick="closeDiagramOverlay()">&times;</button>
+    <div class="diagram-overlay-controls">
+      <button onclick="overlayZoom(-1)">−</button>
+      <span id="overlayZoomLevel">100%</span>
+      <button onclick="overlayZoom(1)">+</button>
+    </div>
+    <div id="diagramOverlayBody" class="diagram-overlay-body"></div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() { applyI18nToDOM(); });
+</script>
+</body>
+</html>

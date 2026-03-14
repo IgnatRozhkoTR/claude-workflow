@@ -1,0 +1,53 @@
+#!/bin/bash
+# Phase-gated pre-push hook
+# Allows push only in phase 7 (Done)
+
+find_lock_file() {
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" || return 1
+  local sanitized
+  sanitized="$(echo "$branch" | sed 's/[^a-zA-Z0-9._-]/-/g')"
+
+  local lock="$repo_root/.claude/workspaces/$sanitized/.lock"
+  if [ -f "$lock" ]; then
+    echo "$lock"
+    return 0
+  fi
+
+  local common_dir
+  common_dir="$(git rev-parse --git-common-dir 2>/dev/null)"
+  if [ -n "$common_dir" ] && [ "$common_dir" != "." ]; then
+    local main_root
+    main_root="$(cd "$common_dir" && cd .. && pwd)"
+    lock="$main_root/.claude/workspaces/$sanitized/.lock"
+    if [ -f "$lock" ]; then
+      echo "$lock"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+LOCK_FILE="$(find_lock_file)"
+if [ -z "$LOCK_FILE" ]; then
+  exit 0
+fi
+
+PHASE=$(python3 -c "import json; print(int(json.load(open('$LOCK_FILE')).get('phase', 0)))" 2>/dev/null)
+if [ -z "$PHASE" ]; then
+  echo "Warning: Could not read phase from lock file. Allowing push."
+  exit 0
+fi
+
+if [ "$PHASE" -ne 7 ]; then
+  echo ""
+  echo "  PUSH BLOCKED: workspace is in phase $PHASE"
+  echo "  Push is only allowed in phase 7 (Done)"
+  echo ""
+  exit 1
+fi
+
+exit 0

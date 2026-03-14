@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════════════════ */
+/*  TOKENS                                         */
+/* ═══════════════════════════════════════════════ */
+:root {
+  --font-sans: 'Instrument Sans', system-ui, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', monospace;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+[data-theme="dark"] {
+  --bg-base: #0f1117;
+  --bg-surface: #171923;
+  --bg-raised: #1e2130;
+  --bg-hover: #262a3d;
+  --bg-input: #1a1d2e;
+  --border: #2a2e42;
+  --border-active: #d4a054;
+  --text-primary: #e8e6e1;
+  --text-secondary: #8b8a85;
+  --text-muted: #5c5b57;
+  --accent: #d4a054;
+  --accent-text: #0f1117;
+  --accent-dim: rgba(212,160,84,0.12);
+  --accent-hover: #e0b06a;
+  --success: #6bc77a;
+  --success-dim: rgba(107,199,122,0.12);
+  --danger: #e06060;
+  --danger-dim: rgba(224,96,96,0.12);
+  --warning: #d4a054;
+  --warning-dim: rgba(212,160,84,0.12);
+  --info: #5ba0d0;
+  --info-dim: rgba(91,160,208,0.12);
+  --phase-track: #1e2130;
+  --phase-fill: linear-gradient(90deg, #d4a054, #e0b06a);
+  --card-glow: 0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,0.3);
+  --tab-indicator: #d4a054;
+  --sidebar-width: 52px;
+  --scrollbar-thumb: #2a2e42;
+  --scrollbar-track: transparent;
+  --diff-add-bg: rgba(36, 56, 36, 0.55);
+  --diff-del-bg: rgba(60, 34, 34, 0.55);
+  --diff-add-text: #e8e6e1;
+  --diff-del-text: #e8e6e1;
+  --bg: #0f1117;
+  --bg-secondary: #1e2130;
+  --bg-tertiary: #262a3d;
+  --text: #e8e6e1;
+}
+
+[data-theme="light"] {
+  --bg-base: #f5f0e8;
+  --bg-surface: #fffdf8;
+  --bg-raised: #fff;
+  --bg-hover: #f0ebe0;
+  --bg-input: #faf7f0;
+  --border: #e0dbd0;
+  --border-active: #2a7a6a;
+  --text-primary: #1a1a18;
+  --text-secondary: #6b6a65;
+  --text-muted: #9b9a95;
+  --accent: #2a7a6a;
+  --accent-text: #ffffff;
+  --accent-dim: rgba(42,122,106,0.08);
+  --accent-hover: #35917e;
+  --success: #2e8540;
+  --success-dim: rgba(46,133,64,0.08);
+  --danger: #c0392b;
+  --danger-dim: rgba(192,57,43,0.08);
+  --warning: #b8860b;
+  --warning-dim: rgba(184,134,11,0.08);
+  --info: #2874a6;
+  --info-dim: rgba(40,116,166,0.08);
+  --phase-track: #e0dbd0;
+  --phase-fill: linear-gradient(90deg, #2a7a6a, #35917e);
+  --card-glow: 0 0 0 1px var(--border), 0 2px 12px rgba(0,0,0,0.06);
+  --tab-indicator: #2a7a6a;
+  --sidebar-width: 52px;
+  --scrollbar-thumb: #d0cbc0;
+  --scrollbar-track: transparent;
+  --diff-add-bg: rgba(200, 235, 200, 0.6);
+  --diff-del-bg: rgba(245, 210, 210, 0.6);
+  --diff-add-text: #1a1a18;
+  --diff-del-text: #1a1a18;
+  --bg: #f5f0e8;
+  --bg-secondary: #fff;
+  --bg-tertiary: #f0ebe0;
+  --text: #1a1a18;
+}

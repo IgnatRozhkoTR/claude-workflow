@@ -1,0 +1,16 @@
+{
+  "exposeTools": [],
+  "alwaysVisibleTools": [
+    "gitlab__create_merge_request",
+    "gitlab__list_merge_requests",
+    "gitlab__get_merge_request",
+    "gitlab__get_merge_request_diffs",
+    "gitlab__create_merge_request_note",
+    "gitlab__create_or_update_file",
+    "gitlab__get_file_contents",
+    "gitlab__list_issues",
+    "gitlab__get_issue",
+    "gitlab__create_issue_note"
+  ],
+  "exposeCoreTools": []
+}

@@ -1,0 +1,237 @@
+// ═══════════════════════════════════════════════
+//  USER GATE ACTIONS
+// ═══════════════════════════════════════════════
+
+async function handleApprove() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) { showToast(t('errors.workspaceNotSelected')); return; }
+
+  var nonceResp = await apiGetGateNonce(ctx.projectId, ctx.branch);
+  var token = nonceResp.nonce;
+  if (!token) { showToast(t('errors.noApprovalGateActive')); return; }
+
+  var commitMessage = '';
+  var input = document.getElementById('commitMessageInput');
+  if (input) commitMessage = input.value.trim();
+
+  try {
+    var result = await apiApprove(ctx.projectId, ctx.branch, token, commitMessage);
+    showToast(t('messages.approved', {phase: result.phase}));
+    await refreshState();
+  } catch (e) {
+    showToast(t('messages.approveFailed', {error: e.message}));
+  }
+}
+
+async function handleReject(feedback) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) { showToast(t('errors.workspaceNotSelected')); return; }
+
+  var comments = feedback || '';
+  if (!comments) {
+    comments = prompt(t('dialog.feedbackForRejection'));
+    if (comments === null) return;
+  }
+
+  var nonceResp = await apiGetGateNonce(ctx.projectId, ctx.branch);
+  var token = nonceResp.nonce;
+  if (!token) { showToast(t('errors.noApprovalGateActive')); return; }
+
+  try {
+    var result = await apiReject(ctx.projectId, ctx.branch, token, comments);
+    showToast(t('messages.rejected', {phase: result.phase}));
+    await refreshState();
+  } catch (e) {
+    showToast(t('messages.rejectFailed', {error: e.message}));
+  }
+}
+
+async function handleRejectWithInput() {
+  var input = document.getElementById('rejectFeedbackInput');
+  var feedback = input ? input.value.trim() : '';
+  if (!feedback) {
+    showToast(t('errors.pleaseProvideFeedback'));
+    if (input) input.focus();
+    return;
+  }
+  await handleReject(feedback);
+}
+
+function updateScopeStatusUI(status) {
+  var badge = document.getElementById('scopeStatusBadge');
+  var approveBtn = document.getElementById('scopeApproveBtn');
+  var rejectBtn = document.getElementById('scopeRejectBtn');
+  if (!badge || !approveBtn || !rejectBtn) return;
+
+  approveBtn.style.display = '';
+  rejectBtn.style.display = '';
+
+  if (status === 'approved') {
+    badge.textContent = t('badges.approved');
+    badge.className = 'badge badge-success';
+    approveBtn.textContent = t('buttons.revokeApproval');
+    approveBtn.className = 'btn btn-sm btn-outline';
+    approveBtn.onclick = function() { setScopeStatus('pending'); };
+    rejectBtn.textContent = t('buttons.reject');
+    rejectBtn.className = 'btn btn-sm btn-danger-outline';
+    rejectBtn.onclick = function() { setScopeStatus('rejected'); };
+  } else if (status === 'rejected') {
+    badge.textContent = t('badges.rejected');
+    badge.className = 'badge badge-danger';
+    approveBtn.textContent = t('buttons.approve');
+    approveBtn.className = 'btn btn-sm btn-primary';
+    approveBtn.onclick = function() { setScopeStatus('approved'); };
+    rejectBtn.textContent = t('buttons.revokeRejection');
+    rejectBtn.className = 'btn btn-sm btn-outline';
+    rejectBtn.onclick = function() { setScopeStatus('pending'); };
+  } else {
+    badge.textContent = t('badges.pending');
+    badge.className = 'badge badge-warning';
+    approveBtn.textContent = t('buttons.approve');
+    approveBtn.className = 'btn btn-sm btn-primary';
+    approveBtn.onclick = function() { setScopeStatus('approved'); };
+    rejectBtn.textContent = t('buttons.reject');
+    rejectBtn.className = 'btn btn-sm btn-danger-outline';
+    rejectBtn.onclick = function() { setScopeStatus('rejected'); };
+  }
+}
+
+async function setScopeStatus(status) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  try {
+    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/scope-status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: status})
+    });
+    if (resp.ok) {
+      updateScopeStatusUI(status);
+    }
+  } catch (e) {
+    console.error('Failed to set scope status:', e);
+  }
+}
+
+function updatePlanApprovalUI(status) {
+  var badge = document.getElementById('planStatusBadge');
+  var approveBtn = document.getElementById('planApproveBtn');
+  var rejectBtn = document.getElementById('planRejectBtn');
+  var restoreBtn = document.getElementById('planRestoreBtn');
+  if (restoreBtn) {
+    restoreBtn.style.display = LOCK_DATA.has_prev_plan ? '' : 'none';
+  }
+  if (!badge || !approveBtn || !rejectBtn) return;
+
+  approveBtn.style.display = '';
+  rejectBtn.style.display = '';
+
+  if (status === 'approved') {
+    badge.textContent = t('badges.approved');
+    badge.className = 'badge badge-success';
+    approveBtn.textContent = t('buttons.revokeApproval');
+    approveBtn.className = 'btn btn-sm btn-outline';
+    approveBtn.onclick = function() { setPlanStatus('pending'); };
+    rejectBtn.textContent = t('buttons.reject');
+    rejectBtn.className = 'btn btn-sm btn-danger-outline';
+    rejectBtn.onclick = function() { setPlanStatus('rejected'); };
+  } else if (status === 'rejected') {
+    badge.textContent = t('badges.rejected');
+    badge.className = 'badge badge-danger';
+    approveBtn.textContent = t('buttons.approve');
+    approveBtn.className = 'btn btn-sm btn-primary';
+    approveBtn.onclick = function() { setPlanStatus('approved'); };
+    rejectBtn.textContent = t('buttons.revokeRejection');
+    rejectBtn.className = 'btn btn-sm btn-outline';
+    rejectBtn.onclick = function() { setPlanStatus('pending'); };
+  } else {
+    badge.textContent = t('badges.pending');
+    badge.className = 'badge badge-warning';
+    approveBtn.textContent = t('buttons.approve');
+    approveBtn.className = 'btn btn-sm btn-primary';
+    approveBtn.onclick = function() { setPlanStatus('approved'); };
+    rejectBtn.textContent = t('buttons.reject');
+    rejectBtn.className = 'btn btn-sm btn-danger-outline';
+    rejectBtn.onclick = function() { setPlanStatus('rejected'); };
+  }
+}
+
+async function setPlanStatus(status) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  try {
+    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/plan-status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: status})
+    });
+    if (resp.ok) {
+      LOCK_DATA.plan_status = status;
+      updatePlanApprovalUI(status);
+    }
+  } catch (e) {
+    console.error('Failed to set plan status:', e);
+  }
+}
+
+async function refreshState() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var refreshBtn = document.querySelector('.header-refresh-btn');
+  if (refreshBtn) refreshBtn.classList.add('refreshing');
+
+  try {
+    var stateData = await apiGetState(ctx.projectId, ctx.branch);
+
+    applyStateData(stateData);
+
+    document.getElementById('phaseLabel').textContent = t('phase.label', {phase: state.phase, name: getPhaseName(state.phase)});
+    renderPhaseBar('phaseBarControl', 'phaseLabelsControl');
+    renderPhaseActions();
+    renderPhaseHistory();
+    renderPlan();
+    renderScope();
+    updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
+    updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
+    renderResearch();
+
+    try {
+      var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
+      if (diffData && diffData.files) {
+        DIFF_DATA = diffData;
+        renderFileList();
+        if (state.selectedFile) renderDiff(state.selectedFile);
+      }
+    } catch (de) {
+      console.warn('Failed to refresh diff:', de.message);
+    }
+  } catch (e) {
+    console.warn('Failed to refresh state:', e.message);
+  } finally {
+    if (refreshBtn) refreshBtn.classList.remove('refreshing');
+  }
+}
+
+async function restorePlan() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  try {
+    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/restore-plan', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    if (!resp.ok) {
+      var err = await resp.json();
+      showToast(t('messages.restoreFailed', {error: err.error || t('errors.unknownError')}));
+      return;
+    }
+    showToast(t('messages.previousPlanRestored'));
+    await refreshState();
+  } catch (e) {
+    showToast(t('messages.restoreFailed', {error: e.message}));
+  }
+}
