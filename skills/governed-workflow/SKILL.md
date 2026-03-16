@@ -284,9 +284,14 @@ User reviews the plan, scope, and system diagram in the admin panel.
 - **Approve** → advances to `3.1.0`
 - **Reject** → back to `3.0` with comments
 
-When rejected: read `workspace_get_comments`, resume plan-advisor with the comments, revise the plan.
-
 Poll `workspace_get_state` once per minute. After 10 polls, ask user in chat.
+
+**After rejection**: the backend sets the phase to `3.0`. Do NOT call `workspace_advance` immediately. Instead:
+1. Call `workspace_get_state` to confirm you're at `3.0`
+2. Call `workspace_get_comments` to read the rejection feedback
+3. Resume plan-advisor with the feedback to revise the plan
+4. Call `workspace_set_plan` and `workspace_set_scope` with the revised plan
+5. Call `workspace_advance` only after the plan is updated
 
 ---
 
@@ -355,7 +360,7 @@ Call `workspace_advance`. Backend auto-routes:
 
 **Actors**: Engineer sub-agents | **Code edits: ON (in sub-phase scope)**
 
-Fix validation issues and/or user review comments from `workspace_get_comments`. Call `workspace_advance` when done.
+You arrive here from validation failures OR user gate rejections. Read `workspace_get_comments` for user feedback. Deploy engineer sub-agents to fix the issues. Call `workspace_advance` when done.
 
 ---
 
@@ -366,7 +371,13 @@ User reviews the diff in the admin panel.
 - **Approve** (+ optional commit message) → `3.N.4`
 - **Reject** → back to `3.N.2` with comments
 
-Poll as in 3.1.
+Poll `workspace_get_state` once per minute. After 10 polls, ask user in chat.
+
+**After rejection**: the backend sets the phase to `3.N.2`. You are now in the fix phase — code edits are ON. Do NOT call `workspace_advance` immediately. Instead:
+1. Call `workspace_get_state` to confirm you're at `3.N.2`
+2. Call `workspace_get_comments` to read the rejection feedback
+3. Deploy engineer sub-agents to address the feedback
+4. Call `workspace_advance` only after fixes are complete
 
 ---
 
@@ -424,6 +435,14 @@ When complete:
 - **Approve** → `5`
 - **Reject** → back to `4.1`
 
+Poll `workspace_get_state` once per minute. After 10 polls, ask user in chat.
+
+**After rejection**: the backend sets the phase to `4.1`. Do NOT call `workspace_advance` immediately. Instead:
+1. Call `workspace_get_state` to confirm you're at `4.1`
+2. Call `workspace_get_comments` to read the rejection feedback
+3. Address the feedback — fix code, update resolutions
+4. Call `workspace_advance` only after fixes are complete
+
 ---
 
 ## Phase 5: Done
@@ -444,6 +463,20 @@ Push and MR/PR creation allowed. Task complete.
 | **4.1** | **ON (merged scope)** | **ON** | OFF |
 | 4.2 | OFF | OFF | OFF |
 | **5** | OFF | OFF | **ON** |
+
+---
+
+## User Gate Rejection — Critical Rule
+
+**When a user gate rejects, the backend moves you to the fix/rework phase. You MUST fix before advancing.**
+
+| Gate | On reject, phase becomes | What to do |
+|------|--------------------------|------------|
+| 3.1 (Plan Review) | `3.0` | Read comments, revise plan, then advance |
+| 3.N.3 (Code Review) | `3.N.2` | Read comments, fix code, then advance |
+| 4.2 (Final Approval) | `4.1` | Read comments, fix code, then advance |
+
+**NEVER call `workspace_advance` immediately after detecting a rejection.** Always: (1) read `workspace_get_state` to confirm the new phase, (2) read `workspace_get_comments` for feedback, (3) do the work, (4) then advance.
 
 ---
 
