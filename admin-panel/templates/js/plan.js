@@ -222,6 +222,11 @@ function getGroupStatus(group) {
   return 'pending';
 }
 
+function truncateLabel(text, maxLen) {
+  if (!text || text.length <= maxLen) return text;
+  return text.substring(0, maxLen - 1) + '…';
+}
+
 function buildMermaidDiagram(direction) {
   direction = direction || 'LR';
   var isDark = (localStorage.getItem('admin-panel-theme') || 'dark') === 'dark';
@@ -243,7 +248,7 @@ function buildMermaidDiagram(direction) {
   items.forEach(function(item, i) {
     var tasks = item.tasks || [];
     var subId = 'S' + (i + 1);
-    var subLabel = escapeHtml(item.id || '') + ' — ' + escapeHtml(item.name || t('phase.phaseName', {phase: i + 1}));
+    var subLabel = escapeHtml(item.id || '') + ' — ' + escapeHtml(truncateLabel(item.name || t('phase.phaseName', {phase: i + 1}), 40));
 
     lines.push('    subgraph ' + subId + '["' + subLabel + '"]');
     lines.push('    direction ' + innerDirection);
@@ -285,7 +290,7 @@ function buildMermaidDiagram(direction) {
       members.forEach(function(m, mi) {
         var tId = taskIds[mi];
         var agentBadge = m.task.agent ? '<br/>' + escapeHtml(m.task.agent) : '';
-        var label = escapeHtml(m.task.title || t('plan.task', {n: m.index + 1})) + agentBadge;
+        var label = escapeHtml(truncateLabel(m.task.title || t('plan.task', {n: m.index + 1}), 50)) + agentBadge;
         lines.push('        ' + tId + '["' + label + '"]');
       });
 

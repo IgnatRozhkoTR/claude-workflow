@@ -121,6 +121,14 @@
 #planDiagram svg {
   display: block;
   transform-origin: top left;
+  max-width: 100%;
+}
+
+#planDiagram svg .nodeLabel {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #systemDiagram {
