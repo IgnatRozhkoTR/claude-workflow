@@ -144,6 +144,8 @@ Each sub-phase needs:
 
 **Sub-phase count guidance**: Don't inflate. Multiple sub-phases only when the task naturally splits into independent chunks. Fewer is better.
 
+**Task grouping (parallel execution)**: Tasks within a sub-phase that don't conflict MUST share the same group name so they execute in parallel (launched in a single message). Only separate into sequential groups when there's a real dependency — e.g., test engineers wait for engineers. Default assumption: independent tasks are parallel unless proven otherwise.
+
 ### >>> STOP — present the plan and wait for user approval.
 
 Do NOT implement until user confirms. If user requests changes, revise and re-present.
@@ -156,11 +158,18 @@ Do NOT implement until user confirms. If user requests changes, revise and re-pr
 
 For each sub-phase N, deploy in two stages:
 
-**Stage 1 — Production code**:
+**Stage 1 — Production code**: Launch all engineer sub-agents for the same group in a single message (parallel):
 ```
 Agent(
   subagent_type: "middle-backend-engineer",
-  prompt: "Implement the following tasks for sub-phase {N}: {task descriptions}
+  prompt: "Implement task: {task_1_description}
+           Working directory: {working_dir}
+           Scope: {must and may patterns}
+           Do NOT write tests — a separate test engineer handles that."
+)
+Agent(
+  subagent_type: "middle-backend-engineer",
+  prompt: "Implement task: {task_2_description}
            Working directory: {working_dir}
            Scope: {must and may patterns}
            Do NOT write tests — a separate test engineer handles that."

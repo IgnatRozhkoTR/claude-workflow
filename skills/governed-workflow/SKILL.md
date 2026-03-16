@@ -250,6 +250,19 @@ Agent(
 
 **Sub-phase count guidance**: Multiple sub-phases are NOT required. Use them only when the task naturally splits into independent, separately reviewable chunks — different layers, modules, or concerns that benefit from isolated review. For simple or atomic tasks, use a single sub-phase (just `3.1`). The purpose of sub-phases is to make the user's review manageable, not to inflate the plan. When in doubt, fewer sub-phases is better.
 
+**Task grouping (parallel execution)**: Tasks within a sub-phase that don't conflict MUST be assigned the same `group` field so they execute in parallel. Only use sequential (different groups or no group) when tasks have real dependencies — e.g., test engineer waits for engineer to finish. The diagram renders grouped tasks as fork/join. Example:
+```json
+{
+  "tasks": [
+    {"title": "Add UserService", "agent": "middle-backend-engineer", "group": "impl"},
+    {"title": "Add OrderService", "agent": "middle-backend-engineer", "group": "impl"},
+    {"title": "Write UserService tests", "agent": "middle-backend-test-engineer", "group": "test"},
+    {"title": "Write OrderService tests", "agent": "middle-backend-test-engineer", "group": "test"}
+  ]
+}
+```
+Here `impl` tasks run in parallel, then `test` tasks run in parallel after. Without groups, all 4 would run sequentially — wasteful when they don't conflict.
+
 **Scope (must vs may)**: Call `workspace_set_scope` alongside the plan. The distinction matters:
 - **must**: Broad areas where absence of changes means the task is incomplete. These are ticket-level requirements obvious *before* planning — e.g., if the ticket says "add BDD scenarios", the BDD module is must-scope. Keep this list short.
 - **may**: Specific files and packages identified *during* planning. Most paths from the execution plan belong here. These are permitted but not required — the plan proposes them, but the user decides if they're all necessary.
