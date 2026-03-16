@@ -1,7 +1,7 @@
 ---
 name: middle-backend-engineer
 description: DEFAULT agent for most backend implementation. CRUD, multi-file coordination, method signature propagation, standard business logic, bug fixes with known cause, simple refactoring with clear target. NOT for vague requirements, unknown root cause bugs, or major architectural changes.
-tools: Glob, Grep, LS, Read, Edit, MultiEdit, Write
+tools: Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write
 model: sonnet
 color: green
 ---
