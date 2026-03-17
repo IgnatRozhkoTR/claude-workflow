@@ -301,7 +301,7 @@ if [ "$TOOL_NAME" = "Bash" ]; then
 fi
 
 # ─── MCP tools: intercept GitLab MR creation ───
-if echo "$TOOL_NAME" | grep -qiE 'mcp.*gitlab.*merge_request|mcp.*gitlab.*mr'; then
+if echo "$TOOL_NAME" | grep -qiE 'mcp.*gitlab.*create_merge_request'; then
   PHASE=$(echo "$(get_workspace_info "$CWD")" | cut -d'|' -f1)
   if [ -n "$PHASE" ] && [ "$PHASE" != "5" ]; then
     deny "MR creation blocked: workspace is in phase $PHASE. MR creation allowed only in phase 5 (Done)."
