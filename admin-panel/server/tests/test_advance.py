@@ -335,8 +335,8 @@ def test_address_fix_passes_no_issues(workspace, project):
     assert result["phase"] == "4.2"
 
 
-def test_address_fix_blocked_unresolved_review_comment(workspace, project):
-    """Phase 4.1 blocks when a scope='review' discussion is still open (ReviewGuard)."""
+def test_address_fix_advances_with_unresolved_review(workspace, project):
+    """Phase 4.1 can advance to 4.2 even with unresolved reviews — user resolves at gate."""
     plan = make_plan_json(1)
     set_phase(
         workspace["id"], "4.1",
@@ -345,13 +345,12 @@ def test_address_fix_blocked_unresolved_review_comment(workspace, project):
         scope_status="approved",
     )
     add_progress(workspace["id"], "4", "Addressing fixes")
-    add_comment(workspace["id"], scope="review", text="Unresolved review finding")
+    add_comment(workspace["id"], scope="review", text="Review finding", resolution="fixed")
 
     ws = _get_ws_row(workspace["id"])
     result, code = perform_advance(ws, project["path"])
-    assert code == 422
-    assert "guard_errors" in result
-    assert any(e["guard"] == "review_resolved" for e in result["guard_errors"])
+    assert code == 202
+    assert result["phase"] == "4.2"
 
 
 def test_address_fix_passes_all_fixed_validated(workspace, project):

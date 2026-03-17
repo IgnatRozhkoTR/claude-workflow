@@ -485,6 +485,17 @@ Push and MR/PR creation allowed. Task complete.
 
 ---
 
+## Review Item Resolution Flow
+
+Review items (scope='review' discussions) follow a two-step lifecycle:
+
+1. **Agent sets resolution**: After addressing a finding, call `workspace_resolve_review_issue(id, "fixed"|"false_positive"|"out_of_scope")`. This marks what the agent did but does NOT resolve the item.
+2. **User resolves**: At the code review gate (3.N.3) or final approval (4.2), the user reviews resolutions and resolves each item in the admin panel.
+
+The `ReviewGuard` only blocks at user gate phases (3.N.3, 4.2) — it does NOT block during implementation or fixes. The agent can freely advance from 3.N.2 (Fixes) to 3.N.3 (Code Review) with unresolved items. The user resolves them during review.
+
+---
+
 ## Advance Error Handling
 
 | Code | Meaning |

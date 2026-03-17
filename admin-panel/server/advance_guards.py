@@ -1,5 +1,6 @@
 """Cross-cutting advance guards that apply across multiple phases."""
 import json
+import re
 from abc import ABC, abstractmethod
 
 from db import get_db
@@ -141,17 +142,18 @@ class ScopeApprovedGuard(AdvanceGuard):
 class ReviewGuard(AdvanceGuard):
     """Blocks advancement if any review items (scope='review') are unresolved.
 
-    Review comments and findings must be resolved by the user before the workflow
-    can advance. Skips phases before 3.0 and the blind review phase (4.0).
+    Only active at user gate phases where approval happens: code review (3.N.3)
+    and final approval (4.2). The user resolves items during review, not before.
     """
+
+    _GATE_PATTERN = re.compile(r'^3\.\d+\.3$')
 
     @property
     def name(self) -> str:
         return "review_resolved"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        p = Phase(phase)
-        if p < "3.0" or p == "4.0":
+        if phase != "4.2" and not self._GATE_PATTERN.match(phase):
             return {"guard": self.name, "status": "skip"}
 
         db = get_db()

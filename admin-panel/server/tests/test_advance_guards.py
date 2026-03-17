@@ -209,39 +209,39 @@ def test_set_plan_revokes_scope_status(workspace, project):
 
 # ── ReviewGuard tests ────────────────────────────────────────────────────────
 
-def test_review_guard_skip_at_exempt_phases(workspace, project):
-    """Review guard skips at pre-implementation and review-creation phases."""
+def test_review_guard_skip_at_non_gate_phases(workspace, project):
+    """Review guard skips at all phases except user gates 3.N.3 and 4.2."""
     guard = ReviewGuard()
-    # Add an unresolved review comment — should still skip at exempt phases
     add_comment(workspace["id"], scope="review", text="Unresolved finding", resolution="open")
     ws = _get_ws_row(workspace["id"])
-    for phase in ("0", "1.0", "1.1", "1.2", "1.3", "2.0", "2.1", "4.0"):
+    for phase in ("0", "1.0", "1.1", "1.2", "1.3", "2.0", "2.1",
+                   "3.1.0", "3.1.1", "3.1.2", "3.1.4", "4.0", "4.1"):
         result = guard.evaluate(phase, ws, {})
         assert result["status"] == "skip", f"Expected skip at phase {phase}"
 
 
 def test_review_guard_approved_no_items(workspace, project):
-    """No review items — guard approves."""
+    """No review items — guard approves at code review gate."""
     guard = ReviewGuard()
-    set_phase(workspace["id"], "3.1.0")
+    set_phase(workspace["id"], "3.1.3")
     ws = _get_ws_row(workspace["id"])
-    result = guard.evaluate("3.1.0", ws, {})
+    result = guard.evaluate("3.1.3", ws, {})
     assert result["status"] == "approved"
 
 
-def test_review_guard_rejected_open_comments(workspace, project):
-    """Unresolved review comments — guard rejects."""
+def test_review_guard_rejected_at_code_review_gate(workspace, project):
+    """Unresolved review comments block approval at 3.N.3."""
     guard = ReviewGuard()
     add_comment(workspace["id"], scope="review", text="Open finding", resolution="open")
-    set_phase(workspace["id"], "3.1.1")
+    set_phase(workspace["id"], "3.1.3")
     ws = _get_ws_row(workspace["id"])
-    result = guard.evaluate("3.1.1", ws, {})
+    result = guard.evaluate("3.1.3", ws, {})
     assert result["status"] == "rejected"
     assert result["unresolved_count"] == 1
 
 
-def test_review_guard_approved_all_resolved(workspace, project):
-    """All review items resolved — guard approves."""
+def test_review_guard_approved_all_resolved_at_gate(workspace, project):
+    """All review items resolved — guard approves at 4.2."""
     guard = ReviewGuard()
     from db import get_db
     comment_id = add_comment(workspace["id"], scope="review", text="Fixed finding", resolution="fixed")
@@ -249,30 +249,46 @@ def test_review_guard_approved_all_resolved(workspace, project):
     db.execute("UPDATE discussions SET status = 'resolved' WHERE id = ?", (comment_id,))
     db.commit()
     db.close()
-    set_phase(workspace["id"], "4.1")
+    set_phase(workspace["id"], "4.2")
     ws = _get_ws_row(workspace["id"])
-    result = guard.evaluate("4.1", ws, {})
+    result = guard.evaluate("4.2", ws, {})
     assert result["status"] == "approved"
 
 
-def test_review_guard_rejects_at_execution_phase(workspace, project):
-    """Guard blocks at execution phases (3.N.K) when review items are open."""
+def test_review_guard_rejects_at_final_approval(workspace, project):
+    """Guard blocks at 4.2 when review items are unresolved."""
     guard = ReviewGuard()
-    add_comment(workspace["id"], scope="review", text="Blocking comment")
-    set_phase(workspace["id"], "3.1.2")
+    add_comment(workspace["id"], scope="review", text="Blocking comment", resolution="open")
+    set_phase(workspace["id"], "4.2")
     ws = _get_ws_row(workspace["id"])
-    result = guard.evaluate("3.1.2", ws, {})
+    result = guard.evaluate("4.2", ws, {})
     assert result["status"] == "rejected"
 
 
-def test_advance_blocked_by_review_guard(workspace, project):
-    """perform_advance blocked by ReviewGuard with unresolved review item."""
+def test_review_guard_does_not_block_fixes_to_review(workspace, project):
+    """Agent can advance from 3.N.2 (fixes) to 3.N.3 (review) with unresolved items."""
+    guard = ReviewGuard()
+    add_comment(workspace["id"], scope="review", text="Open finding", resolution="fixed")
+    set_phase(workspace["id"], "3.1.2")
+    ws = _get_ws_row(workspace["id"])
+    result = guard.evaluate("3.1.2", ws, {})
+    assert result["status"] == "skip"
+
+
+def test_advance_blocked_by_review_guard_at_gate(workspace, project):
+    """approve_gate blocked by ReviewGuard with unresolved review item at 4.2."""
     add_comment(workspace["id"], scope="review", text="Blocking finding", resolution="open")
-    set_phase(workspace["id"], "4.1", scope_status="approved", plan_status="approved")
-    add_progress(workspace["id"], "4", "Fixes done")
+    set_phase(workspace["id"], "4.2", scope_status="approved", plan_status="approved")
     add_research(workspace["id"], topic="Good", proven=1)
     ws = _get_ws_row(workspace["id"])
-    result, code = perform_advance(ws, project["path"])
-    assert code == 422
+    from advance_service import approve_gate
+    nonce_row = _get_ws_row(workspace["id"])
+    from db import get_db
+    db = get_db()
+    db.execute("UPDATE workspaces SET gate_nonce = 'test-nonce' WHERE id = ?", (workspace["id"],))
+    db.commit()
+    db.close()
+    ws = _get_ws_row(workspace["id"])
+    result = approve_gate(ws, "test-nonce")
+    assert "error" in result
     assert "guard_errors" in result
-    assert any(e["guard"] == "review_resolved" for e in result["guard_errors"])
