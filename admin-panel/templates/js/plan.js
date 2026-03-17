@@ -370,6 +370,10 @@ async function renderMermaidDiagram() {
   if (!container || typeof mermaid === 'undefined') return;
 
   const definition = buildMermaidDiagram('LR');
+  if (!definition) {
+    container.innerHTML = '';
+    return;
+  }
 
   try {
     const { svg } = await mermaid.render('planMermaid', definition);
