@@ -67,7 +67,8 @@ def init_db():
                 workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
                 from_phase TEXT NOT NULL,
                 to_phase TEXT NOT NULL,
-                time TEXT NOT NULL
+                time TEXT NOT NULL,
+                commit_hash TEXT
             );
 
             CREATE TABLE IF NOT EXISTS progress_entries (
@@ -226,6 +227,10 @@ def _migrate_db(db):
                 time TEXT NOT NULL
             )
         """)
+
+    ph_columns = {row[1] for row in db.execute("PRAGMA table_info(phase_history)")}
+    if "commit_hash" not in ph_columns:
+        db.execute("ALTER TABLE phase_history ADD COLUMN commit_hash TEXT")
 
     # Research discussions: add type and hidden to discussions table
     disc_columns = {row[1] for row in db.execute("PRAGMA table_info(discussions)")}

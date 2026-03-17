@@ -421,6 +421,18 @@ class ExecutionAdvancer(PhaseAdvancer):
         if not ok:
             return False, {"message": t("advance.error.commitNotFound", locale, commit_hash=commit_hash)}
 
+        db = get_db()
+        try:
+            used = db.execute(
+                "SELECT id FROM phase_history WHERE workspace_id = ? AND commit_hash = ?",
+                (ws["id"], commit_hash)
+            ).fetchone()
+        finally:
+            db.close()
+
+        if used:
+            return False, {"message": t("advance.error.commitAlreadyUsed", locale, commit_hash=commit_hash)}
+
         if not check_progress(ws["id"], f"3.{self._n}"):
             return False, {"message": t("advance.error.noSubPhaseProgress", locale)}
 
@@ -505,7 +517,7 @@ def get_advancer(phase):
     return None
 
 
-def transition_phase(db, ws, new_phase, clear_nonce=False):
+def transition_phase(db, ws, new_phase, clear_nonce=False, commit_hash=None):
     """Shared phase transition: update phase, record history, manage nonce.
 
     Returns True if the transition succeeded, False if the phase was already changed
@@ -519,8 +531,8 @@ def transition_phase(db, ws, new_phase, clear_nonce=False):
         return False
 
     db.execute(
-        "INSERT INTO phase_history (workspace_id, from_phase, to_phase, time) VALUES (?, ?, ?, ?)",
-        (ws["id"], ws["phase"], new_phase, datetime.now().isoformat())
+        "INSERT INTO phase_history (workspace_id, from_phase, to_phase, time, commit_hash) VALUES (?, ?, ?, ?, ?)",
+        (ws["id"], ws["phase"], new_phase, datetime.now().isoformat(), commit_hash)
     )
 
     if clear_nonce:
@@ -664,7 +676,7 @@ def perform_advance(ws, project_path, body=None):
 
     db = get_db()
     try:
-        if not transition_phase(db, ws, new_phase):
+        if not transition_phase(db, ws, new_phase, commit_hash=body.get("commit_hash")):
             return {"error": t("advance.error.phaseAlreadyChanged", locale)}, 409
 
         db.commit()

@@ -138,6 +138,7 @@
   "advance.error.noMustScopeChanges": "No changes in must-scope entry '{pattern}'. Engineers must complete all required areas.",
   "advance.error.commitHashRequired": "commit_hash is required.",
   "advance.error.commitNotFound": "Commit {commit_hash} not found in repository.",
+  "advance.error.commitAlreadyUsed": "Commit {commit_hash} was already used in a previous sub-phase. Provide a new commit.",
   "advance.error.noSubPhaseProgress": "Call workspace_update_progress to record sub-phase completion.",
   "advance.error.acceptanceCriteriaNotMet": "Acceptance criteria not met:\n{messages}\nFix the issues and try advancing again.",
   "advance.error.awaitingUserApproval": "Awaiting user approval",

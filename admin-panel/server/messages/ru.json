@@ -138,6 +138,7 @@
   "advance.error.noMustScopeChanges": "Нет изменений в обязательной области '{pattern}'. Инженеры должны завершить все обязательные области.",
   "advance.error.commitHashRequired": "commit_hash обязателен.",
   "advance.error.commitNotFound": "Коммит {commit_hash} не найден в репозитории.",
+  "advance.error.commitAlreadyUsed": "Коммит {commit_hash} уже использовался в предыдущем подэтапе. Укажите новый коммит.",
   "advance.error.noSubPhaseProgress": "Вызовите workspace_update_progress для записи завершения подфазы.",
   "advance.error.acceptanceCriteriaNotMet": "Критерии приёмки не выполнены:\n{messages}\nИсправьте проблемы и попробуйте продвинуться снова.",
   "advance.error.awaitingUserApproval": "Ожидается одобрение пользователя",
