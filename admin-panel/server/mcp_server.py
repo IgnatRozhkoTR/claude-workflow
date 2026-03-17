@@ -329,6 +329,82 @@ def workspace_get_plan() -> dict:
 
 
 @mcp.tool()
+def workspace_extend_plan(subphase: dict, scope: dict = None) -> dict:
+    """Append a new sub-phase to the execution plan without rewriting existing sub-phases.
+
+    - subphase: a single execution item with 'name' (string) and 'tasks' (list of task objects).
+      The 'id' is auto-assigned as 3.(max_n+1). Each task needs: title (string), files (list), agent (string).
+      Optional task fields: group (string), status (string, default 'pending').
+    - scope: optional scope entry for the new sub-phase, e.g. {"must": ["src/foo/"], "may": ["src/bar/"]}
+
+    The plan_status and scope_status are set to 'pending' (approval revoked).
+    Existing sub-phases and their data are not modified."""
+    ws, project = _detect_workspace()
+    if not ws:
+        return {"error": t("mcp.error.noWorkspace")}
+
+    locale = ws["locale"] or "en"
+    phase = ws["phase"]
+    if Phase(phase) < "2.0":
+        return {"error": t("mcp.error.planPhase", locale)}
+
+    if not subphase or not isinstance(subphase, dict):
+        return {"error": "subphase must be a dict with 'name' and 'tasks'"}
+
+    name = subphase.get("name", "").strip() if isinstance(subphase.get("name"), str) else ""
+    tasks = subphase.get("tasks", [])
+    if not name:
+        return {"error": "subphase.name is required"}
+    if not tasks or not isinstance(tasks, list):
+        return {"error": "subphase.tasks must be a non-empty list"}
+
+    for i, task in enumerate(tasks):
+        if not isinstance(task, dict) or not task.get("title") or not isinstance(task.get("files"), list) or not task.get("agent"):
+            return {"error": f"task[{i}] must have title (string), files (list), and agent (string)"}
+
+    plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {"description": "", "execution": []}
+    execution = plan.get("execution", [])
+
+    max_n = 0
+    for item in execution:
+        m = re.match(r'^3\.(\d+)$', item.get("id", ""))
+        if m:
+            max_n = max(max_n, int(m.group(1)))
+
+    new_n = max_n + 1
+    new_item = {"id": f"3.{new_n}", "name": name, "tasks": tasks}
+    execution.append(new_item)
+    plan["execution"] = execution
+
+    db = get_db()
+    try:
+        db.execute(
+            """UPDATE workspaces SET
+                prev_plan_json = plan_json,
+                prev_scope_json = scope_json,
+                prev_phase = phase,
+                prev_plan_status = plan_status,
+                prev_scope_status = scope_status
+            WHERE id = ?""",
+            (ws["id"],)
+        )
+
+        db.execute("UPDATE workspaces SET plan_json = ? WHERE id = ?", (json.dumps(plan), ws["id"]))
+
+        if scope and isinstance(scope, dict):
+            scope_json = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
+            scope_json[f"3.{new_n}"] = scope
+            db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (json.dumps(scope_json), ws["id"]))
+
+        db.execute("UPDATE workspaces SET plan_status = 'pending', scope_status = 'pending' WHERE id = ?", (ws["id"],))
+        db.commit()
+
+        return {"ok": True, "new_subphase_id": f"3.{new_n}", "plan_status": "pending", "scope_status": "pending"}
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def workspace_restore_plan() -> dict:
     """Restore the previous plan version, swapping it with the current plan.
 
@@ -865,13 +941,14 @@ def workspace_resolve_review_issue(issue_id: int, resolution: str) -> dict:
     - resolution:
       - 'fixed': code was changed to address the issue
       - 'false_positive': issue is invalid, code is correct as-is
-      - 'out_of_scope': legitimate issue but outside the allowed scope"""
+      - 'out_of_scope': legitimate issue but outside the allowed scope
+      - 'open': reset — used by review-validator to reopen incorrectly resolved issues"""
     ws, project = _detect_workspace()
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
     locale = ws["locale"] or "en"
-    if resolution not in ("fixed", "false_positive", "out_of_scope"):
+    if resolution not in ("fixed", "false_positive", "out_of_scope", "open"):
         return {"error": t("mcp.error.invalidResolution", locale)}
 
     db = get_db()

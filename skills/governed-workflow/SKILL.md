@@ -84,6 +84,7 @@ Phases stored as strings: `"0"`, `"2.1"`, `"3.2.3"`. N = 1, 2, 3... from the app
 | `workspace_propose_criteria` | Propose acceptance criteria (unit_test, integration_test, bdd_scenario, custom) |
 | `workspace_update_criteria` | Update criteria description or details |
 | `workspace_get_criteria` | Get all acceptance criteria with their statuses |
+| `workspace_extend_plan` | Append a new sub-phase to the plan without rewriting existing ones (auto-assigns ID, optional scope) |
 | `workspace_submit_review_issue` | Submit a review finding with file/line location (critical/major only) |
 | `workspace_get_review_issues` | Get all review items, optionally filtered by resolution status |
 | `workspace_resolve_review_issue` | Set resolution on a review item (fixed, false_positive, out_of_scope) |

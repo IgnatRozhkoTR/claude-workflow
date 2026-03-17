@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Blind code reviewer for governed workflow phase 4.0. Reviews code changes without implementation context. Submits only critical and major issues via MCP tool. Use for agentic code review — do NOT brief with implementation details.
-tools: Bash, Glob, Grep, LS, Read
+tools: Bash, Glob, Grep, LS, Read, mcp__workspace__workspace_submit_review_issue
 model: opus
 color: red
 ---
