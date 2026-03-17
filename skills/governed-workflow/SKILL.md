@@ -274,6 +274,8 @@ When plan is agreed:
 3. Call `workspace_update_progress` for phase `"3"`
 4. Call `workspace_advance`
 
+**Extending the plan later**: If during execution the user requests additional changes within the same ticket, or new work is discovered that warrants a new sub-phase, use `workspace_extend_plan` instead of rewriting the entire plan with `workspace_set_plan`. This appends a new sub-phase (auto-assigned ID, with scope) without touching existing sub-phases — fewer tokens, less risk of breaking the plan. The plan and scope statuses are set to 'pending' (user must re-approve).
+
 **Advance 3.0 → 3.1** requires: valid plan with ≥1 execution sub-phase + progress entry `"3"`.
 
 ---
@@ -338,6 +340,8 @@ Agent(
            The original plan assumed {X} but we found {Y}. What's the best path forward?"
 )
 ```
+
+If the user requests additional work or new requirements emerge, use `workspace_extend_plan` to add a new sub-phase rather than rewriting the entire plan. This preserves existing sub-phases and their progress.
 
 Call `workspace_advance` when both implementation and tests are complete.
 
