@@ -44,7 +44,9 @@ if tool_name == "Bash":
     command = data.get("tool_input", {}).get("command", "")
     FILE_MOD_PATTERN = re.compile(
         r'(?<!\d\s)>\s|>>\s|\btee\s|\bdd\s.*\bof=|sed\s+-i|perl\s+-i'
-        r'|python3?\s+-c.*open\(|ruby\s+-e.*File'
+        r'|python3?\s.*open\(|python3?\s.*write_text|python3?\s.*write_bytes|python3?\s.*Path\('
+        r'|python3?\s*<<|echo\s.*\|\s*python3?'
+        r'|ruby\s+-e.*File'
         r'|\bcp\s|\bmv\s|\brm\s|\brmdir\s|\bln\s'
         r'|\bchmod\s|\bchown\s|\btruncate\s|\bpatch\s'
         r'|\bfind\s.*-delete|\bfind\s.*-exec\s+rm'
