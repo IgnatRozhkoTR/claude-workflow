@@ -329,13 +329,13 @@ def workspace_get_plan() -> dict:
 
 
 @mcp.tool()
-def workspace_extend_plan(subphase: dict, scope: dict = None) -> dict:
+def workspace_extend_plan(subphase: dict, scope: dict) -> dict:
     """Append a new sub-phase to the execution plan without rewriting existing sub-phases.
 
     - subphase: a single execution item with 'name' (string) and 'tasks' (list of task objects).
       The 'id' is auto-assigned as 3.(max_n+1). Each task needs: title (string), files (list), agent (string).
       Optional task fields: group (string), status (string, default 'pending').
-    - scope: optional scope entry for the new sub-phase, e.g. {"must": ["src/foo/"], "may": ["src/bar/"]}
+    - scope: scope entry for the new sub-phase with must and may patterns, e.g. {"must": ["src/foo/"], "may": ["src/bar/"]}
 
     The plan_status and scope_status are set to 'pending' (approval revoked).
     Existing sub-phases and their data are not modified."""
@@ -347,6 +347,9 @@ def workspace_extend_plan(subphase: dict, scope: dict = None) -> dict:
     phase = ws["phase"]
     if Phase(phase) < "2.0":
         return {"error": t("mcp.error.planPhase", locale)}
+
+    if not scope or not isinstance(scope, dict):
+        return {"error": "scope is required — must be a dict with 'must' and/or 'may' patterns"}
 
     if not subphase or not isinstance(subphase, dict):
         return {"error": "subphase must be a dict with 'name' and 'tasks'"}
@@ -391,10 +394,9 @@ def workspace_extend_plan(subphase: dict, scope: dict = None) -> dict:
 
         db.execute("UPDATE workspaces SET plan_json = ? WHERE id = ?", (json.dumps(plan), ws["id"]))
 
-        if scope and isinstance(scope, dict):
-            scope_json = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
-            scope_json[f"3.{new_n}"] = scope
-            db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (json.dumps(scope_json), ws["id"]))
+        scope_json = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
+        scope_json[f"3.{new_n}"] = scope
+        db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (json.dumps(scope_json), ws["id"]))
 
         db.execute("UPDATE workspaces SET plan_status = 'pending', scope_status = 'pending' WHERE id = ?", (ws["id"],))
         db.commit()
