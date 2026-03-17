@@ -329,13 +329,16 @@ def workspace_get_plan() -> dict:
 
 
 @mcp.tool()
-def workspace_extend_plan(subphase: dict, scope: dict) -> dict:
+def workspace_extend_plan(subphase: dict, scope: dict, diagrams: list = None, replace_diagrams: bool = False) -> dict:
     """Append a new sub-phase to the execution plan without rewriting existing sub-phases.
 
     - subphase: a single execution item with 'name' (string) and 'tasks' (list of task objects).
       The 'id' is auto-assigned as 3.(max_n+1). Each task needs: title (string), files (list), agent (string).
       Optional task fields: group (string), status (string, default 'pending').
     - scope: scope entry for the new sub-phase with must and may patterns, e.g. {"must": ["src/foo/"], "may": ["src/bar/"]}
+    - diagrams: optional list of system diagrams to add, each with 'title' (string) and 'diagram' (string, Mermaid syntax).
+      By default, diagrams are appended to the existing list. Set replace_diagrams=true to replace the entire list.
+    - replace_diagrams: if true, replace all existing diagrams with the provided list. If false (default), append.
 
     The plan_status and scope_status are set to 'pending' (approval revoked).
     Existing sub-phases and their data are not modified."""
@@ -378,6 +381,15 @@ def workspace_extend_plan(subphase: dict, scope: dict) -> dict:
     new_item = {"id": f"3.{new_n}", "name": name, "tasks": tasks}
     execution.append(new_item)
     plan["execution"] = execution
+
+    if diagrams and isinstance(diagrams, list):
+        if replace_diagrams:
+            plan["systemDiagram"] = diagrams
+        else:
+            existing = plan.get("systemDiagram", [])
+            if isinstance(existing, str):
+                existing = [{"title": "", "diagram": existing}] if existing else []
+            plan["systemDiagram"] = existing + diagrams
 
     db = get_db()
     try:
