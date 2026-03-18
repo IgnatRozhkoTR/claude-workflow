@@ -28,10 +28,6 @@ async function handleReject(feedback) {
   if (!ctx) { showToast(t('errors.workspaceNotSelected')); return; }
 
   var comments = feedback || '';
-  if (!comments) {
-    comments = prompt(t('dialog.feedbackForRejection'));
-    if (comments === null) return;
-  }
 
   var nonceResp = await apiGetGateNonce(ctx.projectId, ctx.branch);
   var token = nonceResp.nonce;
@@ -49,11 +45,6 @@ async function handleReject(feedback) {
 async function handleRejectWithInput() {
   var input = document.getElementById('rejectFeedbackInput');
   var feedback = input ? input.value.trim() : '';
-  if (!feedback) {
-    showToast(t('errors.pleaseProvideFeedback'));
-    if (input) input.focus();
-    return;
-  }
   await handleReject(feedback);
 }
 
