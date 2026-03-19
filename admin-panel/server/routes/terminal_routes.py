@@ -143,15 +143,16 @@ def terminal_resume(project, branch):
         name = session_name(project, branch)
         working_dir = ws['working_dir']
 
+        created = False
         if not session_exists(name):
             create_session(name, working_dir)
-
-        send_keys(name, build_claude_command(ws, resume=True))
+            send_keys(name, build_claude_command(ws, resume=True))
+            created = True
 
         return jsonify({
             'session': name,
             'attach_command': f'tmux attach -t {name}',
-            'status': 'resumed'
+            'status': 'created' if created else 'attached'
         })
     finally:
         db.close()
