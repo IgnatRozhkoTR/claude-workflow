@@ -200,6 +200,9 @@ async function renderSystemDiagram() {
       });
     }
 
+    // Replace literal \n with <br/> for Mermaid line breaks
+    themed = themed.replace(/\\n/g, '<br/>');
+
     try {
       var renderResult = await mermaid.render('sysDiag_' + idx, themed);
       diagramDiv.innerHTML = renderResult.svg;
@@ -441,7 +444,10 @@ function expandDiagram(containerId) {
       wrapper.style.cssText = 'width: 100%; overflow: visible; cursor: grab;';
       body.appendChild(wrapper);
 
-      mermaid.render('overlayPlanMermaid', definition).then(function(result) {
+      // Replace literal \n with <br/> for Mermaid line breaks
+      var processedDef = definition.replace(/\\n/g, '<br/>');
+
+      mermaid.render('overlayPlanMermaid', processedDef).then(function(result) {
         wrapper.innerHTML = result.svg;
         _overlayZoom = 100;
         _applyOverlayZoom();
@@ -534,17 +540,17 @@ function closeDiagramOverlay(e) {
 }
 
 function overlayZoom(delta) {
-  _overlayZoom = Math.max(25, Math.min(400, _overlayZoom + delta * 25));
+  _overlayZoom = Math.max(40, Math.min(300, _overlayZoom + delta));
   _applyOverlayZoom();
 }
 
 function _applyOverlayZoom() {
   var body = document.getElementById('diagramOverlayBody');
-  body.querySelectorAll('svg').forEach(function(svg) {
-    svg.style.transform = 'scale(' + (_overlayZoom / 100) + ')';
-    svg.style.transformOrigin = 'top left';
-  });
-  document.getElementById('overlayZoomLevel').textContent = _overlayZoom + '%';
+  if (body) {
+    body.style.zoom = (_overlayZoom / 100);
+  }
+  var label = document.getElementById('overlayZoomLevel');
+  if (label) label.textContent = _overlayZoom + '%';
 }
 
 function renderPlan() {

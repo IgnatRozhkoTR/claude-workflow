@@ -114,10 +114,16 @@
   flex-direction: column;
   cursor: grab;
 }
+.diagram-overlay-diagram {
+  margin-bottom: 24px;
+}
+.diagram-overlay-diagram svg {
+  overflow: visible;
+  max-width: none;
+}
 .diagram-overlay-body svg {
   max-width: none;
   max-height: none;
-  transform-origin: top left;
 }
 .diagram-overlay-body svg foreignObject {
   overflow: visible;

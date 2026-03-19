@@ -33,7 +33,7 @@
           noteBkgColor: '#3a3a2d', noteBorderColor: '#c7b76b', noteTextColor: '#f0ede8'
         } };
   }
-  function getMermaidInit() { var t = getMermaidTheme(); var vars = Object.assign({}, t.themeVariables || {}, {fontSize: '12px'}); var varsStr = Object.keys(vars).map(function(k) { return "'" + k + "': '" + vars[k] + "'"; }).join(', '); return "%%{init: {'theme': '" + t.theme + "', 'themeVariables': {" + varsStr + "}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 45, 'padding': 10, 'useMaxWidth': false}}}%%"; }
+  function getMermaidInit() { var t = getMermaidTheme(); var vars = Object.assign({}, t.themeVariables || {}, {fontSize: '12px'}); var varsStr = Object.keys(vars).map(function(k) { return "'" + k + "': '" + vars[k] + "'"; }).join(', '); return "%%{init: {'theme': '" + t.theme + "', 'themeVariables': {" + varsStr + "}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 45, 'padding': 10, 'useMaxWidth': false}, 'classDiagram': {'useMaxWidth': false}}}%%"; }
   mermaid.initialize(Object.assign({ startOnLoad: false }, getMermaidTheme()));
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -631,9 +631,9 @@
   <div class="diagram-overlay-content" onclick="event.stopPropagation()">
     <button class="diagram-overlay-close" onclick="closeDiagramOverlay()">&times;</button>
     <div class="diagram-overlay-controls">
-      <button onclick="overlayZoom(-1)">−</button>
+      <button onclick="overlayZoom(-25)">−</button>
       <span id="overlayZoomLevel">100%</span>
-      <button onclick="overlayZoom(1)">+</button>
+      <button onclick="overlayZoom(25)">+</button>
     </div>
     <div id="diagramOverlayBody" class="diagram-overlay-body"></div>
   </div>

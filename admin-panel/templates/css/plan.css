@@ -163,6 +163,21 @@
   display: block;
   transform-origin: top left;
   max-width: none;
+  overflow: visible;
+}
+
+#systemDiagram .node rect,
+#systemDiagram .node polygon {
+  rx: 4;
+}
+
+.diagram-section {
+  overflow: visible;
+  margin-bottom: 16px;
+}
+
+.diagram-section svg {
+  overflow: visible;
 }
 
 .diagram-zoom-controls {
