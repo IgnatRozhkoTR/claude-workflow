@@ -222,12 +222,15 @@ function getGroupStatus(group) {
   return 'pending';
 }
 
+var _diagramTooltips = {};
+
 function truncateLabel(text, maxLen) {
   if (!text || text.length <= maxLen) return text;
   return text.substring(0, maxLen - 1) + '…';
 }
 
 function buildMermaidDiagram(direction) {
+  _diagramTooltips = {};
   direction = direction || 'LR';
   var isDark = (localStorage.getItem('admin-panel-theme') || 'dark') === 'dark';
   var colors = isDark
@@ -248,7 +251,9 @@ function buildMermaidDiagram(direction) {
   items.forEach(function(item, i) {
     var tasks = item.tasks || [];
     var subId = 'S' + (i + 1);
-    var subLabel = escapeHtml(item.id || '') + ' — ' + escapeHtml(truncateLabel(item.name || t('phase.phaseName', {phase: i + 1}), 40));
+    var fullSubName = item.name || t('phase.phaseName', {phase: i + 1});
+    var subLabel = escapeHtml(item.id || '') + ' — ' + escapeHtml(truncateLabel(fullSubName, 25));
+    _diagramTooltips[subId] = (item.id || '') + ' — ' + fullSubName;
 
     lines.push('    subgraph ' + subId + '["' + subLabel + '"]');
     lines.push('    direction ' + innerDirection);
@@ -289,8 +294,10 @@ function buildMermaidDiagram(direction) {
       // Render task nodes
       members.forEach(function(m, mi) {
         var tId = taskIds[mi];
+        var fullTitle = m.task.title || t('plan.task', {n: m.index + 1});
         var agentBadge = m.task.agent ? '<br/>' + escapeHtml(m.task.agent) : '';
-        var label = escapeHtml(truncateLabel(m.task.title || t('plan.task', {n: m.index + 1}), 50)) + agentBadge;
+        var label = escapeHtml(truncateLabel(fullTitle, 30)) + agentBadge;
+        _diagramTooltips[tId] = fullTitle + (m.task.agent ? ' (' + m.task.agent + ')' : '');
         lines.push('        ' + tId + '["' + label + '"]');
       });
 
@@ -391,6 +398,18 @@ async function renderMermaidDiagram() {
       }
       svgEl.style.transform = 'scale(' + diagramScale + ')';
       svgEl.style.transformOrigin = 'top left';
+    }
+    // Inject native SVG <title> tooltips for hover
+    if (svgEl) {
+      Object.keys(_diagramTooltips).forEach(function(nodeId) {
+        var node = svgEl.querySelector('#' + nodeId);
+        if (!node) node = svgEl.querySelector('[id*="' + nodeId + '"]');
+        if (node) {
+          var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+          title.textContent = _diagramTooltips[nodeId];
+          node.insertBefore(title, node.firstChild);
+        }
+      });
     }
     var label = document.getElementById('diagramZoomLevel');
     if (label) label.textContent = Math.round(diagramScale * 100) + '%';
