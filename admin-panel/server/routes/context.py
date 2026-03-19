@@ -99,12 +99,14 @@ def add_discussion(project_id, branch):
 
         parent_id = body.get("parent_id")
         disc_type = body.get("type", "general")
+        scope = body.get("scope")
+        target = body.get("target")
 
         cursor = db.execute(
-            "INSERT INTO discussions (workspace_id, parent_id, text, author, type, status, created_at) "
-            "VALUES (?, ?, ?, ?, ?, 'open', ?)",
+            "INSERT INTO discussions (workspace_id, parent_id, text, author, type, scope, target, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)",
             (ws["id"], parent_id, topic, body.get("author", "user"),
-             disc_type, datetime.now().isoformat())
+             disc_type, scope, target, datetime.now().isoformat())
         )
         db.commit()
 
