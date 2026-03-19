@@ -5,7 +5,7 @@
 .terminal-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 70px);
+  height: 100%;
   background: var(--bg-primary);
 }
 
@@ -35,7 +35,7 @@
 
 #terminalContainer {
   flex: 1;
-  padding: 4px;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -48,12 +48,12 @@
   overflow-y: auto !important;
 }
 
-/* Fix 1: Remove main padding when terminal is active */
 #panel-terminal {
-  margin: -24px;
   height: calc(100vh - 56px);
 }
 
-.terminal-container {
-  height: 100%;
+/* When terminal is active, remove main padding */
+.main.terminal-active {
+  padding: 0;
+  overflow: hidden;
 }

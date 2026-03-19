@@ -84,6 +84,10 @@ function initTerminal() {
   term.open(container);
   fitAddon.fit();
 
+  container.addEventListener('wheel', function(e) {
+    e.stopPropagation();
+  }, { passive: true });
+
   term.onData(function(data) {
     if (terminalWs && terminalWs.readyState === WebSocket.OPEN) {
       terminalWs.send(data);

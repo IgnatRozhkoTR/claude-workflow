@@ -26,6 +26,15 @@ async function refreshTabData() {
 }
 
 async function switchTab(tabId) {
+  var mainEl = document.querySelector('.main');
+  if (mainEl) {
+    if (tabId === 'terminal') {
+      mainEl.classList.add('terminal-active');
+    } else {
+      mainEl.classList.remove('terminal-active');
+    }
+  }
+
   // Deactivate all top tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
   // Deactivate all sidebar buttons
