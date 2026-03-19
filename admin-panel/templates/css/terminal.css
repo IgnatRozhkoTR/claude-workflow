@@ -49,13 +49,10 @@
 }
 
 #panel-terminal {
-  height: calc(100vh - 56px);
+  height: 100%;
 }
 
-/* When terminal is active, prevent scrollbars */
-.main.terminal-active {
-  overflow: hidden;
-}
+/* .main is always overflow: hidden — no override needed for terminal-active */
 
 /* ═══════════════════════════════════════════════ */
 /*  SPLIT TERMINAL PANEL                           */
@@ -63,7 +60,7 @@
 
 .split-container {
   display: flex;
-  min-height: calc(100vh - 56px);
+  height: 100%;
 }
 
 .split-main {
@@ -72,6 +69,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
+  height: 100%;
 }
 
 .split-main.no-padding {
