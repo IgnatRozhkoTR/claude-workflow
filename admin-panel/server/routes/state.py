@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request
 from db import get_db
 from helpers import compute_phase_sequence, find_workspace, get_comments_for_workspace
 from i18n import t
+from terminal import session_name, session_exists, send_keys
 
 # Phases that have sub-phases — bare number normalizes to .0
 _PHASES_WITH_SUBS = {"1", "2", "3", "4"}
@@ -199,6 +200,18 @@ def set_scope_status(project_id, branch):
 
         db.execute("UPDATE workspaces SET scope_status = ? WHERE id = ?", (status, ws["id"]))
         db.commit()
+
+        if status in ('approved', 'rejected'):
+            try:
+                tmux_name = session_name(project_id, branch)
+                if session_exists(tmux_name):
+                    if status == 'approved':
+                        send_keys(tmux_name, 'Scope has been approved.')
+                    else:
+                        send_keys(tmux_name, 'Scope has been rejected. Check comments for feedback.')
+            except Exception:
+                pass
+
         return jsonify({"ok": True, "scope_status": status})
     finally:
         db.close()
@@ -218,6 +231,18 @@ def set_plan_status(project_id, branch):
             return jsonify({"error": t("api.error.invalidStatus")}), 400
         db.execute("UPDATE workspaces SET plan_status = ? WHERE id = ?", (status, ws["id"]))
         db.commit()
+
+        if status in ('approved', 'rejected'):
+            try:
+                tmux_name = session_name(project_id, branch)
+                if session_exists(tmux_name):
+                    if status == 'approved':
+                        send_keys(tmux_name, 'Plan has been approved.')
+                    else:
+                        send_keys(tmux_name, 'Plan has been rejected. Check comments for feedback.')
+            except Exception:
+                pass
+
         return jsonify({"ok": True, "plan_status": status})
     finally:
         db.close()
