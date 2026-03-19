@@ -42,6 +42,7 @@
   "buttons.copied": "Copied!",
   "buttons.reply": "Reply",
   "buttons.resolve": "resolve",
+  "buttons.unresolve": "Unresolve",
   "buttons.accept": "Accept",
   "buttons.deny": "Deny",
   "buttons.reapprove": "Re-approve",
