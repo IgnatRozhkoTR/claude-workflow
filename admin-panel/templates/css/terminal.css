@@ -148,3 +148,22 @@
   background: var(--accent-dim);
   color: var(--accent);
 }
+
+/* ═══════════════════════════════════════════════ */
+/*  xterm.js 256-color overrides for Claude Code  */
+/* ═══════════════════════════════════════════════ */
+
+/* File paths / links — ANSI 153 is too light, make it brighter */
+.xterm-fg-153 {
+  color: #93c5fd !important;
+}
+
+/* User message background — ANSI 237 is too dark/black, make it a subtle highlight */
+.xterm-bg-237 {
+  background-color: #2d3748 !important;
+}
+
+/* Prompt arrow color — ANSI 239 is too dim */
+.xterm-fg-239 {
+  color: #9ca3af !important;
+}
