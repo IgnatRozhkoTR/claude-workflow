@@ -104,11 +104,11 @@ function renderPPImpactAnalysis() {
     var section = document.createElement('div');
     section.className = 'pp-impact-section';
     section.innerHTML =
-      '<div class="pp-impact-label">' + s.label + '</div>' +
-      '<div class="pp-impact-text">' + (typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text)) + '</div>' +
-      '<div style="margin-top: 6px; text-align: right;">' +
+      '<div class="pp-impact-label" style="display: flex; justify-content: space-between; align-items: center;">' +
+        '<span>' + s.label + '</span>' +
         '<button class="pp-comment-btn" onclick="togglePPInlineComment(this, \'impact\', \'' + s.key + '\')" title="' + t('comments.addComment') + '">\u{1F4AC}</button>' +
-      '</div>';
+      '</div>' +
+      '<div class="pp-impact-text">' + (typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text)) + '</div>';
     container.appendChild(section);
   });
 
@@ -311,7 +311,7 @@ async function ppReject() {
 // ═══════════════════════════════════════════════
 
 function togglePPInlineComment(btn, scope, targetId) {
-  var card = btn.closest('.pp-research-card, .card-body, #ppImpactContent');
+  var card = btn.closest('.pp-research-card, .pp-impact-section, .card-body, #ppImpactContent');
   if (!card) card = btn.parentElement;
 
   var existingForm = card.querySelector('.pp-inline-comment-form');

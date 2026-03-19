@@ -103,6 +103,7 @@
   "placeholders.commitMessage": "Commit message (optional)",
   "placeholders.feedbackForChanges": "Feedback for changes (used when rejecting)...",
   "placeholders.replyDots": "Reply...",
+  "placeholders.reply": "Reply...",
   "placeholders.addComment": "Add a comment...",
   "placeholders.filterFiles": "Filter files...",
   "placeholders.featureBranch": "feature/my-branch",
