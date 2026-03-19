@@ -173,40 +173,6 @@ function _wsRenderWorkspaceCards(projectId, workspaces) {
   return toggleHtml + visible.map(function(ws) {
     var isArchived = ws.status === 'archived';
     var sessions = ws.sessions || [];
-    var sessionHtml = '';
-    var sessionsToggleHtml = '';
-
-    if (!isArchived && sessions.length > 0) {
-      var latestSession = sessions[0];
-      var resumeCmd = 'cd ' + (ws.working_dir || ws.worktree_path) + ' && claude --dangerously-skip-permissions -r ' + latestSession.session_id;
-      sessionHtml = _wsRenderCopyCommand(resumeCmd);
-
-      if (sessions.length > 1) {
-        var dropdownId = 'ws-sessions-' + Math.random().toString(36).substring(2, 9);
-        var olderSessions = sessions.slice(1);
-        var olderHtml = olderSessions.map(function(s) {
-          var oldCmd = 'cd ' + (ws.working_dir || ws.worktree_path) + ' && claude --dangerously-skip-permissions -r ' + s.session_id;
-          var cmdId = 'cmd-' + Math.random().toString(36).substring(2, 9);
-          return '<div class="ws-session-history-item">' +
-            '<span class="ws-session-history-date">' + _wsRelativeDate(s.started_at) + '</span>' +
-            '<div class="command-block" style="margin-top:4px;">' +
-              '<code id="' + cmdId + '">' + _wsEscape(oldCmd) + '</code>' +
-              '<button class="btn btn-sm" onclick="_wsCopyCommand(\'' + cmdId + '\', this)">' + t('buttons.copy') + '</button>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-
-        sessionsToggleHtml =
-          '<div class="ws-sessions-toggle">' +
-            '<a href="#" onclick="_wsToggleSessions(\'' + dropdownId + '\', event)" class="ws-sessions-link">' +
-              t('workspace.sessions', {count: sessions.length}) +
-            '</a>' +
-            '<div id="' + dropdownId + '" class="ws-sessions-dropdown" style="display:none;">' +
-              olderHtml +
-            '</div>' +
-          '</div>';
-      }
-    }
 
     var actionHtml = isArchived
       ? '<span class="badge" style="background:var(--text-muted);color:var(--bg-base);opacity:0.7">' + t('badges.archived') + '</span>'
@@ -232,8 +198,6 @@ function _wsRenderWorkspaceCards(projectId, workspaces) {
           actionHtml +
         '</div>' +
       '</div>' +
-      sessionHtml +
-      sessionsToggleHtml +
     '</div>';
   }).join('');
 }
@@ -325,12 +289,6 @@ async function createWorkspace(projectId) {
       resultHtml += `<div class="ws-result-row">
         <span class="ws-result-label">${t('labels.workingDirectory')}</span>
         <span class="ws-result-value">${_wsEscape(result.working_dir)}</span>
-      </div>`;
-    }
-    if (result.command) {
-      resultHtml += `<div class="ws-result-row">
-        <span class="ws-result-label">${t('labels.command')}</span>
-        ${_wsRenderCopyCommand(result.command)}
       </div>`;
     }
     resultHtml += `<button class="btn btn-primary" style="margin-top: 12px; width: 100%; justify-content: center;" onclick="openWorkspace('${_wsEscape(projectId)}', '${_wsEscape(branch)}')">${t('buttons.openWorkspace')}</button>`;

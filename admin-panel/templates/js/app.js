@@ -67,17 +67,6 @@ async function initApp() {
     }
   }
 
-  if (LOCK_DATA.sessions.length > 1) {
-    var sessionsHistoryBlock = document.getElementById('sessionsHistoryBlock');
-    if (sessionsHistoryBlock) {
-      sessionsHistoryBlock.style.display = '';
-      var btn = document.getElementById('sessionsHistoryBtn');
-      if (btn) {
-        btn.textContent = t('workspace.sessions', {count: LOCK_DATA.sessions.length});
-      }
-    }
-  }
-
   loadReviewComments();
 
   renderPhaseBar('phaseBarControl', 'phaseLabelsControl');
@@ -274,40 +263,6 @@ function copyWorkspacePath() {
     if (!btn) return;
     btn.textContent = t('actions.copied');
     setTimeout(function() { btn.textContent = t('actions.copyPath'); }, 1500);
-  });
-}
-
-function toggleSessionsHistory() {
-  var dropdown = document.getElementById('sessionsHistoryDropdown');
-  if (!dropdown) return;
-  var isHidden = dropdown.style.display === 'none';
-  if (!isHidden) {
-    dropdown.style.display = 'none';
-    return;
-  }
-  var workingDir = LOCK_DATA.working_dir;
-  var html = LOCK_DATA.sessions.map(function(s) {
-    var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions -r ' + s.session_id;
-    var escapedCmd = cmd.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    var cmdId = 'scmd-' + Math.random().toString(36).substring(2, 9);
-    return '<div style="padding: 6px 0; border-bottom: 1px solid var(--border);">' +
-      '<div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px;">' + formatRelativeDate(s.started_at) + '</div>' +
-      '<div style="display: flex; align-items: center; gap: 8px;">' +
-        '<code id="' + cmdId + '" style="flex: 1; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escapedCmd + '</code>' +
-        '<button class="btn btn-sm" onclick="_sessionCopyCmd(\'' + cmdId + '\', this)" style="flex-shrink: 0;">' + t('buttons.copy') + '</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  dropdown.innerHTML = html;
-  dropdown.style.display = 'block';
-}
-
-function _sessionCopyCmd(codeId, btn) {
-  var text = document.getElementById(codeId).textContent;
-  safeCopyToClipboard(text).then(function() {
-    var original = btn.textContent;
-    btn.textContent = t('buttons.copied');
-    setTimeout(function() { btn.textContent = original; }, 1500);
   });
 }
 
