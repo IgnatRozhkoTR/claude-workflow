@@ -106,6 +106,37 @@ async function initApp() {
   _initialLoad = false;
 }
 
+// ═══════════════════════════════════════════════
+//  CLIPBOARD HELPERS
+// ═══════════════════════════════════════════════
+
+function safeCopyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(function() {
+      return fallbackCopy(text);
+    });
+  }
+  return fallbackCopy(text);
+}
+
+function fallbackCopy(text) {
+  return new Promise(function(resolve) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(textarea);
+    resolve();
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  TERMINAL COMMANDS
+// ═══════════════════════════════════════════════
+
 function copyStartCommand() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
@@ -115,7 +146,12 @@ function copyStartCommand() {
 
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', {})
     .then(function(result) {
-      navigator.clipboard.writeText(result.attach_command).then(function() {
+      // Always open terminal tab, regardless of clipboard success
+      switchTab('terminal');
+      setTimeout(function() { connectTerminal(); }, 500);
+
+      // Copy attach command (best-effort)
+      safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
           var original = btn.textContent;
           btn.textContent = t('actions.copied');
@@ -123,9 +159,6 @@ function copyStartCommand() {
           setTimeout(function() { btn.textContent = original; }, 1500);
         }
       });
-
-      switchTab('terminal');
-      setTimeout(function() { connectTerminal(); }, 500);
     })
     .catch(function(e) {
       if (btn) btn.disabled = false;
@@ -142,7 +175,12 @@ function copyResumeCommand() {
 
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', {})
     .then(function(result) {
-      navigator.clipboard.writeText(result.attach_command).then(function() {
+      // Always open terminal tab, regardless of clipboard success
+      switchTab('terminal');
+      setTimeout(function() { connectTerminal(); }, 500);
+
+      // Copy attach command (best-effort)
+      safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
           var original = btn.textContent;
           btn.textContent = t('actions.copied');
@@ -150,9 +188,6 @@ function copyResumeCommand() {
           setTimeout(function() { btn.textContent = original; }, 1500);
         }
       });
-
-      switchTab('terminal');
-      setTimeout(function() { connectTerminal(); }, 500);
     })
     .catch(function(e) {
       if (btn) btn.disabled = false;
@@ -164,7 +199,7 @@ function copyWorkspacePath() {
   var workingDir = LOCK_DATA.working_dir;
   if (!workingDir) return;
   var cmd = 'cd ' + workingDir;
-  navigator.clipboard.writeText(cmd).then(function() {
+  safeCopyToClipboard(cmd).then(function() {
     var btn = document.getElementById('copyPathBtn');
     if (!btn) return;
     btn.textContent = t('actions.copied');
@@ -199,7 +234,7 @@ function toggleSessionsHistory() {
 
 function _sessionCopyCmd(codeId, btn) {
   var text = document.getElementById(codeId).textContent;
-  navigator.clipboard.writeText(text).then(function() {
+  safeCopyToClipboard(text).then(function() {
     var original = btn.textContent;
     btn.textContent = t('buttons.copied');
     setTimeout(function() { btn.textContent = original; }, 1500);
