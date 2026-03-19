@@ -45,10 +45,7 @@ function renderCriteria() {
     }
 
     if (c.type === 'custom') {
-      if (c.status === 'accepted' && c.validated !== 1 && c.validated !== -1) {
-        validationBadge += ' <button class="btn btn-sm" onclick="validateCriterion(' + c.id + ', true)">' + t('buttons.approve') + '</button>' +
-          ' <button class="btn btn-sm btn-danger" onclick="validateCriterion(' + c.id + ', false)">' + t('buttons.reject') + '</button>';
-      } else if (c.validated === 1) {
+      if (c.validated === 1) {
         validationBadge = ' <span class="badge badge-success">' + t('badges.userApproved') + '</span>';
       } else if (c.validated === -1) {
         validationBadge = ' <span class="badge badge-danger">' + t('badges.userRejected') + '</span>' +
