@@ -96,21 +96,28 @@ def _get_scope_patterns(ws):
 
 
 def _file_matches_scope(file_path, ws):
-    """Check if a file path matches the workspace scope patterns.
+    """Check if a file path matches the workspace scope patterns."""
+    ws_dir = os.path.abspath(ws["working_dir"])
+    abs_file = os.path.abspath(file_path)
 
-    Returns (matches, patterns) where matches is True if allowed,
-    and patterns is the list used for the denial message.
-    """
+    # Check files outside workspace FIRST
+    if not abs_file.startswith(ws_dir + "/") and abs_file != ws_dir:
+        restrict = ws["restrict_to_workspace"] if "restrict_to_workspace" in ws.keys() else 1
+        if not restrict:
+            return True, []
+        exceptions = (ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/").split(",")
+        for exc in exceptions:
+            exc = exc.strip()
+            if exc and abs_file.startswith(exc):
+                return True, []
+        return False, ["(workspace directory only)"]
+
+    # Scope patterns for files inside workspace
     patterns = _get_scope_patterns(ws)
     if not patterns:
         return True, []
 
-    ws_dir = os.path.abspath(ws["working_dir"])
-    abs_file = os.path.abspath(file_path)
-
-    rel_path = file_path
-    if abs_file.startswith(ws_dir + "/"):
-        rel_path = abs_file[len(ws_dir) + 1:]
+    rel_path = abs_file[len(ws_dir) + 1:] if abs_file.startswith(ws_dir + "/") else file_path
 
     for pattern in patterns:
         match_pattern = pattern.rstrip("/") + "/**" if pattern.endswith("/") else pattern
@@ -181,6 +188,19 @@ def _check_edit_tool(ws, file_path, cwd):
     if _is_claude_metadata(canon):
         return {"governed": True, "phase": ws["phase"], "allowed": True,
                 "reason": "Workspace metadata is always writable"}
+
+    ws_dir = os.path.abspath(ws["working_dir"])
+    if not canon.startswith(ws_dir + "/") and canon != ws_dir:
+        restrict = ws["restrict_to_workspace"] if "restrict_to_workspace" in ws.keys() else 1
+        if not restrict:
+            return {"governed": True, "phase": ws["phase"], "allowed": True}
+        exceptions = (ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/").split(",")
+        for exc in exceptions:
+            exc = exc.strip()
+            if exc and canon.startswith(exc):
+                return {"governed": True, "phase": ws["phase"], "allowed": True}
+        return {"governed": True, "phase": ws["phase"], "allowed": False,
+                "reason": f"File outside workspace directory. Modify allowed_external_paths in Configuration to add exceptions."}
 
     phase = ws["phase"]
     if not _is_edit_phase(phase):

@@ -212,6 +212,8 @@ def _migrate_db(db):
         ("claude_command", "TEXT NOT NULL DEFAULT 'claude'"),
         ("skip_permissions", "INTEGER NOT NULL DEFAULT 1"),
         ("impact_analysis_json", "TEXT"),
+        ("restrict_to_workspace", "INTEGER NOT NULL DEFAULT 1"),
+        ("allowed_external_paths", "TEXT NOT NULL DEFAULT '/tmp/'"),
     ]
     for column_name, column_def in new_columns:
         if column_name not in existing_columns:

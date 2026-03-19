@@ -72,6 +72,8 @@
 
   "config.commandLabel": "Command",
   "config.skipPermissions": "Include --dangerously-skip-permissions flag",
+  "config.restrictToWorkspace": "Restrict file modifications to workspace directory",
+  "config.externalPaths": "Allowed external paths (comma-separated)",
 
   "labels.provider": "Provider",
   "labels.host": "Host",

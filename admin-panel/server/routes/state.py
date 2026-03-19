@@ -137,6 +137,8 @@ def get_workspace_state(project_id, branch):
             "branch": ws["branch"],
             "claude_command": ws["claude_command"] or "claude",
             "skip_permissions": bool(ws["skip_permissions"]),
+            "restrict_to_workspace": bool(ws["restrict_to_workspace"]) if "restrict_to_workspace" in ws.keys() else True,
+            "allowed_external_paths": ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/",
             "comments": comments,
             "research": research,
             "discussions": discussions,

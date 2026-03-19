@@ -72,6 +72,8 @@
 
   "config.commandLabel": "Команда",
   "config.skipPermissions": "Включить флаг --dangerously-skip-permissions",
+  "config.restrictToWorkspace": "Ограничить модификацию файлов директорией workspace",
+  "config.externalPaths": "Разрешённые внешние пути (через запятую)",
 
   "labels.provider": "Провайдер",
   "labels.host": "Хост",

@@ -165,14 +165,16 @@ def get_command_config(project, branch):
     db = get_db()
     try:
         ws = db.execute(
-            "SELECT claude_command, skip_permissions FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
+            "SELECT claude_command, skip_permissions, restrict_to_workspace, allowed_external_paths FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
             (project, branch)
         ).fetchone()
         if not ws:
             return jsonify({'error': 'Workspace not found'}), 404
         return jsonify({
             'claude_command': ws['claude_command'] or 'claude',
-            'skip_permissions': bool(ws['skip_permissions'])
+            'skip_permissions': bool(ws['skip_permissions']),
+            'restrict_to_workspace': bool(ws['restrict_to_workspace']) if 'restrict_to_workspace' in ws.keys() else True,
+            'allowed_external_paths': ws['allowed_external_paths'] if 'allowed_external_paths' in ws.keys() else '/tmp/'
         })
     finally:
         db.close()
@@ -195,6 +197,14 @@ def update_command_config(project, branch):
         if 'skip_permissions' in data:
             updates.append('skip_permissions = ?')
             params.append(1 if data['skip_permissions'] else 0)
+
+        if 'restrict_to_workspace' in data:
+            updates.append('restrict_to_workspace = ?')
+            params.append(1 if data['restrict_to_workspace'] else 0)
+
+        if 'allowed_external_paths' in data:
+            updates.append('allowed_external_paths = ?')
+            params.append((data['allowed_external_paths'] or '').strip() or '/tmp/')
 
         if not updates:
             return jsonify({'error': 'No fields to update'}), 400

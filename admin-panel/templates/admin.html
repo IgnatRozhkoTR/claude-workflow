@@ -181,6 +181,14 @@
             <input type="checkbox" id="skipPermissionsCheck" checked>
             <label for="skipPermissionsCheck" style="font-size: 0.82rem; color: var(--text-primary); cursor: pointer;" data-i18n="config.skipPermissions">Include --dangerously-skip-permissions flag</label>
           </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+            <input type="checkbox" id="restrictToWorkspaceCheck" checked>
+            <label for="restrictToWorkspaceCheck" style="font-size: 0.82rem; color: var(--text-primary); cursor: pointer;" data-i18n="config.restrictToWorkspace">Restrict file modifications to workspace directory</label>
+          </div>
+          <div style="margin-top: 8px;">
+            <label style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; display: block;" data-i18n="config.externalPaths">Allowed external paths (comma-separated)</label>
+            <input type="text" class="context-input" id="allowedExternalPathsInput" placeholder="/tmp/, /var/log/" style="width: 100%;">
+          </div>
           <div style="display: flex; gap: 6px; justify-content: flex-end;">
             <button class="btn btn-sm" onclick="saveClaudeCommand()" data-i18n="buttons.save">Save</button>
           </div>

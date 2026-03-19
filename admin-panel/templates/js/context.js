@@ -465,6 +465,12 @@ function loadClaudeCommand() {
       var checkbox = document.getElementById('skipPermissionsCheck');
       if (input) input.value = data.claude_command || 'claude';
       if (checkbox) checkbox.checked = data.skip_permissions !== false;
+      if (data.restrict_to_workspace !== undefined) {
+        var restrictCheckbox = document.getElementById('restrictToWorkspaceCheck');
+        if (restrictCheckbox) restrictCheckbox.checked = data.restrict_to_workspace;
+      }
+      var pathsInput = document.getElementById('allowedExternalPathsInput');
+      if (pathsInput) pathsInput.value = data.allowed_external_paths || '/tmp/';
     })
     .catch(function() {});
 }
@@ -475,6 +481,8 @@ function saveClaudeCommand() {
 
   var input = document.getElementById('claudeCommandInput');
   var checkbox = document.getElementById('skipPermissionsCheck');
+  var restrictCheck = document.getElementById('restrictToWorkspaceCheck');
+  var pathsInput = document.getElementById('allowedExternalPathsInput');
 
   var cmd = input ? input.value.trim() : 'claude';
   var skip = checkbox ? checkbox.checked : true;
@@ -484,7 +492,9 @@ function saveClaudeCommand() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       claude_command: cmd,
-      skip_permissions: skip
+      skip_permissions: skip,
+      restrict_to_workspace: restrictCheck ? restrictCheck.checked : true,
+      allowed_external_paths: pathsInput ? pathsInput.value.trim() : '/tmp/'
     })
   })
   .then(function(r) { return r.json(); })
