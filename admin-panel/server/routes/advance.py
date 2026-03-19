@@ -1,4 +1,5 @@
 """Phase advancement routes: approve and reject user gates."""
+import logging
 from flask import Blueprint, jsonify, request
 
 from advance_service import approve_gate, reject_gate
@@ -6,6 +7,8 @@ from db import get_db
 from helpers import find_workspace
 from i18n import t
 from terminal import session_name, session_exists, send_keys
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("advance", __name__)
 
@@ -29,7 +32,9 @@ def approve(project_id, branch):
     if result.get("status_code", 200) == 200:
         try:
             tmux_name = session_name(project_id, branch)
-            if session_exists(tmux_name):
+            exists = session_exists(tmux_name)
+            logger.info(f"Approve notification: session={tmux_name}, exists={exists}")
+            if exists:
                 phase = ws['phase']
                 phase_names = {
                     '1.4': 'Preparation review approved. Proceed to planning.',
@@ -41,9 +46,12 @@ def approve(project_id, branch):
                     msg = 'Code review approved for sub-phase ' + phase.replace('.3', '') + '. Proceed to commit.'
                 if not msg:
                     msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
+                logger.info(f"Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
-        except Exception:
-            pass
+            else:
+                logger.warning(f"No tmux session found: {tmux_name}")
+        except Exception as e:
+            logger.error(f"Tmux notification failed: {e}")
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
 
 
@@ -66,7 +74,9 @@ def reject(project_id, branch):
     if result.get("status_code", 200) == 200:
         try:
             tmux_name = session_name(project_id, branch)
-            if session_exists(tmux_name):
+            exists = session_exists(tmux_name)
+            logger.info(f"Reject notification: session={tmux_name}, exists={exists}")
+            if exists:
                 phase = ws['phase']
                 phase_names = {
                     '1.4': 'Preparation review rejected. Additional research needed. Check comments.',
@@ -78,7 +88,10 @@ def reject(project_id, branch):
                     msg = 'Code review rejected for sub-phase ' + phase.replace('.3', '') + '. Fix issues per comments.'
                 if not msg:
                     msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
+                logger.info(f"Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
-        except Exception:
-            pass
+            else:
+                logger.warning(f"No tmux session found: {tmux_name}")
+        except Exception as e:
+            logger.error(f"Tmux notification failed: {e}")
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
