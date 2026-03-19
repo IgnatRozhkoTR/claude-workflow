@@ -98,7 +98,13 @@ async function setScopeStatus(status) {
       body: JSON.stringify({status: status})
     });
     if (resp.ok) {
-      updateScopeStatusUI(status);
+      LOCK_DATA.scope_status = status;
+      if (status === 'approved') {
+        updateScopeStatusUI(status);
+        await tryAutoAdvanceGate();
+      } else {
+        updateScopeStatusUI(status);
+      }
     }
   } catch (e) {
     console.error('Failed to set scope status:', e);
@@ -160,10 +166,35 @@ async function setPlanStatus(status) {
     });
     if (resp.ok) {
       LOCK_DATA.plan_status = status;
-      updatePlanApprovalUI(status);
+      if (status === 'approved') {
+        updatePlanApprovalUI(status);
+        await tryAutoAdvanceGate();
+      } else {
+        updatePlanApprovalUI(status);
+      }
     }
   } catch (e) {
     console.error('Failed to set plan status:', e);
+  }
+}
+
+async function tryAutoAdvanceGate() {
+  if (state.phase !== '2.1') return;
+  if (LOCK_DATA.plan_status !== 'approved' || LOCK_DATA.scope_status !== 'approved') return;
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  try {
+    var nonceResp = await apiGetGateNonce(ctx.projectId, ctx.branch);
+    var token = nonceResp.nonce;
+    if (!token) return;
+
+    var result = await apiApprove(ctx.projectId, ctx.branch, token, '');
+    showToast(t('messages.approved', {phase: result.phase}));
+    await refreshState();
+  } catch (e) {
+    console.log('Auto-advance failed, use Phase Control:', e.message);
   }
 }
 
