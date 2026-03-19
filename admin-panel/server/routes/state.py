@@ -114,6 +114,13 @@ def get_workspace_state(project_id, branch):
                     pass
             progress[row["phase"]] = entry
 
+        impact_analysis = None
+        if "impact_analysis_json" in ws.keys() and ws["impact_analysis_json"]:
+            try:
+                impact_analysis = json.loads(ws["impact_analysis_json"])
+            except json.JSONDecodeError:
+                pass
+
         return jsonify({
             "phase": ws["phase"],
             "status": ws["status"],
@@ -136,6 +143,7 @@ def get_workspace_state(project_id, branch):
             "phaseHistory": history,
             "progress": progress,
             "sessions": sessions,
+            "impact_analysis": impact_analysis,
         })
     finally:
         db.close()

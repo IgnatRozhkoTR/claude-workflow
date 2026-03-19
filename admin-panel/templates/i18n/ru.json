@@ -226,6 +226,13 @@
   "preplanning.rejectPreplanning": "Вернуть к исследованию",
   "preplanning.commentAdded": "Обсуждение добавлено",
 
+  "impact.affectedFlows": "Затронутые пользовательские сценарии",
+  "impact.apiChanges": "Изменения API",
+  "impact.dataFlowChanges": "Изменения потоков данных",
+  "impact.externalDeps": "Внешние зависимости",
+  "impact.ticketGaps": "Пробелы в задаче",
+  "impact.openQuestions": "Открытые вопросы",
+
   "badges.open": "открыто",
 
   "research.noEntries": "Записей исследования пока нет.",

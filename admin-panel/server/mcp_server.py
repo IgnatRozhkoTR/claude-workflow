@@ -1001,6 +1001,50 @@ def workspace_resolve_review_issue(issue_id: int, resolution: str) -> dict:
 
 
 @mcp.tool()
+def workspace_set_impact_analysis(
+    affected_flows: str = "",
+    api_changes: str = "",
+    data_flow_changes: str = "",
+    external_dependencies: str = "",
+    ticket_gaps: str = "",
+    open_questions: str = "",
+) -> dict:
+    """Save structured impact analysis for the workspace. Called during phase 1.3.
+
+    Each field is a text description of that aspect of the impact analysis:
+    - affected_flows: Which user flows/interactions are affected
+    - api_changes: API endpoint changes (new, modified, removed) and contract changes
+    - data_flow_changes: Where key values come from, how data moves through the system
+    - external_dependencies: DB migrations, infrastructure, coordination with other teams
+    - ticket_gaps: What the ticket leaves ambiguous or underspecified
+    - open_questions: Questions that need user input (can't be resolved from code/web)
+    """
+    ws, project = _detect_workspace()
+    if not ws:
+        return {"error": t("mcp.error.noWorkspace")}
+
+    analysis = {
+        "affected_flows": affected_flows,
+        "api_changes": api_changes,
+        "data_flow_changes": data_flow_changes,
+        "external_dependencies": external_dependencies,
+        "ticket_gaps": ticket_gaps,
+        "open_questions": open_questions,
+    }
+
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE workspaces SET impact_analysis_json = ? WHERE id = ?",
+            (json.dumps(analysis), ws["id"])
+        )
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@mcp.tool()
 def workspace_update_progress(phase: str, summary: str, details: dict = None) -> dict:
     """Update progress for a phase. Called by orchestrator after completing phase work.
 

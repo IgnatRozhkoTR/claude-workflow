@@ -77,12 +77,24 @@
 }
 
 /* ─── Impact analysis ─── */
-.pp-impact-block {
-  padding: 14px 16px;
+.pp-impact-section {
+  margin-bottom: 12px;
+  padding: 10px 14px;
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--warning);
   border-radius: var(--radius-sm);
+}
+
+.pp-impact-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.pp-impact-text {
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--text-primary);

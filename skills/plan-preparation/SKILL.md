@@ -225,8 +225,18 @@ Questions that cannot be resolved from code, web, or git research are left as op
 
 ### When analysis is complete
 
-1. Call `workspace_update_progress` for phase `"1.3"` summarizing: affected user flows, API changes, data flow changes, external dependencies, ticket gaps with recommendations, and open questions for the user.
-2. Call `workspace_advance`.
+1. Call `workspace_set_impact_analysis` with the six structured fields:
+   - `affected_flows`: Which user flows change
+   - `api_changes`: Endpoint changes and contract changes
+   - `data_flow_changes`: Parameter sources and data movement
+   - `external_dependencies`: DB migrations, infrastructure, coordination
+   - `ticket_gaps`: Ambiguities discovered
+   - `open_questions`: Questions for the user
+
+   This data is displayed in the Pre-planning tab for user review at phase 1.4.
+
+2. Call `workspace_update_progress` for phase `"1.3"` summarizing: affected user flows, API changes, data flow changes, external dependencies, ticket gaps with recommendations, and open questions for the user.
+3. Call `workspace_advance`.
 
 **Advance 1.3 -> 1.4** requires: progress entry `"1.3"`.
 

@@ -1,5 +1,4 @@
 """Phase advancement routes: approve and reject user gates."""
-import logging
 from flask import Blueprint, jsonify, request
 
 from advance_service import approve_gate, reject_gate
@@ -7,8 +6,6 @@ from db import get_db
 from helpers import find_workspace
 from i18n import t
 from terminal import session_name, session_exists, send_keys
-
-logger = logging.getLogger(__name__)
 
 bp = Blueprint("advance", __name__)
 
@@ -33,7 +30,6 @@ def approve(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             exists = session_exists(tmux_name)
-            print(f"[TMUX] Approve notification: session={tmux_name}, exists={exists}")
             if exists:
                 phase = ws['phase']
                 phase_names = {
@@ -46,12 +42,9 @@ def approve(project_id, branch):
                     msg = 'Code review approved for sub-phase ' + phase.replace('.3', '') + '. Proceed to commit.'
                 if not msg:
                     msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
-                print(f"[TMUX] Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
-            else:
-                print(f"[TMUX] WARNING: No tmux session found: {tmux_name}")
-        except Exception as e:
-            print(f"[TMUX] ERROR: Tmux notification failed: {e}")
+        except Exception:
+            pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
 
 
@@ -75,7 +68,6 @@ def reject(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             exists = session_exists(tmux_name)
-            print(f"[TMUX] Reject notification: session={tmux_name}, exists={exists}")
             if exists:
                 phase = ws['phase']
                 phase_names = {
@@ -88,10 +80,7 @@ def reject(project_id, branch):
                     msg = 'Code review rejected for sub-phase ' + phase.replace('.3', '') + '. Fix issues per comments.'
                 if not msg:
                     msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
-                print(f"[TMUX] Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
-            else:
-                print(f"[TMUX] WARNING: No tmux session found: {tmux_name}")
-        except Exception as e:
-            print(f"[TMUX] ERROR: Tmux notification failed: {e}")
+        except Exception:
+            pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)

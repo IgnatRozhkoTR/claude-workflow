@@ -82,41 +82,36 @@ function renderPPImpactAnalysis() {
   if (!container) return;
   container.innerHTML = '';
 
-  var progressEntry = findProgressEntry('1.3');
-
-  if (!progressEntry) {
+  var data = window.IMPACT_DATA;
+  if (!data) {
     container.innerHTML = '<div class="pp-impact-empty">' + t('preplanning.noImpactAnalysis') + '</div>';
     return;
   }
 
-  var summaryText = progressEntry.summary || progressEntry.description || '';
+  var sections = [
+    { key: 'affected_flows', label: t('impact.affectedFlows') },
+    { key: 'api_changes', label: t('impact.apiChanges') },
+    { key: 'data_flow_changes', label: t('impact.dataFlowChanges') },
+    { key: 'external_dependencies', label: t('impact.externalDeps') },
+    { key: 'ticket_gaps', label: t('impact.ticketGaps') },
+    { key: 'open_questions', label: t('impact.openQuestions') },
+  ];
 
-  var block = document.createElement('div');
-  block.className = 'pp-impact-block';
-  block.textContent = summaryText;
-  container.appendChild(block);
+  sections.forEach(function(s) {
+    var text = data[s.key];
+    if (!text) return;
 
-  var commentRow = document.createElement('div');
-  commentRow.style.cssText = 'margin-top: 8px; text-align: right;';
-  commentRow.innerHTML = '<button class="pp-comment-btn" onclick="togglePPInlineComment(this, \'impact\', \'1.3\')" title="' + t('comments.addComment') + '">\u{1F4AC}</button>';
-  container.appendChild(commentRow);
-}
+    var section = document.createElement('div');
+    section.className = 'pp-impact-section';
+    section.innerHTML =
+      '<div class="pp-impact-label">' + s.label + '</div>' +
+      '<div class="pp-impact-text">' + escapeHtml(text) + '</div>';
+    container.appendChild(section);
+  });
 
-function findProgressEntry(phaseId) {
-  var plan = PLAN_DATA || {};
-  var execution = plan.execution || plan.groups || [];
-
-  for (var i = 0; i < execution.length; i++) {
-    var item = execution[i];
-    if (item.id === phaseId) return item;
+  if (container.children.length === 0) {
+    container.innerHTML = '<div class="pp-impact-empty">' + t('preplanning.noImpactAnalysis') + '</div>';
   }
-
-  var research = RESEARCH_DATA || [];
-  for (var j = 0; j < research.length; j++) {
-    if (research[j].phase === phaseId) return research[j];
-  }
-
-  return null;
 }
 
 // ═══════════════════════════════════════════════

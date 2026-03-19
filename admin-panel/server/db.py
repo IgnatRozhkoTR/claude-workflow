@@ -211,6 +211,7 @@ def _migrate_db(db):
         ("prev_scope_status", "TEXT"),
         ("claude_command", "TEXT NOT NULL DEFAULT 'claude'"),
         ("skip_permissions", "INTEGER NOT NULL DEFAULT 1"),
+        ("impact_analysis_json", "TEXT"),
     ]
     for column_name, column_def in new_columns:
         if column_name not in existing_columns:

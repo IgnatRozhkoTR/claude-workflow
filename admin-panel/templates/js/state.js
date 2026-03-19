@@ -103,6 +103,7 @@ function applyStateData(stateData) {
   window.PROVEN_DATA = stateData.proven || {};
 
   COMMENTS = stateData.comments || {};
+  window.IMPACT_DATA = stateData.impact_analysis || null;
 
   state.phase = LOCK_DATA.phase;
   window.PHASE_HISTORY = (stateData.phaseHistory || []).map(function(h) {

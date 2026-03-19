@@ -226,6 +226,13 @@
   "preplanning.rejectPreplanning": "Reject to Research",
   "preplanning.commentAdded": "Discussion added",
 
+  "impact.affectedFlows": "Affected User Flows",
+  "impact.apiChanges": "API Changes",
+  "impact.dataFlowChanges": "Data Flow Changes",
+  "impact.externalDeps": "External Dependencies",
+  "impact.ticketGaps": "Ticket Gaps",
+  "impact.openQuestions": "Open Questions",
+
   "badges.open": "open",
 
   "research.noEntries": "No research entries yet.",
