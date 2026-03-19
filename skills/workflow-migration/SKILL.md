@@ -141,13 +141,7 @@ set -g history-limit 10000
 EOF
 ```
 
-### 2. Make hook scripts executable
-
-```bash
-chmod +x ~/.claude/hooks/*.sh
-```
-
-### 3. Initialize the database
+### 2. Initialize the database
 
 ```bash
 python3 -c "
@@ -195,7 +189,7 @@ echo '{"tool_name":"Write","tool_input":{},"cwd":"/tmp"}' | python3 ~/.claude/ho
 # Should exit 0 (no output = allowed, since /tmp is not a git repo)
 
 # Test pre-tool-hook (no active workspace = pass through)
-echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test.txt"},"cwd":"/tmp"}' | bash ~/.claude/hooks/pre-tool-hook.sh
+echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test.txt"},"cwd":"/tmp"}' | python3 ~/.claude/hooks/pre-tool-hook.py
 # Should exit 0
 ```
 
@@ -221,7 +215,7 @@ Check `~/.claude/settings.json` contains:
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/pre-tool-hook.sh"
+            "command": "python3 ~/.claude/hooks/pre-tool-hook.py"
           }
         ]
       }
@@ -232,7 +226,7 @@ Check `~/.claude/settings.json` contains:
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/session-start.sh"
+            "command": "python3 ~/.claude/hooks/session-start.py"
           }
         ]
       }
@@ -253,8 +247,8 @@ If `hooks` or `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` are missing, add them (
 | Admin panel server | `~/.claude/admin-panel/server/` | Flask app (port 5111) + SQLite DB |
 | MCP server | `~/.claude/admin-panel/server/mcp_server.py` | 22+ workspace tools via stdio |
 | Orchestrator block hook | `~/.claude/hooks/block-orchestrator-writes.py` | Prevents main agent from writing files in git repos |
-| Phase gate hook | `~/.claude/hooks/pre-tool-hook.sh` | Enforces edit/commit/push restrictions per phase |
-| Session start hook | `~/.claude/hooks/session-start.sh` | Registers sessions, outputs recovery context |
+| Phase gate hook | `~/.claude/hooks/pre-tool-hook.py` | Enforces edit/commit/push restrictions per phase |
+| Session start hook | `~/.claude/hooks/session-start.py` | Registers sessions, outputs recovery context |
 | Agent definitions | `~/.claude/agents/*.md` | 16 agent types (researchers, engineers, validators, reviewers) |
 | Workflow skill | `~/.claude-assistant/skills/governed-workflow/SKILL.md` | Phase map, rules, MCP tool reference |
 | Plan-preparation skill | `~/.claude/skills/plan-preparation/SKILL.md` | Guides phases 1.0-1.4 (assessment, research, impact analysis) |

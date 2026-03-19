@@ -147,14 +147,14 @@ _WORKSPACE_HOOKS = {
                 "matcher": "startup|resume",
                 "hooks": [{
                     "type": "command",
-                    "command": "bash ~/.claude/hooks/session-start.sh"
+                    "command": "python3 ~/.claude/hooks/session-start.py"
                 }]
             },
             {
                 "matcher": "compact",
                 "hooks": [{
                     "type": "command",
-                    "command": "bash ~/.claude/hooks/session-start.sh"
+                    "command": "python3 ~/.claude/hooks/session-start.py"
                 }]
             }
         ],
@@ -168,7 +168,7 @@ _WORKSPACE_HOOKS = {
             "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*gitlab.*",
             "hooks": [{
                 "type": "command",
-                "command": "bash ~/.claude/hooks/pre-tool-hook.sh"
+                "command": "python3 ~/.claude/hooks/pre-tool-hook.py"
             }]
         }]
     }
