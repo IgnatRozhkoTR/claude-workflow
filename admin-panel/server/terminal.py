@@ -30,6 +30,7 @@ def create_session(name, working_dir):
     """Create a new detached tmux session."""
     subprocess.run(['tmux', 'new-session', '-d', '-s', name, '-c', working_dir],
                    check=True)
+    subprocess.run(['tmux', 'set-option', '-t', name, 'mouse', 'on'], capture_output=True)
 
 
 def send_keys(name, command):
