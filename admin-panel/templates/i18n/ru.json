@@ -342,6 +342,10 @@
   "discussions.noItems": "Обсуждений пока нет. Поднимите тему ниже.",
   "discussions.showHidden": "Показать {count} скрытых",
   "discussions.hideHidden": "Скрыть {count} скрытых",
+  "discussions.showResolved": "Показать решённые",
+  "discussions.hideResolved": "Скрыть решённые",
+  "discussions.showProven": "Показать доказанные",
+  "discussions.hideProven": "Скрыть доказанные",
 
   "buttons.hide": "Скрыть",
   "buttons.unhide": "Показать",

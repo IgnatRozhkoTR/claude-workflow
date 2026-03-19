@@ -121,6 +121,33 @@ function renderPPImpactAnalysis() {
 //  DISCUSSIONS
 // ═══════════════════════════════════════════════
 
+var ppShowResolved = false;
+var ppShowProven = false;
+
+function togglePPResolved() {
+  ppShowResolved = !ppShowResolved;
+  var btn = document.getElementById('ppToggleResolved');
+  if (btn) btn.textContent = ppShowResolved ? t('discussions.hideResolved') : t('discussions.showResolved');
+  renderPPDiscussions();
+}
+
+function togglePPProven() {
+  ppShowProven = !ppShowProven;
+  var btn = document.getElementById('ppToggleProven');
+  if (btn) btn.textContent = ppShowProven ? t('discussions.hideProven') : t('discussions.showProven');
+  renderPPDiscussions();
+}
+
+function isResearchProven(discussionId) {
+  if (!RESEARCH_DATA) return false;
+  for (var i = 0; i < RESEARCH_DATA.length; i++) {
+    if (RESEARCH_DATA[i].discussion_id === discussionId) {
+      return RESEARCH_DATA[i].proven === 1;
+    }
+  }
+  return false;
+}
+
 function renderPPDiscussions() {
   var container = document.getElementById('ppDiscussionsList');
   if (!container) return;
@@ -137,9 +164,9 @@ function renderPPDiscussions() {
 
   var researchBadge = document.getElementById('ppResearchDiscBadge');
   if (researchBadge) {
-    var researchOpen = discussions.filter(function(d) { return d.type === 'research' && d.status === 'open'; }).length;
-    if (researchOpen > 0) {
-      researchBadge.textContent = t('badges.researchCount', {count: researchOpen});
+    var researchPending = discussions.filter(function(d) { return d.type === 'research' && !isResearchProven(d.id); }).length;
+    if (researchPending > 0) {
+      researchBadge.textContent = t('badges.researchCount', {count: researchPending});
       researchBadge.style.display = '';
     } else {
       researchBadge.style.display = 'none';
@@ -158,20 +185,33 @@ function renderPPDiscussions() {
   });
 
   sorted.forEach(function(d) {
+    var isResearch = d.type === 'research';
     var isResolved = d.status === 'resolved';
+    var proven = isResearch ? isResearchProven(d.id) : false;
+
+    if (isResearch && proven && !ppShowProven) return;
+    if (!isResearch && isResolved && !ppShowResolved) return;
+
     var div = document.createElement('div');
-    div.className = 'pp-discussion-item' + (isResolved ? ' pp-resolved' : '');
+    div.className = 'pp-discussion-item' + (isResolved || proven ? ' pp-resolved' : '');
 
     var author = d.author || 'user';
     var authorBadge = '<span class="qa-author qa-author-' + author + '">' + author + '</span>';
 
-    var typeBadge = d.type === 'research'
+    var typeBadge = isResearch
       ? '<span class="badge" style="font-size:0.6rem;background:var(--warning-dim);color:var(--warning);">' + t('badges.research') + '</span>'
       : '<span class="badge" style="font-size:0.6rem;background:var(--info-dim);color:var(--info);">' + t('discussionType.general') + '</span>';
 
-    var statusBadge = isResolved
-      ? '<span class="badge badge-success" style="font-size:0.65rem;">' + t('badges.resolved') + '</span>'
-      : '<span class="badge badge-warning" style="font-size:0.65rem;">' + t('badges.open') + '</span>';
+    var statusBadge;
+    if (isResearch) {
+      statusBadge = proven
+        ? '<span class="badge badge-success" style="font-size:0.65rem;">' + t('badges.verified') + '</span>'
+        : '<span class="badge badge-warning" style="font-size:0.65rem;">' + t('badges.pending') + '</span>';
+    } else {
+      statusBadge = isResolved
+        ? '<span class="badge badge-success" style="font-size:0.65rem;">' + t('badges.resolved') + '</span>'
+        : '<span class="badge badge-warning" style="font-size:0.65rem;">' + t('badges.open') + '</span>';
+    }
 
     var resolveBtn = isResolved
       ? '<button class="btn btn-sm" style="font-size:0.65rem;padding:1px 6px" onclick="resolveDiscussion(' + d.id + ', true)">' + t('buttons.unresolve') + '</button>'

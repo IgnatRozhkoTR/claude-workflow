@@ -342,6 +342,10 @@
   "discussions.noItems": "No discussions yet. Raise one below.",
   "discussions.showHidden": "Show {count} hidden",
   "discussions.hideHidden": "Hide {count} hidden",
+  "discussions.showResolved": "Show resolved",
+  "discussions.hideResolved": "Hide resolved",
+  "discussions.showProven": "Show proven",
+  "discussions.hideProven": "Hide proven",
 
   "buttons.hide": "Hide",
   "buttons.unhide": "Unhide",
