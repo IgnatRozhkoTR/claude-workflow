@@ -25,7 +25,7 @@ function renderPhaseHistory() {
 // ═══════════════════════════════════════════════
 
 function getPhaseSequenceForBar() {
-  var fixedBefore = ['0', '1.0', '1.1', '1.2', '1.3', '2.0', '2.1'];
+  var fixedBefore = ['0', '1.0', '1.1', '1.2', '1.3', '1.4', '2.0', '2.1'];
   var fixedAfter = ['4.0', '4.1', '4.2', '5'];
 
   var plan = LOCK_DATA.plan;
@@ -195,7 +195,15 @@ function renderPhaseActions() {
   var div = document.createElement('div');
   div.className = 'phase-action';
 
-  if (phase === "2.1") {
+  if (phase === "1.4") {
+    div.innerHTML = '<div class="phase-action-title">' + t('phaseAction.preplanningReview') + '</div>' +
+      '<div class="phase-action-desc">' + t('phaseAction.preplanningReviewDesc') + '</div>' +
+      '<textarea id="rejectFeedbackInput" class="ws-input" placeholder="' + t('placeholders.feedbackForChanges') + '" style="margin-top: 8px; min-height: 50px; resize: vertical;"></textarea>' +
+      '<div style="display: flex; gap: 8px; margin-top: 8px;">' +
+      '<button class="btn btn-primary" onclick="handleApprove()">' + t('preplanning.approvePreplanning') + '</button>' +
+      '<button class="btn btn-danger" onclick="handleRejectWithInput()">' + t('preplanning.rejectPreplanning') + '</button>' +
+      '</div>';
+  } else if (phase === "2.1") {
     div.innerHTML = '<div class="phase-action-title">' + t('phaseAction.planReview') + '</div>' +
       '<div class="phase-action-desc">' + t('phaseAction.planReviewDesc') + '</div>' +
       '<textarea id="rejectFeedbackInput" class="ws-input" placeholder="' + t('placeholders.feedbackForChanges') + '" style="margin-top: 8px; min-height: 50px; resize: vertical;"></textarea>' +

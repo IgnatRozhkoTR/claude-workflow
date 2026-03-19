@@ -61,13 +61,22 @@ Resume the plan-advisor:
 Agent(
   resume: {plan_advisor_id},
   prompt: "Begin assessment. Read the user's request. Explore the codebase — find relevant files,
-           understand patterns and conventions. Identify affected areas.
-           Raise research questions — what needs deeper investigation before planning?
-           Report: brief summary + list of research questions."
+           understand patterns and conventions.
+
+           Produce a structured assessment covering:
+           - Ticket restatement: rephrase the request in your own words to confirm understanding
+           - Affected areas: concepts involved — APIs, user flows, data pipelines (not just file paths)
+           - API impact: which endpoints change, what contract changes are expected
+           - Data flow: where key values originate and how they move through the system
+           - Ticket gaps: what is underspecified or ambiguous in the request
+           - Dependencies: which other modules or consumers depend on what we're changing
+           - Research questions: what needs deeper investigation before planning
+
+           Report all of the above."
 )
 ```
 
-**Output**: Brief summary (2-3 sentences) + list of research questions.
+**Output**: Structured assessment covering all points above.
 
 ---
 
@@ -83,13 +92,14 @@ Agent(
   prompt: "Research topic: {question}
            Working directory: {working_dir}
            Investigate thoroughly — read all relevant files, trace code paths.
-           Return: topic, findings with file:line evidence."
+           Return: topic, summary (2-3 sentence human-readable overview of what you found),
+           findings with file:line evidence."
 )
 ```
 
 Launch all researchers in a single message for parallel execution. Use `senior-code-researcher` for topics requiring deep cross-component analysis.
 
-**Output**: Findings per topic with file:line references.
+**Output**: Per topic — summary + findings with file:line references.
 
 ---
 
@@ -111,11 +121,31 @@ Don't skip this — false research leads to bad plans.
 
 **Identify impacts beyond the immediate code changes.**
 
-1. Which user flows are affected? (UI, APIs, integrations)
-2. External dependencies — DB migrations, infrastructure, coordination?
-3. What should the acceptance criteria be? (What tests should exist? What scenarios must work?)
+Produce a structured impact analysis covering:
+- **Affected user flows**: which UI paths, API calls, or integrations are touched
+- **API contract changes**: request/response shape changes, new fields, removed fields, behaviour shifts
+- **Data flow changes**: how data movement through the system changes as a result
+- **External dependencies**: DB migrations, infrastructure changes, coordination with other teams or services
+- **Ticket gaps found**: ambiguities or missing details uncovered during research
+- **Remaining open questions**: anything still unresolved that may affect planning
 
-**Output**: Affected areas, external dependencies, acceptance criteria.
+If impact analysis reveals new gaps, deploy additional researchers before proceeding.
+
+**Output**: Structured impact analysis covering all points above.
+
+---
+
+## Phase 1.4: Present Findings
+
+### >>> STOP — present findings and wait for user confirmation.
+
+Present to the user:
+- Research summaries (one per topic)
+- Impact analysis
+- Open questions that need user input
+- Proposed research topics if any remain
+
+Do NOT proceed to planning until user confirms. If user identifies gaps, go back to research.
 
 ---
 
@@ -268,7 +298,7 @@ Summary format:
 - **Don't skip phases** — quick assessment prevents mistakes even on simple tasks
 - **For trivial fixes** (single obvious line change), say so and ask if user wants the full process
 - **The plan is the contract** — don't change scope without flagging it
-- **Plan approval is the only hard gate** — present and wait before implementing
+- **Plan approval and preparation review are the only hard stops** — present and wait before implementing
 - **Engineers never write tests, test engineers never write production code**
 - **If blocked**, resume the plan-advisor to discuss rather than guessing
 - **Keep outputs concise** — bullet points, not essays

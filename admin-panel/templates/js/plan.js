@@ -558,7 +558,6 @@ function renderPlan() {
   if (PLAN_DATA.description) {
     var descDiv = document.createElement('div');
     descDiv.className = 'plan-description';
-    descDiv.style.cssText = 'padding: 12px 16px; margin-bottom: 12px; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid var(--accent); font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap;';
     descDiv.textContent = PLAN_DATA.description;
     container.appendChild(descDiv);
   }

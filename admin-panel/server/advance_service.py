@@ -34,6 +34,7 @@ class PhaseAdvancer(ABC):
             "1.1": t("phase.guide.1_1", locale),
             "1.2": t("phase.guide.1_2", locale),
             "1.3": t("phase.guide.1_3", locale),
+            "1.4": t("phase.guide.1_4", locale),
             "2.0": t("phase.guide.2_0", locale),
             "2.1": t("phase.guide.2_1", locale),
             "4.0": t("phase.guide.4_0", locale),
@@ -222,6 +223,17 @@ class ProverAdvancer(PhaseAdvancer):
 
 
 class ImpactAnalysisAdvancer(PhaseAdvancer):
+    def validate(self, ws, body, project_path):
+        locale = ws["locale"]
+        if not check_progress(ws["id"], "1.3"):
+            return False, {"message": t("advance.error.noImpactAnalysisProgress", locale)}
+        return True, {}
+
+    def next_phase(self, ws):
+        return "1.4"
+
+
+class PreparationReviewAdvancer(PhaseAdvancer):
     def validate(self, ws, body, project_path):
         locale = ws["locale"]
         if not check_progress(ws["id"], "1.3"):
@@ -484,6 +496,7 @@ ADVANCER_CLASSES = {
     "1.1": ResearchAdvancer,
     "1.2": ProverAdvancer,
     "1.3": ImpactAnalysisAdvancer,
+    "1.4": PreparationReviewAdvancer,
     "2.0": PlanAdvancer,
     "4.0": AgenticReviewAdvancer,
     "4.1": AddressFixAdvancer,
@@ -491,7 +504,7 @@ ADVANCER_CLASSES = {
 
 
 def is_user_gate(phase):
-    if phase in ("2.1", "4.2"):
+    if phase in ("1.4", "2.1", "4.2"):
         return True
     return bool(re.match(r'^3\.\d+\.3$', phase))
 
@@ -564,7 +577,9 @@ def approve_gate(ws, token, commit_message=None):
 
     db = get_db()
     try:
-        if phase == "2.1":
+        if phase == "1.4":
+            new_phase = "2.0"
+        elif phase == "2.1":
             plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {}
             execution = plan.get("execution", [])
             if not execution:
@@ -616,7 +631,9 @@ def reject_gate(ws, token, comments=""):
     if token != ws["gate_nonce"]:
         return {"error": t("gate.error.invalidNonce", locale), "status_code": 403}
 
-    if phase == "2.1":
+    if phase == "1.4":
+        new_phase = "1.1"
+    elif phase == "2.1":
         new_phase = "2.0"
     elif re.match(r'^3\.\d+\.3$', phase):
         n = phase.split(".")[1]

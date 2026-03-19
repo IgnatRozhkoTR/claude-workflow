@@ -44,6 +44,9 @@ async function switchTab(tabId) {
     if (typeof renderPhaseActions === 'function') renderPhaseActions();
     if (typeof updateScopeStatusUI === 'function') updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
     if (typeof updatePlanApprovalUI === 'function') updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
+    if (typeof loadCriteria === 'function') loadCriteria();
+  } else if (tabId === 'preplanning') {
+    if (typeof renderPreplanning === 'function') renderPreplanning();
   } else if (tabId === 'research') {
     if (typeof renderResearch === 'function') renderResearch();
   } else if (tabId === 'phases') {

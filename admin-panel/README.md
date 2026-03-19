@@ -102,6 +102,16 @@ admin-panel/
     update-proof-snippets.py  # Maintenance utility
 ```
 
+## Admin Panel Tabs
+
+| Tab | Visible During | Purpose |
+|-----|---------------|---------|
+| Pre-planning | Phases 1.0–1.4 | Review research summaries, impact analysis, and discussions. Approve/reject preparation gate (1.4). |
+| Configuration | All phases | Workspace settings (previously called Dashboard). |
+| Plan | Phases 2.0+ | Execution plan, sub-phases, scope, and acceptance criteria. |
+| Execution | Phases 3.N.x | Per-sub-phase implementation, validation, diff viewer, and code review gate. |
+| Review | Phases 4.0–4.2 | Final review issues, address & fix, and final approval gate. |
+
 ## API Overview
 
 All workspace endpoints are scoped under `/api/ws/<project_id>/<branch>/`.

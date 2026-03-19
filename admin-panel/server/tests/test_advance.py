@@ -188,8 +188,36 @@ def test_impact_analysis_passes(workspace, project):
     add_progress(workspace["id"], "1.3", "Impact analyzed")
     ws = _get_ws_row(workspace["id"])
     result, code = perform_advance(ws, project["path"])
-    assert code == 200
-    assert result["phase"] == "2.0"
+    assert code == 202
+    assert result["phase"] == "1.4"
+    assert result["status"] == "awaiting_approval"
+
+
+def test_preparation_review_is_user_gate(workspace, project):
+    """Phase 1.4 is a user gate — perform_advance returns 409."""
+    set_phase(workspace["id"], "1.4")
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"])
+    assert code == 409
+    assert "error" in result
+
+
+def test_approve_at_preparation_review(client, workspace):
+    """Approve at phase 1.4 → advances to 2.0."""
+    set_phase(workspace["id"], "1.4", gate_nonce="nonce-prep")
+
+    r = client.post("/api/ws/test-project/feature/test/approve", json={"token": "nonce-prep"})
+    assert r.status_code == 200
+    assert r.json["phase"] == "2.0"
+
+
+def test_reject_at_preparation_review(client, workspace):
+    """Reject at phase 1.4 → goes back to 1.1."""
+    set_phase(workspace["id"], "1.4", gate_nonce="nonce-prep-rej")
+
+    r = client.post("/api/ws/test-project/feature/test/reject", json={"token": "nonce-prep-rej"})
+    assert r.status_code == 200
+    assert r.json["phase"] == "1.1"
 
 
 def test_plan_blocked_no_plan(workspace, project):

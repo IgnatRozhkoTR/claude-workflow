@@ -188,6 +188,7 @@ async function refreshState() {
     updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
     updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
     renderResearch();
+    if (typeof renderPreplanning === 'function') renderPreplanning();
 
     try {
       var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);

@@ -93,14 +93,15 @@ def test_advance_blocked_by_guard_returns_errors_list(workspace, project):
 
 
 def test_advance_passes_guards_when_all_approved(workspace, project):
-    """perform_advance succeeds when all guards approve."""
+    """perform_advance succeeds when all guards approve — 1.3 advances to 1.4 (user gate, 202)."""
     add_research(workspace["id"], topic="Good", proven=1)
     set_phase(workspace["id"], "1.3")
     add_progress(workspace["id"], "1.3", "Impact done")
     ws = _get_ws_row(workspace["id"])
     result, code = perform_advance(ws, project["path"])
-    assert code == 200
-    assert result["phase"] == "2.0"
+    assert code == 202
+    assert result["phase"] == "1.4"
+    assert result["status"] == "awaiting_approval"
 
 
 def test_advance_at_exempt_phase_ignores_unproven(workspace, project):

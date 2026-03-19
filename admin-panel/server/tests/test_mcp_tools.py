@@ -313,6 +313,48 @@ class TestResearch:
         assert result["ok"]
         assert result["proven"] is False
 
+    def test_save_research_with_summary(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_save_research, workspace_list_research, workspace_get_research
+        findings = [
+            {
+                "summary": "Found pattern",
+                "proof": {"type": "web", "url": "http://example.com", "title": "T", "quote": "Q"},
+            }
+        ]
+        result = workspace_save_research(
+            topic="Summary test", findings=findings, summary="Overall this research found a pattern."
+        )
+        assert result["ok"]
+        rid = result["research_id"]
+
+        listed = workspace_list_research()
+        entry = next(e for e in listed if e["id"] == rid)
+        assert entry["summary"] == "Overall this research found a pattern."
+
+        full = workspace_get_research(ids=[rid])
+        assert full[0]["summary"] == "Overall this research found a pattern."
+
+    def test_save_research_without_summary(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_save_research, workspace_list_research, workspace_get_research
+        findings = [
+            {
+                "summary": "Found something",
+                "proof": {"type": "web", "url": "http://example.com", "title": "T", "quote": "Q"},
+            }
+        ]
+        result = workspace_save_research(topic="No summary test", findings=findings)
+        assert result["ok"]
+        rid = result["research_id"]
+
+        listed = workspace_list_research()
+        entry = next(e for e in listed if e["id"] == rid)
+        assert entry["summary"] is None
+
+        full = workspace_get_research(ids=[rid])
+        assert full[0]["summary"] is None
+
     def test_save_research_normalizes_paths(self, workspace, monkeypatch, tmp_path):
         # Simulate agent running from a subdirectory
         subdir = Path(workspace["working_dir"]) / "src"
@@ -559,6 +601,38 @@ class TestCriteria:
         assert result["ok"]
         assert result["criterion"]["source"] == "agent"
         assert result["criterion"]["status"] == "proposed"
+
+    def test_propose_criteria_with_valid_details_json(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_propose_criteria, workspace_get_criteria
+        details = json.dumps({"file": "tests/test_user.py", "test_names": ["test_create_user"]})
+        result = workspace_propose_criteria(
+            type="unit_test", description="User creation test", details_json=details
+        )
+        assert result["ok"]
+        assert result["criterion"]["details"] == {"file": "tests/test_user.py", "test_names": ["test_create_user"]}
+
+        criteria = workspace_get_criteria()
+        match = next(c for c in criteria if c["id"] == result["criterion"]["id"])
+        assert match["details"] == {"file": "tests/test_user.py", "test_names": ["test_create_user"]}
+
+    def test_propose_criteria_with_invalid_details_json(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_propose_criteria
+        result = workspace_propose_criteria(
+            type="unit_test", description="Bad JSON", details_json="{not valid json"
+        )
+        assert "error" in result
+        assert "not valid JSON" in result["error"]
+
+    def test_propose_criteria_with_non_object_details_json(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_propose_criteria
+        result = workspace_propose_criteria(
+            type="unit_test", description="String details", details_json='"just a string"'
+        )
+        assert "error" in result
+        assert "object" in result["error"].lower()
 
     def test_propose_criteria_invalid_type(self, workspace, monkeypatch):
         monkeypatch.chdir(workspace["working_dir"])

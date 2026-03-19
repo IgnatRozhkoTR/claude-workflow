@@ -1,0 +1,191 @@
+/* ═══════════════════════════════════════════════ */
+/*  PRE-PLANNING TAB                               */
+/* ═══════════════════════════════════════════════ */
+
+/* ─── Section headers ─── */
+.pp-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── Research summary cards ─── */
+.pp-research-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pp-research-card:hover {
+  border-color: color-mix(in srgb, var(--border-active) 50%, var(--border));
+  background: var(--bg-hover);
+}
+
+.pp-research-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-research-topic {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.pp-research-summary {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.pp-research-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ─── Impact analysis ─── */
+.pp-impact-block {
+  padding: 14px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pp-impact-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* ─── Discussions ─── */
+.pp-discussion-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  background: var(--bg-input);
+  transition: var(--transition);
+}
+
+.pp-discussion-item.pp-resolved {
+  opacity: 0.55;
+}
+
+.pp-discussion-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pp-discussion-text {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  flex: 1;
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.pp-discussion-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ─── Gate actions ─── */
+.pp-gate-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.pp-gate-actions textarea {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  min-height: 50px;
+  width: 100%;
+  transition: var(--transition);
+}
+
+.pp-gate-actions textarea:focus {
+  border-color: var(--border-active);
+}
+
+/* ─── Inline comment trigger ─── */
+.pp-comment-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.pp-comment-btn:hover {
+  border-color: var(--border-active);
+  color: var(--accent);
+}
+
+/* ─── Inline comment form ─── */
+.pp-inline-comment-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.pp-inline-comment-form input {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  flex: 1;
+  transition: var(--transition);
+}
+
+.pp-inline-comment-form input:focus {
+  border-color: var(--border-active);
+}

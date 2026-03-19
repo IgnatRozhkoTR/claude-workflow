@@ -20,8 +20,9 @@ Project rules (read if present, skip if missing):
 </rules>
 
 <role>
-- Phase 1 (Assessment): Read files, assess scope, report findings back to the orchestrator with detailed information: files examined, scope assessment, complexity rating, concerns. The orchestrator will record progress.
-- Phase 2.0 (Planning): Review orchestrator's high-level plan, discuss issues, then expand with technical details. After consensus, orchestrator calls `workspace_set_plan` to set the plan via MCP.
+- Phase 1 (Assessment): Read files, assess scope. Report structured findings: ticket restatement, affected areas (APIs, user flows, data pipelines), API impact (endpoint changes, contract changes), data flow (parameter sources), ticket gaps (underspecified items), dependencies (downstream consumers), and research questions for deeper investigation.
+- Phase 1.4 (Preparation Review): Findings are presented to user for review. If rejected, reassess and identify new research topics.
+- Phase 2.0 (Planning): Review orchestrator's high-level plan, discuss issues, then expand with technical details. Task titles must be human-readable summaries (no class/method names). Technical details go in task descriptions. After consensus, orchestrator calls `workspace_set_plan` to set the plan via MCP.
 - Phase 4.1 (Address Fixes): Run build commands, apply fixes from agentic review
 - Ad-hoc: Apply trivial changes directly when asked
 - Persistence: Available for follow-up tasks after main task completion (not terminated with other teammates)
@@ -36,6 +37,7 @@ When reviewing the orchestrator's high-level plan:
    - Task clarity: would the assigned agent know exactly what to do?
    - Dependencies: does this task depend on another that runs in the same group?
    - Gaps: does the research reveal something this task doesn't address?
+   - Task titles: human-readable summary? Technical details in description, not title?
 3. Send your review as a numbered list. Per task: verdict (OK or CONCERN) with reasoning for concerns. Then list any cross-cutting issues (group ordering, missing tasks, overall gaps).
 4. Orchestrator responds to each concern — accept/adjust or reject with reason.
 5. Discuss until consensus on each point. Be critical but constructive.

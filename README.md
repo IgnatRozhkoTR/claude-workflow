@@ -6,7 +6,7 @@ The system ships as a set of Claude Code extensions: agent definitions, hook scr
 
 ## How It Works
 
-The workflow moves through assessment, research, planning, execution, review, and delivery. Three transitions are **user gates** that halt progress until a human approves or rejects via the admin panel.
+The workflow moves through assessment, research, planning, execution, review, and delivery. Four transitions are **user gates** that halt progress until a human approves or rejects via the admin panel.
 
 ```mermaid
 flowchart TD
@@ -15,6 +15,7 @@ flowchart TD
     P11["1.1: Research<br/>Answer questions with findings"]
     P12["1.2: Research Proving"]
     P13["1.3: Impact Analysis"]
+    P14{{"1.4: Preparation Review — USER GATE"}}
     AC["Criteria proposed"]
     P20["2.0: Planning"]
     P21{{"2.1: Plan Review — USER GATE<br/>All criteria must be accepted"}}
@@ -36,7 +37,9 @@ flowchart TD
     P11 --> P12
     P12 --> P13
     P13 -.-> AC
-    P13 --> P20
+    P13 --> P14
+    P14 -- "Approve" --> P20
+    P14 -- "Reject" --> P11
     P20 --> P21
 
     P21 -- "Approve" --> P3N0
@@ -69,7 +72,7 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 **Phase advancement.** The agent calls `workspace_advance` — the backend decides the next phase. Each phase has an advancer that validates prerequisites (progress documented, research proven, scope changes present, commit hash valid). Failures return specific errors explaining what's missing.
 
-**User gates.** Plan Review (2.1), Code Review (3.N.3), and Final Approval (4.2) generate cryptographic nonces. Only the admin panel UI can present them, ensuring the agent cannot self-approve.
+**User gates.** Preparation Review (1.4), Plan Review (2.1), Code Review (3.N.3), and Final Approval (4.2) generate cryptographic nonces. Only the admin panel UI can present them, ensuring the agent cannot self-approve.
 
 **Scope locking.** Each execution sub-phase defines `must` (required changes) and `may` (permitted boundary) file patterns. Pre-tool hooks enforce these at edit time — the agent physically cannot write outside its scope. Scope and plan carry separate approval statuses. Updating either one auto-revokes its approval, requiring the user to re-approve before execution can continue.
 

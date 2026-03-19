@@ -92,6 +92,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
                 topic TEXT NOT NULL,
+                summary TEXT,
                 findings_json TEXT NOT NULL,
                 proven INTEGER NOT NULL DEFAULT 0,
                 proven_notes TEXT,
@@ -246,6 +247,8 @@ def _migrate_db(db):
     research_columns = {row[1] for row in db.execute("PRAGMA table_info(research_entries)")}
     if "discussion_id" not in research_columns:
         db.execute("ALTER TABLE research_entries ADD COLUMN discussion_id INTEGER")
+    if "summary" not in research_columns:
+        db.execute("ALTER TABLE research_entries ADD COLUMN summary TEXT")
 
     # Normalize review comment scopes
     db.execute("UPDATE discussions SET scope = 'review' WHERE scope IN ('diff', 'file')")

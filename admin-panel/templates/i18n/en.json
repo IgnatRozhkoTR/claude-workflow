@@ -1,5 +1,7 @@
 {
   "tabs.mainPage": "Main Page",
+  "tabs.configuration": "Configuration",
+  "tabs.preplanning": "Pre-planning",
   "tabs.research": "Research",
   "tabs.phaseControl": "Phase Control",
   "tabs.plan": "Plan Review",
@@ -171,6 +173,7 @@
   "phase.research": "Research",
   "phase.proving": "Proving",
   "phase.impactAnalysis": "Impact Analysis",
+  "phase.preplanningReview": "Pre-planning Review",
   "phase.planning": "Planning",
   "phase.planReview": "Plan Review",
   "phase.agenticReview": "Agentic Review",
@@ -202,8 +205,23 @@
   "phaseAction.planReviewDesc": "Review the execution plan and scope. Approve to begin implementation, or reject with feedback.",
   "phaseAction.codeReview": "Code Review — {phase}",
   "phaseAction.codeReviewDesc": "Review the code changes. Optionally provide a commit message.",
+  "phaseAction.preplanningReview": "Pre-planning Review",
+  "phaseAction.preplanningReviewDesc": "Review the research summaries, impact analysis, and discussions. Approve to proceed to planning, or reject to return to research.",
   "phaseAction.finalApproval": "Final Approval",
   "phaseAction.finalApprovalDesc": "All fixes addressed. Approve to complete the task and allow push/MR.",
+
+  "preplanning.researchSummaries": "Research Summaries",
+  "preplanning.impactAnalysis": "Impact Analysis",
+  "preplanning.discussions": "Discussions",
+  "preplanning.noResearch": "No research entries yet.",
+  "preplanning.noImpactAnalysis": "No impact analysis available for phase 1.3.",
+  "preplanning.preplanningApproval": "Pre-planning Approval",
+  "preplanning.approvalDescription": "Review the research summaries, impact analysis, and discussions above. Approve to advance to planning, or reject with feedback to return to research.",
+  "preplanning.approvePreplanning": "Approve Pre-planning",
+  "preplanning.rejectPreplanning": "Reject to Research",
+  "preplanning.commentAdded": "Discussion added",
+
+  "badges.open": "open",
 
   "research.noEntries": "No research entries yet.",
   "research.untitledResearch": "Untitled Research",
@@ -326,5 +344,8 @@
   "review.hideResolved": "Hide resolved",
   "review.resolution.fixed": "fixed",
   "review.resolution.false_positive": "false positive",
-  "review.resolution.out_of_scope": "out of scope"
+  "review.resolution.out_of_scope": "out of scope",
+
+  "actions.copyPath": "Path",
+  "actions.copied": "Copied!"
 }

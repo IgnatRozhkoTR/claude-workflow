@@ -1,6 +1,19 @@
 /* ═══════════════════════════════════════════════ */
 /*  PLAN REVIEW                                    */
 /* ═══════════════════════════════════════════════ */
+
+.plan-description {
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
 .plan-group {
   margin-bottom: 14px;
 }
@@ -79,7 +92,7 @@
 
 .plan-task-title {
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .plan-task-detail {

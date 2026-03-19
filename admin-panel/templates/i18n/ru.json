@@ -1,5 +1,7 @@
 {
   "tabs.mainPage": "Главная",
+  "tabs.configuration": "Конфигурация",
+  "tabs.preplanning": "Предпланирование",
   "tabs.research": "Исследование",
   "tabs.phaseControl": "Управление фазами",
   "tabs.plan": "Обзор плана",
@@ -171,6 +173,7 @@
   "phase.research": "Исследование",
   "phase.proving": "Доказательство",
   "phase.impactAnalysis": "Анализ влияния",
+  "phase.preplanningReview": "Обзор предпланирования",
   "phase.planning": "Планирование",
   "phase.planReview": "Обзор плана",
   "phase.agenticReview": "Агентная проверка",
@@ -202,8 +205,23 @@
   "phaseAction.planReviewDesc": "Проверьте план выполнения и область. Одобрите для начала реализации или отклоните с комментарием.",
   "phaseAction.codeReview": "Ревью кода — {phase}",
   "phaseAction.codeReviewDesc": "Проверьте изменения кода. При необходимости укажите сообщение коммита.",
+  "phaseAction.preplanningReview": "Обзор предпланирования",
+  "phaseAction.preplanningReviewDesc": "Проверьте краткие результаты исследований, анализ влияния и обсуждения. Одобрите для перехода к планированию или отклоните для возврата к исследованию.",
   "phaseAction.finalApproval": "Финальное одобрение",
   "phaseAction.finalApprovalDesc": "Все замечания устранены. Одобрите для завершения задачи и разрешения push/MR.",
+
+  "preplanning.researchSummaries": "Краткие результаты исследований",
+  "preplanning.impactAnalysis": "Анализ влияния",
+  "preplanning.discussions": "Обсуждения",
+  "preplanning.noResearch": "Записей исследования пока нет.",
+  "preplanning.noImpactAnalysis": "Анализ влияния для фазы 1.3 недоступен.",
+  "preplanning.preplanningApproval": "Одобрение предпланирования",
+  "preplanning.approvalDescription": "Проверьте краткие результаты исследований, анализ влияния и обсуждения выше. Одобрите для перехода к планированию или отклоните с комментарием для возврата к исследованию.",
+  "preplanning.approvePreplanning": "Одобрить предпланирование",
+  "preplanning.rejectPreplanning": "Вернуть к исследованию",
+  "preplanning.commentAdded": "Обсуждение добавлено",
+
+  "badges.open": "открыто",
 
   "research.noEntries": "Записей исследования пока нет.",
   "research.untitledResearch": "Исследование без названия",
@@ -326,5 +344,8 @@
   "review.hideResolved": "Скрыть решённые",
   "review.resolution.fixed": "исправлено",
   "review.resolution.false_positive": "ложное срабатывание",
-  "review.resolution.out_of_scope": "вне области"
+  "review.resolution.out_of_scope": "вне области",
+
+  "actions.copyPath": "Путь",
+  "actions.copied": "Скопировано!"
 }

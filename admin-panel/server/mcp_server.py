@@ -18,6 +18,16 @@ from phase import Phase
 # Initialize DB on import
 init_db()
 
+
+def _safe_parse_json(raw):
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
 mcp = FastMCP("workspace", instructions="Workspace state management for orchestrator workflow.")
 
 
@@ -181,7 +191,7 @@ def workspace_advance(commit_hash: str = "", no_further_research_needed: bool = 
     you have gathered all necessary information. If you're unsure, review your research findings
     against the research discussions — post new discussions and run more research if gaps exist.
 
-    User gates (2.1, 3.N.3, 4.2) require human approval via admin panel — advance returns 409.
+    User gates (1.4, 2.1, 3.N.3, 4.2) require human approval via admin panel — advance returns 409.
     When the user REJECTS at a gate, phase reverts to the previous step (e.g. 3.N.3 → 3.N.2).
     Read user comments via workspace_get_comments, fix the issues, then call workspace_advance
     to return to the gate for re-review. Do NOT ask the user to approve in order to fix — fix first, then re-submit."""
@@ -514,8 +524,11 @@ def workspace_post_discussion(topic: str, parent_id: int = 0, type: str = "gener
 
 
 @mcp.tool()
-def workspace_save_research(topic: str, findings: list, discussion_id: int = 0) -> dict:
+def workspace_save_research(topic: str, findings: list, discussion_id: int = 0, summary: str = "") -> dict:
     """Save research findings. Called by researcher sub-agents after investigation.
+
+    summary: Optional 2-3 sentence human-readable overview of the overall research findings.
+    If provided, it appears in research lists without requiring full findings to be loaded.
 
     discussion_id: Optional — ID of the research discussion this answers. Link your research
     to the discussion that raised the question. Required for advancing past research phase
@@ -613,10 +626,11 @@ def workspace_save_research(topic: str, findings: list, discussion_id: int = 0) 
     db = get_db()
     try:
         resolved_discussion_id = discussion_id if discussion_id else None
+        resolved_summary = summary.strip() if summary and summary.strip() else None
         cursor = db.execute(
-            "INSERT INTO research_entries (workspace_id, topic, findings_json, discussion_id, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (ws["id"], topic, json.dumps(findings), resolved_discussion_id, datetime.now().isoformat())
+            "INSERT INTO research_entries (workspace_id, topic, summary, findings_json, discussion_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (ws["id"], topic, resolved_summary, json.dumps(findings), resolved_discussion_id, datetime.now().isoformat())
         )
         db.commit()
         return {"ok": True, "research_id": cursor.lastrowid}
@@ -636,7 +650,7 @@ def workspace_list_research() -> list:
     db = get_db()
     try:
         rows = db.execute(
-            "SELECT id, topic, findings_json, proven, created_at "
+            "SELECT id, topic, summary, findings_json, proven, created_at "
             "FROM research_entries WHERE workspace_id = ? ORDER BY id",
             (ws["id"],)
         ).fetchall()
@@ -644,6 +658,7 @@ def workspace_list_research() -> list:
             {
                 "id": row["id"],
                 "topic": row["topic"],
+                "summary": row["summary"],
                 "findings_count": len(json.loads(row["findings_json"])),
                 "proven": row["proven"],
                 "created_at": row["created_at"],
@@ -670,7 +685,7 @@ def workspace_get_research(ids: list) -> list:
     try:
         placeholders = ",".join("?" * len(ids))
         rows = db.execute(
-            f"SELECT id, topic, findings_json, proven, proven_notes, created_at "
+            f"SELECT id, topic, summary, findings_json, proven, proven_notes, created_at "
             f"FROM research_entries WHERE workspace_id = ? AND id IN ({placeholders}) ORDER BY id",
             [ws["id"]] + list(ids)
         ).fetchall()
@@ -678,6 +693,7 @@ def workspace_get_research(ids: list) -> list:
             {
                 "id": row["id"],
                 "topic": row["topic"],
+                "summary": row["summary"],
                 "findings": json.loads(row["findings_json"]),
                 "proven": row["proven"],
                 "proven_notes": row["proven_notes"],
@@ -1086,7 +1102,10 @@ def workspace_propose_criteria(type: str, description: str, details_json: str = 
 
     - type: one of 'unit_test', 'integration_test', 'bdd_scenario', 'custom'
     - description: human-readable description of what must pass
-    - details_json: optional JSON string with type-specific details (test names, file paths, scenario steps)
+    - details_json: optional JSON string with type-specific details
+      For unit_test/integration_test: {"file": "path/to/TestFile.java", "test_names": ["testMethod1", "testMethod2"]}
+      For bdd_scenario: {"file": "features/file.feature", "scenario_names": ["scenario1"]}
+      For custom: {"instruction": "description of what to verify"}
 
     Proposed criteria are visible in the admin panel where the user can accept or reject them."""
     ws, project = _detect_workspace()
@@ -1096,6 +1115,19 @@ def workspace_propose_criteria(type: str, description: str, details_json: str = 
     locale = ws["locale"] or "en"
     if type not in VALID_CRITERIA_TYPES:
         return {"error": t("mcp.error.invalidCriteriaType", locale, type=type, valid_types=", ".join(VALID_CRITERIA_TYPES))}
+
+    warnings = []
+    if details_json:
+        try:
+            parsed_details = json.loads(details_json)
+        except json.JSONDecodeError as e:
+            return {"error": f"details_json is not valid JSON: {e}"}
+        if not isinstance(parsed_details, dict):
+            return {"error": f"details_json must be a JSON object, got {parsed_details.__class__.__name__}"}
+        if type in ("unit_test", "integration_test") and "file" not in parsed_details:
+            warnings.append("details_json is missing recommended 'file' key for unit_test/integration_test")
+        if type == "bdd_scenario" and "file" not in parsed_details:
+            warnings.append("details_json is missing recommended 'file' key for bdd_scenario")
 
     db = get_db()
     try:
@@ -1112,19 +1144,22 @@ def workspace_propose_criteria(type: str, description: str, details_json: str = 
             "FROM acceptance_criteria WHERE id = ?",
             (criterion_id,)
         ).fetchone()
-        return {
+        result = {
             "ok": True,
             "criterion": {
                 "id": row["id"],
                 "type": row["type"],
                 "description": row["description"],
-                "details": json.loads(row["details_json"]) if row["details_json"] else None,
+                "details": _safe_parse_json(row["details_json"]),
                 "source": row["source"],
                 "status": row["status"],
                 "validated": row["validated"],
                 "validation_message": row["validation_message"],
             }
         }
+        if warnings:
+            result["warnings"] = warnings
+        return result
     finally:
         db.close()
 
@@ -1157,12 +1192,20 @@ def workspace_get_criteria(status: str = "", type: str = "") -> list:
         query += " ORDER BY id"
 
         rows = db.execute(query, params).fetchall()
+        def _parse_details(raw):
+            if not raw:
+                return None
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return None
+
         return [
             {
                 "id": row["id"],
                 "type": row["type"],
                 "description": row["description"],
-                "details": json.loads(row["details_json"]) if row["details_json"] else None,
+                "details": _parse_details(row["details_json"]),
                 "source": row["source"],
                 "status": row["status"],
                 "validated": row["validated"],
@@ -1205,6 +1248,20 @@ def workspace_update_criteria(criterion_id: int, description: str = "", details_
 
         reset_status = row["status"] == "rejected"
 
+        warnings = []
+        if details_json:
+            try:
+                parsed_details = json.loads(details_json)
+            except json.JSONDecodeError as e:
+                return {"error": f"details_json is not valid JSON: {e}"}
+            if not isinstance(parsed_details, dict):
+                return {"error": f"details_json must be a JSON object, got {type(parsed_details).__name__}"}
+            criterion_type = row["type"]
+            if criterion_type in ("unit_test", "integration_test") and "file" not in parsed_details:
+                warnings.append("details_json is missing recommended 'file' key for unit_test/integration_test")
+            if criterion_type == "bdd_scenario" and "file" not in parsed_details:
+                warnings.append("details_json is missing recommended 'file' key for bdd_scenario")
+
         updates = []
         params = []
         if description:
@@ -1234,11 +1291,13 @@ def workspace_update_criteria(criterion_id: int, description: str = "", details_
         result = {"ok": True, "id": criterion_id}
         if reset_status:
             result["status_reset"] = "proposed"
+        if warnings:
+            result["warnings"] = warnings
         result["criterion"] = {
             "id": updated["id"],
             "type": updated["type"],
             "description": updated["description"],
-            "details": json.loads(updated["details_json"]) if updated["details_json"] else None,
+            "details": _safe_parse_json(updated["details_json"]),
             "status": updated["status"],
         }
         return result

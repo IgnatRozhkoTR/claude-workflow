@@ -80,6 +80,7 @@ async function initApp() {
   updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
   updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
   renderResearch();
+  renderPreplanning();
   renderFileList();
   renderPhaseActions();
   renderApprovalStatus();
@@ -116,6 +117,18 @@ function copyResumeCommand() {
   if (!sessionId) return;
   var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions -r ' + sessionId;
   copyToClipboard(cmd, t('messages.resumeCommandCopied'));
+}
+
+function copyWorkspacePath() {
+  var workingDir = LOCK_DATA.working_dir;
+  if (!workingDir) return;
+  var cmd = 'cd ' + workingDir;
+  navigator.clipboard.writeText(cmd).then(function() {
+    var btn = document.getElementById('copyPathBtn');
+    if (!btn) return;
+    btn.textContent = t('actions.copied');
+    setTimeout(function() { btn.textContent = t('actions.copyPath'); }, 1500);
+  });
 }
 
 function toggleSessionsHistory() {

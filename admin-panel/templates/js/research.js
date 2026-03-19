@@ -61,6 +61,13 @@ function renderResearch() {
     var body = document.createElement('div');
     body.className = 'research-group-body';
 
+    if (entry.summary) {
+      var entrySummaryEl = document.createElement('div');
+      entrySummaryEl.className = 'research-group-summary';
+      entrySummaryEl.textContent = entry.summary;
+      body.appendChild(entrySummaryEl);
+    }
+
     findings.forEach(function(f, i) {
       var div = document.createElement('div');
       div.className = 'finding';

@@ -50,6 +50,7 @@
 <link rel="stylesheet" href="css/modals.css">
 <link rel="stylesheet" href="css/context.css">
 <link rel="stylesheet" href="css/diff-viewer.css">
+<link rel="stylesheet" href="css/preplanning.css">
 </head>
 <body>
 
@@ -102,7 +103,8 @@
 
 <!-- ═══ TAB BAR ═══ -->
 <nav class="tab-bar">
-  <button class="tab-btn active" data-tab="dashboard" data-i18n="tabs.mainPage">Main Page</button>
+  <button class="tab-btn active" data-tab="dashboard" data-i18n="tabs.configuration">Configuration</button>
+  <button class="tab-btn" data-tab="preplanning" data-i18n="tabs.preplanning">Pre-planning</button>
   <button class="tab-btn" data-tab="research" data-i18n="tabs.research">Research</button>
   <button class="tab-btn" data-tab="phases" data-i18n="tabs.phaseControl">Phase Control</button>
 </nav>
@@ -123,6 +125,7 @@
       <div id="sessionsHistoryBlock" style="display:none;">
         <button class="btn btn-sm" onclick="toggleSessionsHistory()" title="Browse session history" id="sessionsHistoryBtn" data-i18n="buttons.sessions">Sessions</button>
       </div>
+      <button class="btn btn-sm btn-outline" onclick="copyWorkspacePath()" id="copyPathBtn" data-i18n="actions.copyPath">Path</button>
     </div>
     <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>
 
@@ -244,35 +247,6 @@
       </div>
     </div>
 
-    <!-- Acceptance Criteria -->
-    <div class="card collapsed" id="criteriaCard">
-      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
-        <span class="card-title" data-i18n="cards.acceptanceCriteria">Acceptance Criteria</span>
-        <span class="card-collapse-chevron">&#9660;</span>
-      </div>
-      <div class="card-body" id="criteriaBody">
-        <div class="criteria-add-form" style="margin-bottom: 12px;">
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <select id="criteriaType" class="context-input" style="flex: 0 0 180px;">
-              <option value="unit_test" data-i18n="criteria.unitTest">Unit Test</option>
-              <option value="integration_test" data-i18n="criteria.integrationTest">Integration Test</option>
-              <option value="bdd_scenario" data-i18n="criteria.bddScenario">BDD Scenario</option>
-              <option value="custom" data-i18n="criteria.custom">Custom</option>
-            </select>
-            <input type="text" id="criteriaDesc" class="context-input" placeholder="Description..." data-i18n-placeholder="placeholders.description" style="flex: 1;">
-            <button class="btn btn-sm" onclick="addCriterion()" data-i18n="buttons.add">Add</button>
-          </div>
-          <div id="criteriaDetailsForm" style="display: none; margin-bottom: 8px;">
-            <div class="criteria-detail-fields">
-              <input type="text" id="criteriaFile" class="context-input" placeholder="File path (e.g. src/test/UserServiceTest.java)" data-i18n-placeholder="placeholders.filePath" style="margin-bottom: 4px;">
-              <input type="text" id="criteriaTestNames" class="context-input" placeholder="Test/scenario names (comma-separated)" data-i18n-placeholder="placeholders.testNames">
-            </div>
-          </div>
-        </div>
-        <div id="criteriaList"></div>
-      </div>
-    </div>
-
     <!-- Saved Context (raw) -->
     <div class="card collapsed">
       <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
@@ -283,6 +257,49 @@
         <pre class="context-raw" id="contextRaw"></pre>
       </div>
     </div>
+
+  </div>
+
+  <!-- ─── PRE-PLANNING ─── -->
+  <div class="tab-panel" id="panel-preplanning">
+
+    <!-- Research Summaries -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="preplanning.researchSummaries">Research Summaries</span>
+      </div>
+      <div class="card-body" id="ppResearchList"></div>
+    </div>
+
+    <!-- Impact Analysis -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="preplanning.impactAnalysis">Impact Analysis</span>
+      </div>
+      <div class="card-body" id="ppImpactContent"></div>
+    </div>
+
+    <!-- Discussions -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="preplanning.discussions">Discussions</span>
+        <span class="badge badge-info" id="ppDiscussionsBadge">0</span>
+      </div>
+      <div class="card-body">
+        <div id="ppDiscussionsList"></div>
+        <div class="qa-add-form">
+          <select id="ppNewDiscussionType" class="phase-select" style="width:auto;min-width:90px;font-size:0.75rem;padding:4px 6px;">
+            <option value="general" data-i18n="discussionType.general">General</option>
+            <option value="research" data-i18n="discussionType.research">Research</option>
+          </select>
+          <input type="text" class="context-input" id="ppNewDiscussionInput" placeholder="Raise a discussion point..." data-i18n-placeholder="placeholders.raiseDiscussion" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addPPDiscussion();}">
+          <button class="btn btn-sm" onclick="addPPDiscussion()" data-i18n="buttons.add">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gate Actions (visible only at phase 1.4) -->
+    <div id="ppGateActions"></div>
 
   </div>
 
@@ -376,6 +393,35 @@
         </div>
       </div>
       <div class="card-body" id="planContent"></div>
+    </div>
+
+    <!-- Acceptance Criteria -->
+    <div class="card collapsed" id="criteriaCard">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.acceptanceCriteria">Acceptance Criteria</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body" id="criteriaBody">
+        <div class="criteria-add-form" style="margin-bottom: 12px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <select id="criteriaType" class="context-input" style="flex: 0 0 180px;">
+              <option value="unit_test" data-i18n="criteria.unitTest">Unit Test</option>
+              <option value="integration_test" data-i18n="criteria.integrationTest">Integration Test</option>
+              <option value="bdd_scenario" data-i18n="criteria.bddScenario">BDD Scenario</option>
+              <option value="custom" data-i18n="criteria.custom">Custom</option>
+            </select>
+            <input type="text" id="criteriaDesc" class="context-input" placeholder="Description..." data-i18n-placeholder="placeholders.description" style="flex: 1;">
+            <button class="btn btn-sm" onclick="addCriterion()" data-i18n="buttons.add">Add</button>
+          </div>
+          <div id="criteriaDetailsForm" style="display: none; margin-bottom: 8px;">
+            <div class="criteria-detail-fields">
+              <input type="text" id="criteriaFile" class="context-input" placeholder="File path (e.g. src/test/UserServiceTest.java)" data-i18n-placeholder="placeholders.filePath" style="margin-bottom: 4px;">
+              <input type="text" id="criteriaTestNames" class="context-input" placeholder="Test/scenario names (comma-separated)" data-i18n-placeholder="placeholders.testNames">
+            </div>
+          </div>
+        </div>
+        <div id="criteriaList"></div>
+      </div>
     </div>
   </div>
 
@@ -503,6 +549,7 @@
 <script src="js/file-explorer.js"></script>
 <script src="js/context.js"></script>
 <script src="js/criteria.js"></script>
+<script src="js/preplanning.js"></script>
 <script src="js/actions.js"></script>
 <script src="js/app.js"></script>
 <script src="js/workspace.js"></script>

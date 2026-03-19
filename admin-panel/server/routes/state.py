@@ -14,7 +14,7 @@ _PHASES_WITH_SUBS = {"1", "2", "3", "4"}
 
 # All valid phase patterns
 _VALID_PHASE_RE = re.compile(
-    r'^(0|1\.[0-3]|2\.[01]|3\.\d+\.[0-4]|4\.[0-2]|5)$'
+    r'^(0|1\.[0-4]|2\.[01]|3\.\d+\.[0-4]|4\.[0-2]|5)$'
 )
 
 
@@ -62,7 +62,7 @@ def get_workspace_state(project_id, branch):
         sessions = [{"session_id": r["session_id"], "started_at": r["started_at"]} for r in session_rows]
 
         research_rows = db.execute(
-            "SELECT id, topic, findings_json, proven, discussion_id, created_at "
+            "SELECT id, topic, summary, findings_json, proven, discussion_id, created_at "
             "FROM research_entries WHERE workspace_id = ? ORDER BY id",
             (ws["id"],)
         ).fetchall()
@@ -75,6 +75,7 @@ def get_workspace_state(project_id, branch):
             research.append({
                 "id": row["id"],
                 "topic": row["topic"],
+                "summary": row["summary"],
                 "findings": findings,
                 "proven": row["proven"],
                 "discussion_id": row["discussion_id"],

@@ -11,10 +11,10 @@ VALID_CRITERIA_TYPES = ("unit_test", "integration_test", "bdd_scenario", "custom
 def compute_phase_sequence(plan):
     """Derive phase sequence from plan execution data.
 
-    Fixed phases: 0, 1.0-1.3, 2.0-2.1 (before plan), 4.0-4.2, 5 (after execution).
+    Fixed phases: 0, 1.0-1.4, 2.0-2.1 (before plan), 4.0-4.2, 5 (after execution).
     Execution phases: 3.N.K for each plan execution item, K in 0..4.
     """
-    fixed_before = ["0", "1.0", "1.1", "1.2", "1.3", "2.0", "2.1"]
+    fixed_before = ["0", "1.0", "1.1", "1.2", "1.3", "1.4", "2.0", "2.1"]
     fixed_after = ["4.0", "4.1", "4.2", "5"]
 
     execution = plan.get("execution", []) if isinstance(plan, dict) else []

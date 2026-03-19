@@ -45,6 +45,7 @@ const PHASE_NAMES = {
   "1.1": "phase.research",
   "1.2": "phase.proving",
   "1.3": "phase.impactAnalysis",
+  "1.4": "phase.preplanningReview",
   "2.0": "phase.planning",
   "2.1": "phase.planReview",
   "4.0": "phase.agenticReview",
@@ -71,7 +72,7 @@ function getPhaseName(phase) {
   return t('phase.phaseName', {phase: phase});
 }
 
-const USER_GATES = new Set(["2.1", "4.2"]);
+const USER_GATES = new Set(["1.4", "2.1", "4.2"]);
 
 function isUserGate(phase) {
   if (USER_GATES.has(phase)) return true;

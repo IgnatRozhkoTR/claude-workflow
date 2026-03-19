@@ -122,6 +122,15 @@
   padding: 10px 14px;
 }
 .research-group.collapsed .research-group-body { display: none; }
+.research-group-summary {
+  background: var(--bg-secondary);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
 .research-group-header::before {
   content: '▾';
   font-size: 0.7rem;
