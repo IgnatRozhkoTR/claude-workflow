@@ -12,25 +12,26 @@
   margin-bottom: 12px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
+  text-align: center;
 }
 
 /* ─── Research summary cards ─── */
 .pp-research-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
-  background: var(--bg-input);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: var(--transition);
 }
 
+.pp-research-card:last-child {
+  border-bottom: none;
+}
+
 .pp-research-card:hover {
-  border-color: color-mix(in srgb, var(--border-active) 50%, var(--border));
-  background: var(--bg-hover);
+  background: transparent;
 }
 
 .pp-research-card-body {
@@ -39,16 +40,21 @@
 }
 
 .pp-research-topic {
-  font-size: 0.88rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+  transition: var(--transition);
+}
+
+.pp-research-card:hover .pp-research-topic {
+  text-decoration: underline;
 }
 
 .pp-research-summary {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 2px;
 }
 
 .pp-research-actions {

@@ -92,8 +92,8 @@
   <button class="sidebar-btn" data-tab="changes" title="Code Changes" data-i18n-title="sidebar.changes">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
   </button>
-  <button class="sidebar-btn" data-tab="plan" title="Plan Review" data-i18n-title="sidebar.plan">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+  <button class="sidebar-btn" data-tab="dashboard" title="Configuration" data-i18n-title="tabs.configuration">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
   </button>
   <button class="sidebar-btn" data-tab="review" title="Review" data-i18n-title="tabs.review">
     <span data-i18n-title="tabs.review">💬</span>
@@ -103,8 +103,8 @@
 
 <!-- ═══ TAB BAR ═══ -->
 <nav class="tab-bar">
-  <button class="tab-btn active" data-tab="dashboard" data-i18n="tabs.configuration">Configuration</button>
-  <button class="tab-btn" data-tab="preplanning" data-i18n="tabs.preplanning">Pre-planning</button>
+  <button class="tab-btn active" data-tab="preplanning" data-i18n="tabs.preplanning">Pre-planning</button>
+  <button class="tab-btn" data-tab="plan" data-i18n="tabs.planning">Planning</button>
   <button class="tab-btn" data-tab="research" data-i18n="tabs.research">Research</button>
   <button class="tab-btn" data-tab="phases" data-i18n="tabs.phaseControl">Phase Control</button>
 </nav>
@@ -113,7 +113,7 @@
 <main class="main">
 
   <!-- ─── DASHBOARD ─── -->
-  <div class="tab-panel active" id="panel-dashboard">
+  <div class="tab-panel" id="panel-dashboard">
 
     <!-- Commands -->
     <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
@@ -261,7 +261,7 @@
   </div>
 
   <!-- ─── PRE-PLANNING ─── -->
-  <div class="tab-panel" id="panel-preplanning">
+  <div class="tab-panel active" id="panel-preplanning">
 
     <!-- Research Summaries -->
     <div class="card">
