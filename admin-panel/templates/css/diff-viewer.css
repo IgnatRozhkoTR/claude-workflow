@@ -1,19 +1,6 @@
 /* ═══════════════════════════════════════════════ */
 /*  DIFF VIEWER                                    */
 /* ═══════════════════════════════════════════════ */
-/* Make the Code Changes and Files panels fill the entire content area */
-#panel-changes,
-#panel-files {
-  margin: -24px;
-}
-
-/* When split terminal is active, prevent panels from bleeding into the terminal area */
-.split-active .split-main #panel-changes,
-.split-active .split-main #panel-files {
-  margin: -24px;
-  width: calc(100% + 48px);
-}
-
 #panel-changes > .card,
 #panel-files > .card {
   border: none !important;

@@ -52,9 +52,8 @@
   height: calc(100vh - 56px);
 }
 
-/* When terminal is active, remove main padding */
+/* When terminal is active, prevent scrollbars */
 .main.terminal-active {
-  padding: 0;
   overflow: hidden;
 }
 
@@ -64,8 +63,6 @@
 
 .split-container {
   display: flex;
-  margin: -24px;
-  width: calc(100% + 48px);
   min-height: calc(100vh - 56px);
 }
 
@@ -77,13 +74,8 @@
   padding: 24px;
 }
 
-.main.terminal-active .split-main {
+.split-main.no-padding {
   padding: 0;
-}
-
-.main.terminal-active .split-container {
-  margin: 0;
-  width: 100%;
 }
 
 .split-handle {

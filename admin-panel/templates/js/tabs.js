@@ -35,6 +35,15 @@ async function switchTab(tabId) {
     }
   }
 
+  var splitMain = document.getElementById('splitMain');
+  if (splitMain) {
+    if (tabId === 'files' || tabId === 'changes' || tabId === 'terminal') {
+      splitMain.classList.add('no-padding');
+    } else {
+      splitMain.classList.remove('no-padding');
+    }
+  }
+
   // Deactivate all top tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
   // Deactivate all sidebar buttons (skip buttons without data-tab, e.g. split terminal)
@@ -94,5 +103,13 @@ document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === hash));
     document.querySelectorAll('.sidebar-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === hash));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + hash));
+
+    var mainEl = document.querySelector('.main');
+    if (mainEl && hash === 'terminal') mainEl.classList.add('terminal-active');
+
+    var splitMain = document.getElementById('splitMain');
+    if (splitMain && (hash === 'files' || hash === 'changes' || hash === 'terminal')) {
+      splitMain.classList.add('no-padding');
+    }
   }
 })();
