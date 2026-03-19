@@ -164,6 +164,16 @@ If any research is rejected:
 
 Do not advance with rejected research. The loop must converge — if a researcher cannot produce verifiable findings for a topic after 2 attempts, post a discussion via `workspace_post_discussion` noting the gap and move on.
 
+### Handling rejected research
+
+When the prover rejects a research entry:
+1. First assess: is the research topic still relevant, or has it become stale/unnecessary?
+2. If still relevant: re-deploy the researcher to fix the proofs, then re-prove.
+3. If stale or no longer needed: ask the user to delete the research entry via the admin panel (Research tab → delete button). The agent cannot delete research entries — only the user can.
+4. All research entries must be either proven or deleted before advancing past 1.2. Rejected entries block advancement.
+
+After 2 failed re-proof attempts for the same topic, treat it as stale and ask the user whether to delete it or provide additional context.
+
 ### When all research is proven
 
 1. Call `workspace_update_progress` for phase `"1"` with a summary covering: total research entries, topics investigated, any re-investigations needed, and key findings that affect planning.

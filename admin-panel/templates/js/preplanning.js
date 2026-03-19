@@ -105,7 +105,7 @@ function renderPPImpactAnalysis() {
     section.className = 'pp-impact-section';
     section.innerHTML =
       '<div class="pp-impact-label">' + s.label + '</div>' +
-      '<div class="pp-impact-text">' + escapeHtml(text) + '</div>';
+      '<div class="pp-impact-text">' + (typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text)) + '</div>';
     container.appendChild(section);
   });
 
