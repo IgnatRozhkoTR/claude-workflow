@@ -137,6 +137,17 @@ function renderPPDiscussions() {
     badge.className = 'badge ' + (openCount > 0 ? 'badge-warning' : 'badge-success');
   }
 
+  var researchBadge = document.getElementById('ppResearchDiscBadge');
+  if (researchBadge) {
+    var researchOpen = discussions.filter(function(d) { return d.type === 'research' && d.status === 'open'; }).length;
+    if (researchOpen > 0) {
+      researchBadge.textContent = t('badges.researchCount', {count: researchOpen});
+      researchBadge.style.display = '';
+    } else {
+      researchBadge.style.display = 'none';
+    }
+  }
+
   if (discussions.length === 0) {
     container.innerHTML = '<div class="no-items-msg">' + t('discussions.noItems') + '</div>';
     return;

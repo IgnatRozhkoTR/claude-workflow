@@ -108,7 +108,13 @@ async function initApp() {
 function copyStartCommand() {
   var workingDir = LOCK_DATA.working_dir;
   var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions';
-  copyToClipboard(cmd, t('messages.startCommandCopied'));
+  navigator.clipboard.writeText(cmd).then(function() {
+    var btn = document.getElementById('startBtn');
+    if (!btn) return;
+    var original = btn.textContent;
+    btn.textContent = t('actions.copied');
+    setTimeout(function() { btn.textContent = original; }, 1500);
+  });
 }
 
 function copyResumeCommand() {
@@ -116,7 +122,13 @@ function copyResumeCommand() {
   var workingDir = LOCK_DATA.working_dir;
   if (!sessionId) return;
   var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions -r ' + sessionId;
-  copyToClipboard(cmd, t('messages.resumeCommandCopied'));
+  navigator.clipboard.writeText(cmd).then(function() {
+    var btn = document.getElementById('resumeBtn');
+    if (!btn) return;
+    var original = btn.textContent;
+    btn.textContent = t('actions.copied');
+    setTimeout(function() { btn.textContent = original; }, 1500);
+  });
 }
 
 function copyWorkspacePath() {

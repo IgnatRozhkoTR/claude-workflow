@@ -118,9 +118,9 @@
     <!-- Commands -->
     <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
       <span style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-right: 2px;" data-i18n="labels.claude">Claude</span>
-      <button class="btn btn-sm" onclick="copyStartCommand()" title="Copy start command" data-i18n="buttons.start">Start</button>
+      <button class="btn btn-sm" id="startBtn" onclick="copyStartCommand()" title="Copy start command" data-i18n="buttons.start">Start</button>
       <div id="sessionBlock" style="display:none;">
-        <button class="btn btn-sm" onclick="copyResumeCommand()" title="Copy resume command" data-i18n="buttons.resume">Resume</button>
+        <button class="btn btn-sm" id="resumeBtn" onclick="copyResumeCommand()" title="Copy resume command" data-i18n="buttons.resume">Resume</button>
       </div>
       <div id="sessionsHistoryBlock" style="display:none;">
         <button class="btn btn-sm" onclick="toggleSessionsHistory()" title="Browse session history" id="sessionsHistoryBtn" data-i18n="buttons.sessions">Sessions</button>
@@ -227,26 +227,6 @@
       </div>
     </div>
 
-    <!-- Discussions -->
-    <div class="card collapsed">
-      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
-        <span class="card-title" data-i18n="cards.discussions">Discussions</span>
-        <span class="badge badge-info" id="qaBadge">0</span>
-        <span class="card-collapse-chevron">&#9660;</span>
-      </div>
-      <div class="card-body">
-        <div id="discussionsList"></div>
-        <div class="qa-add-form">
-          <select id="newDiscussionType" class="phase-select" style="width:auto;min-width:90px;font-size:0.75rem;padding:4px 6px;">
-            <option value="general" data-i18n="discussionType.general">General</option>
-            <option value="research" data-i18n="discussionType.research">Research</option>
-          </select>
-          <input type="text" class="context-input" id="newDiscussionInput" placeholder="Raise a discussion point..." data-i18n-placeholder="placeholders.raiseDiscussion" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addNewDiscussion();}">
-          <button class="btn btn-sm" onclick="addNewDiscussion()" data-i18n="buttons.add">Add</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Saved Context (raw) -->
     <div class="card collapsed">
       <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
@@ -283,7 +263,10 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title" data-i18n="preplanning.discussions">Discussions</span>
-        <span class="badge badge-info" id="ppDiscussionsBadge">0</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span class="badge badge-danger" id="ppResearchDiscBadge" style="display:none;"></span>
+          <span class="badge badge-info" id="ppDiscussionsBadge">0</span>
+        </div>
       </div>
       <div class="card-body">
         <div id="ppDiscussionsList"></div>
