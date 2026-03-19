@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request
 from db import get_db
 from helpers import sanitize_branch, workspace_dir, run_git, find_workspace
 from i18n import t
+from terminal import session_name
 
 bp = Blueprint("workspaces", __name__)
 
@@ -512,7 +513,8 @@ def create_workspace(project_id):
         )
         db.commit()
 
-        command = f"cd {working_dir} && claude --dangerously-skip-permissions"
+        tmux_name = session_name(project_id, sanitized)
+        command = f"cd {working_dir} && tmux attach -t {tmux_name}"
 
         return jsonify({
             "workspace": str(ws_path),
