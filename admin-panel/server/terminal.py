@@ -41,6 +41,9 @@ def create_session(name, working_dir):
                     'send-keys', '-X', 'copy-pipe-and-cancel', 'pbcopy'], capture_output=True)
     subprocess.run(['tmux', 'bind-key', '-T', 'copy-mode-vi', 'MouseDragEnd1Pane',
                     'send-keys', '-X', 'copy-pipe-and-cancel', 'pbcopy'], capture_output=True)
+    # Intuitive pane split shortcuts
+    subprocess.run(['tmux', 'bind-key', 'h', 'split-window', '-h'], capture_output=True)
+    subprocess.run(['tmux', 'bind-key', 'v', 'split-window', '-v'], capture_output=True)
 
 
 def send_keys(name, command):
