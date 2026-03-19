@@ -355,6 +355,7 @@
   "actions.copied": "Copied!",
 
   "tabs.terminal": "Terminal",
+  "tabs.splitTerminal": "Split Terminal",
   "terminal.connected": "Connected",
   "terminal.connecting": "Connecting...",
   "terminal.disconnected": "Disconnected",

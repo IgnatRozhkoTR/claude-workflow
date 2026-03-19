@@ -37,8 +37,8 @@ async function switchTab(tabId) {
 
   // Deactivate all top tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
-  // Deactivate all sidebar buttons
-  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  // Deactivate all sidebar buttons (skip buttons without data-tab, e.g. split terminal)
+  document.querySelectorAll('.sidebar-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
   // Show the correct panel
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabId));
   history.replaceState(null, '', '#' + tabId);
@@ -82,8 +82,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// Sidebar buttons
-document.querySelectorAll('.sidebar-btn').forEach(btn => {
+// Sidebar buttons (skip buttons without data-tab, e.g. split terminal)
+document.querySelectorAll('.sidebar-btn[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
@@ -92,7 +92,7 @@ document.querySelectorAll('.sidebar-btn').forEach(btn => {
   var hash = location.hash.replace('#', '');
   if (hash && document.getElementById('panel-' + hash)) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === hash));
-    document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === hash));
+    document.querySelectorAll('.sidebar-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === hash));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + hash));
   }
 })();

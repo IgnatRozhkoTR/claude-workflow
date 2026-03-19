@@ -104,6 +104,10 @@ function initTerminal() {
     if (fitAddon && document.getElementById('panel-terminal').classList.contains('active')) {
       fitAddon.fit();
     }
+    if (splitFitAddon && document.getElementById('splitContainer') &&
+        document.getElementById('splitContainer').classList.contains('split-active')) {
+      splitFitAddon.fit();
+    }
   });
 
   term.writeln('Terminal ready. Click Connect or use Start/Resume.');
@@ -236,6 +240,9 @@ function updateTerminalTheme() {
   if (term) {
     term.options.theme = getTerminalTheme();
   }
+  if (splitTerm) {
+    splitTerm.options.theme = getTerminalTheme();
+  }
 }
 
 function onTerminalTabActivated() {
@@ -246,3 +253,207 @@ function onTerminalTabActivated() {
     setTimeout(function() { fitAddon.fit(); }, 50);
   }
 }
+
+// ═══════════════════════════════════════════════
+//  SPLIT TERMINAL
+// ═══════════════════════════════════════════════
+var splitTerm = null;
+var splitFitAddon = null;
+var splitWs = null;
+var splitConnected = false;
+
+function toggleSplitTerminal() {
+  var container = document.getElementById('splitContainer');
+  var btn = document.getElementById('splitTerminalBtn');
+  if (!container) return;
+
+  var isActive = container.classList.contains('split-active');
+
+  if (isActive) {
+    container.classList.remove('split-active');
+    if (btn) btn.classList.remove('active');
+    disconnectSplitTerminal();
+  } else {
+    container.classList.add('split-active');
+    if (btn) btn.classList.add('active');
+
+    if (!splitTerm) {
+      initSplitTerminal();
+    }
+
+    if (splitFitAddon) {
+      setTimeout(function() { splitFitAddon.fit(); }, 100);
+    }
+
+    connectSplitTerminal();
+  }
+}
+
+function initSplitTerminal() {
+  var container = document.getElementById('splitTerminalContainer');
+  if (!container || splitTerm) return;
+
+  splitTerm = new Terminal({
+    cursorBlink: true,
+    fontSize: 13,
+    fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
+    theme: getTerminalTheme(),
+    allowProposedApi: true,
+    scrollback: 5000
+  });
+
+  splitFitAddon = new FitAddon.FitAddon();
+  splitTerm.loadAddon(splitFitAddon);
+
+  var webLinksAddon = new WebLinksAddon.WebLinksAddon();
+  splitTerm.loadAddon(webLinksAddon);
+
+  splitTerm.open(container);
+  splitFitAddon.fit();
+
+  splitTerm.onData(function(data) {
+    if (splitWs && splitWs.readyState === WebSocket.OPEN) {
+      splitWs.send(data);
+    }
+  });
+
+  splitTerm.onResize(function(size) {
+    if (splitWs && splitWs.readyState === WebSocket.OPEN) {
+      splitWs.send(JSON.stringify({ resize: [size.cols, size.rows] }));
+    }
+  });
+
+  container.addEventListener('wheel', function(e) {
+    e.stopPropagation();
+  }, { passive: true });
+}
+
+function connectSplitTerminal() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  if (splitWs && splitWs.readyState === WebSocket.OPEN) return;
+
+  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var wsUrl = protocol + '//' + window.location.host + '/ws/terminal/' +
+              encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch);
+
+  updateSplitTerminalStatus('connecting');
+
+  splitWs = new WebSocket(wsUrl);
+
+  splitWs.onopen = function() {
+    splitConnected = true;
+    updateSplitTerminalStatus('connected');
+    if (splitTerm) splitTerm.clear();
+    if (splitFitAddon) {
+      splitFitAddon.fit();
+      var dims = splitFitAddon.proposeDimensions();
+      if (dims) {
+        splitWs.send(JSON.stringify({ resize: [dims.cols, dims.rows] }));
+      }
+    }
+  };
+
+  splitWs.onmessage = function(event) {
+    if (splitTerm) {
+      if (typeof event.data === 'string' && event.data.startsWith('{')) {
+        try {
+          var msg = JSON.parse(event.data);
+          if (msg.error) {
+            splitTerm.writeln('\r\n\x1b[31m' + msg.error + '\x1b[0m');
+            updateSplitTerminalStatus('error');
+            return;
+          }
+        } catch(e) {}
+      }
+      splitTerm.write(event.data);
+    }
+  };
+
+  splitWs.onclose = function() {
+    splitConnected = false;
+    updateSplitTerminalStatus('disconnected');
+  };
+
+  splitWs.onerror = function() {
+    splitConnected = false;
+    updateSplitTerminalStatus('error');
+  };
+}
+
+function disconnectSplitTerminal() {
+  if (splitWs) {
+    splitWs.close();
+    splitWs = null;
+  }
+  splitConnected = false;
+  updateSplitTerminalStatus('disconnected');
+}
+
+function updateSplitTerminalStatus(status) {
+  var el = document.getElementById('splitTerminalStatus');
+  var connectBtn = document.getElementById('splitConnectBtn');
+  var disconnectBtn = document.getElementById('splitDisconnectBtn');
+
+  if (el) {
+    switch(status) {
+      case 'connected':
+        el.textContent = t('terminal.connected');
+        el.className = 'terminal-status connected';
+        break;
+      case 'connecting':
+        el.textContent = t('terminal.connecting');
+        el.className = 'terminal-status';
+        break;
+      default:
+        el.textContent = t('terminal.disconnected');
+        el.className = 'terminal-status';
+    }
+  }
+
+  if (connectBtn) connectBtn.style.display = (status === 'connected') ? 'none' : '';
+  if (disconnectBtn) disconnectBtn.style.display = (status === 'connected') ? '' : 'none';
+}
+
+// Drag-to-resize split panel
+(function() {
+  var handle = null;
+  var startX = 0;
+  var startWidth = 0;
+
+  document.addEventListener('mousedown', function(e) {
+    if (e.target.id === 'splitHandle') {
+      handle = e.target;
+      startX = e.clientX;
+      var splitTermEl = document.getElementById('splitTerminal');
+      startWidth = splitTermEl ? splitTermEl.offsetWidth : 400;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!handle) return;
+    var diff = startX - e.clientX;
+    var newWidth = Math.max(300, Math.min(startWidth + diff, window.innerWidth - 400));
+    var splitTermEl = document.getElementById('splitTerminal');
+    if (splitTermEl) {
+      splitTermEl.style.width = newWidth + 'px';
+      splitTermEl.style.flex = 'none';
+    }
+    if (splitFitAddon) splitFitAddon.fit();
+    if (fitAddon && document.getElementById('panel-terminal').classList.contains('active')) fitAddon.fit();
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (handle) {
+      handle.classList.remove('dragging');
+      handle = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();

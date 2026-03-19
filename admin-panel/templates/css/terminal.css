@@ -57,3 +57,94 @@
   padding: 0;
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════════ */
+/*  SPLIT TERMINAL PANEL                           */
+/* ═══════════════════════════════════════════════ */
+
+.split-container {
+  display: flex;
+  margin: -24px;
+  width: calc(100% + 48px);
+  min-height: calc(100vh - 56px);
+}
+
+.split-main {
+  flex: 1;
+  min-width: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+}
+
+.main.terminal-active .split-main {
+  padding: 0;
+}
+
+.split-handle {
+  display: none;
+  width: 5px;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.split-handle:hover,
+.split-handle.dragging {
+  background: var(--accent);
+}
+
+.split-terminal {
+  display: none;
+  flex-direction: column;
+  min-width: 300px;
+  width: 40%;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+}
+
+.split-terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+#splitTerminalContainer {
+  flex: 1;
+  overflow: hidden;
+}
+
+#splitTerminalContainer .xterm {
+  height: 100%;
+}
+
+#splitTerminalContainer .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* When split is active */
+.split-active .split-handle {
+  display: block;
+}
+
+.split-active .split-terminal {
+  display: flex;
+}
+
+/* When in full terminal tab, hide the split panel */
+.main.terminal-active .split-handle,
+.main.terminal-active .split-terminal {
+  display: none !important;
+}
+
+/* Highlight the sidebar button when split is active */
+#splitTerminalBtn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}

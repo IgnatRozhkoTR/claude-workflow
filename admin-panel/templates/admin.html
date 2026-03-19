@@ -110,6 +110,14 @@
       <line x1="12" y1="19" x2="20" y2="19"></line>
     </svg>
   </button>
+  <button class="sidebar-btn" id="splitTerminalBtn" title="Split Terminal" data-i18n-title="tabs.splitTerminal" onclick="toggleSplitTerminal()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+      <line x1="12" y1="3" x2="12" y2="21"></line>
+      <polyline points="16 10 19 7 16 4" stroke-width="1.5"></polyline>
+      <line x1="14" y1="19" x2="20" y2="19" stroke-width="1.5"></line>
+    </svg>
+  </button>
 </aside>
 
 <!-- ═══ TAB BAR ═══ -->
@@ -122,6 +130,8 @@
 
 <!-- ═══ MAIN CONTENT ═══ -->
 <main class="main">
+<div class="split-container" id="splitContainer">
+<div class="split-main" id="splitMain">
 
   <!-- ─── DASHBOARD ─── -->
   <div class="tab-panel" id="panel-dashboard">
@@ -556,7 +566,19 @@
     <div class="phase-action-grid" id="phaseActions"></div>
   </div>
 
-
+</div><!-- /split-main -->
+<div class="split-handle" id="splitHandle"></div>
+<div class="split-terminal" id="splitTerminal">
+  <div class="split-terminal-toolbar">
+    <span class="terminal-status" id="splitTerminalStatus">Disconnected</span>
+    <div class="terminal-actions">
+      <button class="btn btn-sm" id="splitConnectBtn" onclick="connectSplitTerminal()">Connect</button>
+      <button class="btn btn-sm btn-outline" id="splitDisconnectBtn" onclick="disconnectSplitTerminal()" style="display:none;">Disconnect</button>
+    </div>
+  </div>
+  <div id="splitTerminalContainer"></div>
+</div>
+</div><!-- /split-container -->
 
 </main>
 </div>

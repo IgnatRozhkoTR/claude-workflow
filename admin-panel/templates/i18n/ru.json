@@ -355,6 +355,7 @@
   "actions.copied": "Скопировано!",
 
   "tabs.terminal": "Терминал",
+  "tabs.splitTerminal": "Разделённый терминал",
   "terminal.connected": "Подключено",
   "terminal.connecting": "Подключение...",
   "terminal.disconnected": "Отключено",
