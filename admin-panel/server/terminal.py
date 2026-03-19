@@ -47,11 +47,14 @@ def kill_session(name):
 
 def build_claude_command(ws, resume=False):
     """Build the full claude command from workspace config."""
-    cmd = ws.get('claude_command') or 'claude'
-    if ws.get('skip_permissions', 1):
+    cmd = (ws['claude_command'] if 'claude_command' in ws.keys() else None) or 'claude'
+    skip = ws['skip_permissions'] if 'skip_permissions' in ws.keys() else 1
+    if skip:
         cmd += ' --dangerously-skip-permissions'
-    if resume and ws.get('session_id'):
-        cmd += ' -r ' + ws['session_id']
+    if resume:
+        session_id = ws['session_id'] if 'session_id' in ws.keys() else None
+        if session_id:
+            cmd += ' -r ' + session_id
     return cmd
 
 
