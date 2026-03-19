@@ -99,7 +99,6 @@
   line-height: 1.5;
   color: var(--text-primary);
   word-break: break-word;
-  background: var(--bg-raised);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
 }
@@ -115,8 +114,8 @@
 }
 
 .pp-impact-text code {
-  background: var(--bg-raised);
-  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 1px 5px;
   border-radius: 3px;
   font-size: 0.82rem;
 }
