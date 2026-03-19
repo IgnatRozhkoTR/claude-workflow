@@ -30,7 +30,7 @@ def approve(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             if session_exists(tmux_name):
-                send_keys(tmux_name, '')
+                send_keys(tmux_name, 'Phase approved. Check workspace_get_state.')
         except Exception:
             pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
@@ -56,7 +56,7 @@ def reject(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             if session_exists(tmux_name):
-                send_keys(tmux_name, '')
+                send_keys(tmux_name, 'Phase rejected with feedback. Check workspace_get_comments.')
         except Exception:
             pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
