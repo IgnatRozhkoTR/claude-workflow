@@ -189,16 +189,17 @@ function deleteDiscussion(discussionId) {
     });
 }
 
-function resolveDiscussion(discussionId) {
+function resolveDiscussion(discussionId, unresolve) {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
 
   apiPut('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context/discussions/' + discussionId, {
-    status: 'resolved'
+    status: unresolve ? 'open' : 'resolved'
   }).then(function() {
     var d = CONTEXT_DATA.discussions.find(function(d) { return d.id === discussionId; });
-    if (d) d.status = 'resolved';
+    if (d) d.status = unresolve ? 'open' : 'resolved';
     renderDiscussions();
+    renderPPDiscussions();
     renderContextRaw();
     showToast(t('messages.discussionResolved'));
   }).catch(function(e) {

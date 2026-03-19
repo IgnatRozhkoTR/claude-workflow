@@ -170,12 +170,16 @@ function renderPPDiscussions() {
       ? '<span class="badge badge-success" style="font-size:0.65rem;">' + t('badges.resolved') + '</span>'
       : '<span class="badge badge-warning" style="font-size:0.65rem;">' + t('badges.open') + '</span>';
 
+    var resolveBtn = isResolved
+      ? '<button class="btn btn-sm" style="font-size:0.65rem;padding:1px 6px" onclick="resolveDiscussion(' + d.id + ', true)">' + t('buttons.unresolve') + '</button>'
+      : '<button class="btn btn-sm" style="font-size:0.65rem;padding:1px 6px" onclick="resolveDiscussion(' + d.id + ')">' + t('buttons.resolve') + '</button>';
+
     div.innerHTML =
       '<div class="pp-discussion-header">' +
         '<span class="qa-id">#' + d.id + '</span>' +
         authorBadge +
         '<span class="pp-discussion-text">' + escapeHtml(d.text) + '</span>' +
-        '<div class="pp-discussion-meta">' + typeBadge + statusBadge + '</div>' +
+        '<div class="pp-discussion-meta">' + typeBadge + statusBadge + resolveBtn + '</div>' +
       '</div>';
 
     if (d.replies && d.replies.length > 0) {
@@ -188,6 +192,14 @@ function renderPPDiscussions() {
       });
       repliesHtml += '</div>';
       div.innerHTML += repliesHtml;
+    }
+
+    if (d.status !== 'resolved') {
+      div.innerHTML +=
+        '<div style="margin-top: 6px; display: flex; gap: 4px;">' +
+          '<input type="text" class="context-input" id="ppReplyInput' + d.id + '" placeholder="' + t('placeholders.reply') + '" style="flex:1; font-size: 0.78rem; padding: 4px 8px;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();ppReplyToDiscussion(' + d.id + ');}">' +
+          '<button class="btn btn-sm" style="font-size:0.65rem;padding:2px 8px;" onclick="ppReplyToDiscussion(' + d.id + ')">' + t('buttons.reply') + '</button>' +
+        '</div>';
     }
 
     container.appendChild(div);
@@ -353,6 +365,33 @@ function submitPPComment(inputEl, scope, targetId) {
     var form = inputEl.closest('.pp-inline-comment-form');
     if (form) form.remove();
     showToast(t('preplanning.commentAdded'));
+  }).catch(function(e) {
+    showToast(t('messages.failedToAddDiscussion', { error: e.message }));
+  });
+}
+
+function ppReplyToDiscussion(discussionId) {
+  var input = document.getElementById('ppReplyInput' + discussionId);
+  if (!input) return;
+  var text = input.value.trim();
+  if (!text) return;
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context/discussions/' + discussionId + '/reply', {
+    text: text
+  }).then(function(res) {
+    var discussions = CONTEXT_DATA.discussions || [];
+    for (var i = 0; i < discussions.length; i++) {
+      if (discussions[i].id === discussionId) {
+        if (!discussions[i].replies) discussions[i].replies = [];
+        discussions[i].replies.push({ text: text, author: 'user' });
+        break;
+      }
+    }
+    renderPPDiscussions();
+    renderDiscussions();
   }).catch(function(e) {
     showToast(t('messages.failedToAddDiscussion', { error: e.message }));
   });
