@@ -154,29 +154,40 @@
   color: var(--accent);
 }
 
-/* ─── xterm.js 256-color overrides for Claude Code ─── */
-/* Must use high specificity to override xterm.js generated styles */
+/* ─── xterm.js 256-color overrides for Claude Code (light theme only) ─── */
+/* Dark theme looks fine with default xterm colors */
 
-#terminalContainer .xterm-fg-153,
-#splitTerminalContainer .xterm-fg-153,
-.xterm-rows .xterm-fg-153 {
-  color: #60a5fa !important;
+/* File paths / links — make more visible on light background */
+[data-theme="light"] #terminalContainer .xterm-fg-153,
+[data-theme="light"] #splitTerminalContainer .xterm-fg-153,
+[data-theme="light"] .xterm-rows .xterm-fg-153 {
+  color: #0369a1 !important;
 }
 
-#terminalContainer .xterm-bg-237,
-#splitTerminalContainer .xterm-bg-237,
-.xterm-rows .xterm-bg-237 {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+/* User message background — green accent matching the app logo */
+[data-theme="light"] #terminalContainer .xterm-bg-237,
+[data-theme="light"] #splitTerminalContainer .xterm-bg-237,
+[data-theme="light"] .xterm-rows .xterm-bg-237 {
+  background-color: #166534 !important;
 }
 
-#terminalContainer .xterm-fg-239,
-#splitTerminalContainer .xterm-fg-239,
-.xterm-rows .xterm-fg-239 {
-  color: #9ca3af !important;
+/* User message text on green background — white */
+[data-theme="light"] #terminalContainer .xterm-bg-237.xterm-fg-231,
+[data-theme="light"] #splitTerminalContainer .xterm-bg-237.xterm-fg-231,
+[data-theme="light"] .xterm-rows .xterm-bg-237.xterm-fg-231 {
+  color: #ffffff !important;
 }
 
-#terminalContainer .xterm-bg-237.xterm-fg-231,
-#splitTerminalContainer .xterm-bg-237.xterm-fg-231,
-.xterm-rows .xterm-bg-237.xterm-fg-231 {
-  color: #fbbf24 !important;
+/* User message prompt arrow on green background */
+[data-theme="light"] #terminalContainer .xterm-bg-237.xterm-fg-239,
+[data-theme="light"] #splitTerminalContainer .xterm-bg-237.xterm-fg-239,
+[data-theme="light"] .xterm-rows .xterm-bg-237.xterm-fg-239 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Prompt arrow — more visible on light background */
+[data-theme="light"] #terminalContainer .xterm-fg-239,
+[data-theme="light"] #splitTerminalContainer .xterm-fg-239,
+[data-theme="light"] .xterm-rows .xterm-fg-239 {
+  color: #6b7280 !important;
 }

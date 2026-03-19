@@ -78,6 +78,15 @@
     <span class="header-branch" id="branchName">feature/scope-locked-flow</span>
   </div>
   <div class="header-right">
+    <div id="sessionBlock" style="display:none;">
+      <div class="btn-dropdown" style="position: relative; display: inline-block;">
+        <button class="btn btn-sm" id="resumeBtn" onclick="showTerminalDropdown('resume', this)" data-i18n="buttons.resume">Resume</button>
+        <div class="btn-dropdown-menu" id="resumeDropdown" style="display:none;">
+          <button class="btn-dropdown-item" onclick="doResume('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
+          <button class="btn-dropdown-item" onclick="doResume('split')" data-i18n="actions.sidePanel">Side panel</button>
+        </div>
+      </div>
+    </div>
     <select id="localeSelect" class="locale-select" onchange="onLocaleChange(this.value)">
       <option value="en">EN</option>
       <option value="ru">RU</option>
@@ -144,15 +153,6 @@
         <div class="btn-dropdown-menu" id="startDropdown" style="display:none;">
           <button class="btn-dropdown-item" onclick="doStart('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
           <button class="btn-dropdown-item" onclick="doStart('split')" data-i18n="actions.sidePanel">Side panel</button>
-        </div>
-      </div>
-      <div id="sessionBlock" style="display:none;">
-        <div class="btn-dropdown" style="position: relative; display: inline-block;">
-          <button class="btn btn-sm" id="resumeBtn" onclick="showTerminalDropdown('resume', this)" data-i18n="buttons.resume">Resume</button>
-          <div class="btn-dropdown-menu" id="resumeDropdown" style="display:none;">
-            <button class="btn-dropdown-item" onclick="doResume('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
-            <button class="btn-dropdown-item" onclick="doResume('split')" data-i18n="actions.sidePanel">Side panel</button>
-          </div>
         </div>
       </div>
       <div id="sessionsHistoryBlock" style="display:none;">

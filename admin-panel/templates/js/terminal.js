@@ -114,6 +114,10 @@ function initTerminal() {
 }
 
 function connectTerminal() {
+  if (!term) {
+    initTerminal();
+  }
+
   var ctx = getWorkspaceContext();
   if (!ctx) {
     if (term) term.writeln('\r\n\x1b[31mNo workspace selected.\x1b[0m');
