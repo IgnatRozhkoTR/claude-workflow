@@ -370,6 +370,8 @@
   "actions.copied": "Скопировано!",
   "actions.notify": "Уведомить",
   "actions.notified": "Отправлено!",
+  "actions.notifyComments": "Комментарии к ревью",
+  "actions.notifyGo": "Можно продолжать",
   "actions.fullscreen": "Полный экран",
   "actions.sidePanel": "Боковая панель",
 

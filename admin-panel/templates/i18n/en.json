@@ -370,6 +370,8 @@
   "actions.copied": "Copied!",
   "actions.notify": "Notify",
   "actions.notified": "Notified!",
+  "actions.notifyComments": "Review comments",
+  "actions.notifyGo": "You can proceed",
   "actions.fullscreen": "Full screen",
   "actions.sidePanel": "Side panel",
 

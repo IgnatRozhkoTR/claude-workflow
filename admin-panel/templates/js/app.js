@@ -227,9 +227,18 @@ function doResume(mode) {
     });
 }
 
-function notifyAgent() {
+function doNotify(type) {
+  document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+
   var ctx = getWorkspaceContext();
   if (!ctx) return;
+
+  var messages = {
+    'comments': 'I left review comments for you to address. Check workspace_get_comments for details.',
+    'go': 'You can proceed. Continue with the current task.'
+  };
+
+  var message = messages[type] || messages['go'];
 
   var btn = document.getElementById('notifyBtn');
   if (btn) btn.disabled = true;
@@ -237,7 +246,7 @@ function notifyAgent() {
   fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/notify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'I left some review comments for you to address. Check workspace_get_comments for details.' })
+    body: JSON.stringify({ message: message })
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {

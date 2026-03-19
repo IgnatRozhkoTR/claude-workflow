@@ -81,7 +81,13 @@
   </div>
   <div class="header-right">
     <div id="sessionBlock" style="display: flex; gap: 8px; align-items: center;">
-      <button class="btn btn-sm btn-outline" id="notifyBtn" onclick="notifyAgent()" data-i18n="actions.notify">Notify</button>
+      <div class="btn-dropdown" style="position: relative; display: inline-block;">
+        <button class="btn btn-sm btn-outline" id="notifyBtn" onclick="showTerminalDropdown('notify', this)" data-i18n="actions.notify">Notify</button>
+        <div class="btn-dropdown-menu" id="notifyDropdown" style="display:none;">
+          <button class="btn-dropdown-item" onclick="doNotify('comments')" data-i18n="actions.notifyComments">Review comments</button>
+          <button class="btn-dropdown-item" onclick="doNotify('go')" data-i18n="actions.notifyGo">You can proceed</button>
+        </div>
+      </div>
       <div class="btn-dropdown" style="position: relative; display: inline-block;">
         <button class="btn btn-sm" id="resumeBtn" onclick="showTerminalDropdown('resume', this)" data-i18n="buttons.resume">Resume</button>
         <div class="btn-dropdown-menu" id="resumeDropdown" style="display:none;">
