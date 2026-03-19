@@ -209,6 +209,18 @@ def _check_edit_tool(ws, file_path, cwd):
                            "Edits allowed only in phases 3.N.0 (implementation), "
                            "3.N.2 (fixes), or 4.1 (address review fixes).")}
 
+    # Check that scope and plan are approved before allowing edits
+    scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
+    plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+
+    if scope_status != "approved":
+        return {"governed": True, "phase": phase, "allowed": False,
+                "reason": "Scope has not been approved by the user. Wait for scope approval in the admin panel."}
+
+    if plan_status != "approved":
+        return {"governed": True, "phase": phase, "allowed": False,
+                "reason": "Plan has not been approved by the user. Wait for plan approval in the admin panel."}
+
     matches, patterns = _file_matches_scope(canon, ws)
     if not matches:
         return {"governed": True, "phase": phase, "allowed": False,
@@ -310,6 +322,20 @@ def _check_git_add(ws, command, cwd):
         return result
 
     if _is_commit_phase(phase):
+        # Check that scope and plan are approved before allowing git add
+        scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
+        plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+
+        if scope_status != "approved":
+            result["allowed"] = False
+            result["reason"] = "Scope has not been approved. Wait for approval in the admin panel."
+            return result
+
+        if plan_status != "approved":
+            result["allowed"] = False
+            result["reason"] = "Plan has not been approved. Wait for approval in the admin panel."
+            return result
+
         files = _extract_git_add_files(command)
         for staged_file in files:
             if not staged_file:
@@ -337,6 +363,20 @@ def _check_file_mod_command(ws, command, cwd):
         result["allowed"] = False
         result["reason"] = (f"File modification via Bash blocked: workspace is in phase {phase}. "
                             "File modifications only allowed in edit phases (3.N.0, 3.N.2, 4.1).")
+        return result
+
+    # Check that scope and plan are approved before allowing file modifications
+    scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
+    plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+
+    if scope_status != "approved":
+        result["allowed"] = False
+        result["reason"] = "Scope has not been approved. Wait for approval in the admin panel."
+        return result
+
+    if plan_status != "approved":
+        result["allowed"] = False
+        result["reason"] = "Plan has not been approved. Wait for approval in the admin panel."
         return result
 
     target_file = _extract_target_file(command)
