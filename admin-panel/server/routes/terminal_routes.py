@@ -223,6 +223,23 @@ def terminal_status(project, branch):
     })
 
 
+@bp.route('/api/ws/<project>/<branch>/terminal/notify', methods=['POST'])
+def terminal_notify(project, branch):
+    """Send a notification message to the active tmux session."""
+    if not tmux_available():
+        return jsonify({'error': 'tmux is not installed'}), 503
+
+    name = session_name(project, branch)
+    if not session_exists(name):
+        return jsonify({'error': 'No active tmux session'}), 404
+
+    data = request.get_json() or {}
+    message = data.get('message', 'New review comments have been left. Please check workspace_get_comments.')
+
+    send_keys(name, message)
+    return jsonify({'ok': True, 'status': 'notified'})
+
+
 @bp.route('/api/ws/<project>/<branch>/terminal/kill', methods=['POST'])
 def terminal_kill(project, branch):
     """Kill the tmux session."""

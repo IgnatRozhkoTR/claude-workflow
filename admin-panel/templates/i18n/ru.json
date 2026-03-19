@@ -353,6 +353,8 @@
 
   "actions.copyPath": "Путь",
   "actions.copied": "Скопировано!",
+  "actions.notify": "Уведомить",
+  "actions.notified": "Отправлено!",
   "actions.fullscreen": "Полный экран",
   "actions.sidePanel": "Боковая панель",
 

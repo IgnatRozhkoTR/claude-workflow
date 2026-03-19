@@ -231,6 +231,33 @@ function doResume(mode) {
     });
 }
 
+function notifyAgent() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var btn = document.getElementById('notifyBtn');
+  if (btn) btn.disabled = true;
+
+  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'I left some review comments for you to address. Check workspace_get_comments for details.' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (btn) {
+      var original = btn.textContent;
+      btn.textContent = t('actions.notified');
+      btn.disabled = false;
+      setTimeout(function() { btn.textContent = original; }, 1500);
+    }
+  })
+  .catch(function(e) {
+    if (btn) btn.disabled = false;
+    showToast('Notify failed: ' + e.message);
+  });
+}
+
 function copyWorkspacePath() {
   var workingDir = LOCK_DATA.working_dir;
   if (!workingDir) return;

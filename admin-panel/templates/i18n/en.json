@@ -353,6 +353,8 @@
 
   "actions.copyPath": "Path",
   "actions.copied": "Copied!",
+  "actions.notify": "Notify",
+  "actions.notified": "Notified!",
   "actions.fullscreen": "Full screen",
   "actions.sidePanel": "Side panel",
 
