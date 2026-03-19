@@ -358,5 +358,6 @@
   "terminal.connected": "Подключено",
   "terminal.connecting": "Подключение...",
   "terminal.disconnected": "Отключено",
-  "terminal.error": "Ошибка подключения"
+  "terminal.error": "Ошибка подключения",
+  "terminal.kill": "Завершить"
 }

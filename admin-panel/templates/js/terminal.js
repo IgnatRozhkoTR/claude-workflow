@@ -178,10 +178,30 @@ function disconnectTerminal() {
   updateTerminalStatus('disconnected');
 }
 
+function killTerminalSession() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  disconnectTerminal();
+
+  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/kill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (term) term.writeln('\r\n\x1b[33mSession killed.\x1b[0m');
+  })
+  .catch(function(e) {
+    if (term) term.writeln('\r\n\x1b[31mKill failed: ' + e.message + '\x1b[0m');
+  });
+}
+
 function updateTerminalStatus(status) {
   var el = document.getElementById('terminalStatus');
   var connectBtn = document.getElementById('terminalConnectBtn');
   var disconnectBtn = document.getElementById('terminalDisconnectBtn');
+  var killBtn = document.getElementById('terminalKillBtn');
 
   if (el) {
     switch(status) {
@@ -205,6 +225,7 @@ function updateTerminalStatus(status) {
 
   if (connectBtn) connectBtn.style.display = (status === 'connected') ? 'none' : '';
   if (disconnectBtn) disconnectBtn.style.display = (status === 'connected') ? '' : 'none';
+  if (killBtn) killBtn.style.display = (status === 'connected') ? '' : 'none';
 }
 
 function updateTerminalTheme() {

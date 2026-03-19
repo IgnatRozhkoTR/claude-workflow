@@ -358,5 +358,6 @@
   "terminal.connected": "Connected",
   "terminal.connecting": "Connecting...",
   "terminal.disconnected": "Disconnected",
-  "terminal.error": "Connection error"
+  "terminal.error": "Connection error",
+  "terminal.kill": "Kill"
 }

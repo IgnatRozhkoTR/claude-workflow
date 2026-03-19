@@ -220,3 +220,16 @@ def terminal_status(project, branch):
         'exists': session_exists(name),
         'attach_command': f'tmux attach -t {name}'
     })
+
+
+@bp.route('/api/ws/<project>/<branch>/terminal/kill', methods=['POST'])
+def terminal_kill(project, branch):
+    """Kill the tmux session."""
+    if not tmux_available():
+        return jsonify({'error': 'tmux is not installed'}), 503
+
+    name = session_name(project, branch)
+    if session_exists(name):
+        kill_session(name)
+        return jsonify({'ok': True, 'status': 'killed'})
+    return jsonify({'ok': True, 'status': 'not_found'})
