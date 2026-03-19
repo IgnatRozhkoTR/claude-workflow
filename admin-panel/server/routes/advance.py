@@ -30,7 +30,18 @@ def approve(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             if session_exists(tmux_name):
-                send_keys(tmux_name, 'Phase approved. Check workspace_get_state.')
+                phase = ws['phase']
+                phase_names = {
+                    '1.4': 'Preparation review approved. Proceed to planning.',
+                    '2.1': 'Plan and scope approved. Proceed to implementation.',
+                    '4.2': 'Final approval granted. Proceed to delivery.',
+                }
+                msg = phase_names.get(phase, '')
+                if not msg and phase.endswith('.3'):
+                    msg = 'Code review approved for sub-phase ' + phase.replace('.3', '') + '. Proceed to commit.'
+                if not msg:
+                    msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
+                send_keys(tmux_name, msg)
         except Exception:
             pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
@@ -56,7 +67,18 @@ def reject(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             if session_exists(tmux_name):
-                send_keys(tmux_name, 'Phase rejected with feedback. Check workspace_get_comments.')
+                phase = ws['phase']
+                phase_names = {
+                    '1.4': 'Preparation review rejected. Additional research needed. Check comments.',
+                    '2.1': 'Plan rejected. Revise the plan based on feedback. Check comments.',
+                    '4.2': 'Final approval rejected. Address issues. Check comments.',
+                }
+                msg = phase_names.get(phase, '')
+                if not msg and phase.endswith('.3'):
+                    msg = 'Code review rejected for sub-phase ' + phase.replace('.3', '') + '. Fix issues per comments.'
+                if not msg:
+                    msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
+                send_keys(tmux_name, msg)
         except Exception:
             pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
