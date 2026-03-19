@@ -5,6 +5,7 @@ from .state import bp as state_bp
 from .comments import bp as comments_bp
 from .files import bp as files_bp
 from .hooks import bp as hooks_bp
+from .hook_api import bp as hook_api_bp
 from .context import bp as context_bp
 from .criteria import bp as criteria_bp
 from .static import bp as static_bp
@@ -14,6 +15,6 @@ from .terminal_routes import bp as terminal_bp, register_terminal_ws
 
 
 def register_blueprints(app):
-    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp, terminal_bp]:
+    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, hook_api_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp, terminal_bp]:
         app.register_blueprint(bp_module)
     register_terminal_ws(app)
