@@ -15,6 +15,18 @@
   text-align: center;
 }
 
+/* Center card titles in pre-planning tab (same pattern as plan tab) */
+#panel-preplanning .card-header {
+  position: relative;
+}
+
+#panel-preplanning .card-header .card-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 /* ─── Research summary cards ─── */
 .pp-research-card {
   display: flex;
