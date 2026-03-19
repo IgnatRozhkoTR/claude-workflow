@@ -353,6 +353,8 @@
 
   "actions.copyPath": "Path",
   "actions.copied": "Copied!",
+  "actions.fullscreen": "Full screen",
+  "actions.sidePanel": "Side panel",
 
   "tabs.terminal": "Terminal",
   "tabs.splitTerminal": "Split Terminal",

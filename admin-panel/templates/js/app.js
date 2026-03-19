@@ -137,7 +137,27 @@ function fallbackCopy(text) {
 //  TERMINAL COMMANDS
 // ═══════════════════════════════════════════════
 
-function copyStartCommand() {
+function showTerminalDropdown(type, btn) {
+  document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+
+  var dropdown = document.getElementById(type + 'Dropdown');
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  }
+
+  setTimeout(function() {
+    document.addEventListener('click', function closeDropdown(e) {
+      if (!e.target.closest('.btn-dropdown')) {
+        document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+        document.removeEventListener('click', closeDropdown);
+      }
+    });
+  }, 10);
+}
+
+function doStart(mode) {
+  document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+
   var ctx = getWorkspaceContext();
   if (!ctx) return;
 
@@ -146,11 +166,18 @@ function copyStartCommand() {
 
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', {})
     .then(function(result) {
-      // Always open terminal tab, regardless of clipboard success
-      switchTab('terminal');
-      setTimeout(function() { connectTerminal(); }, 500);
+      if (mode === 'split') {
+        var container = document.getElementById('splitContainer');
+        if (container && !container.classList.contains('split-active')) {
+          toggleSplitTerminal();
+        } else if (container && container.classList.contains('split-active')) {
+          connectSplitTerminal();
+        }
+      } else {
+        switchTab('terminal');
+        setTimeout(function() { connectTerminal(); }, 500);
+      }
 
-      // Copy attach command (best-effort)
       safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
           var original = btn.textContent;
@@ -166,7 +193,9 @@ function copyStartCommand() {
     });
 }
 
-function copyResumeCommand() {
+function doResume(mode) {
+  document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+
   var ctx = getWorkspaceContext();
   if (!ctx) return;
 
@@ -175,11 +204,18 @@ function copyResumeCommand() {
 
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', {})
     .then(function(result) {
-      // Always open terminal tab, regardless of clipboard success
-      switchTab('terminal');
-      setTimeout(function() { connectTerminal(); }, 500);
+      if (mode === 'split') {
+        var container = document.getElementById('splitContainer');
+        if (container && !container.classList.contains('split-active')) {
+          toggleSplitTerminal();
+        } else if (container && container.classList.contains('split-active')) {
+          connectSplitTerminal();
+        }
+      } else {
+        switchTab('terminal');
+        setTimeout(function() { connectTerminal(); }, 500);
+      }
 
-      // Copy attach command (best-effort)
       safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
           var original = btn.textContent;

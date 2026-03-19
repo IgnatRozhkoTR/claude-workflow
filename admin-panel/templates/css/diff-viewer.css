@@ -7,6 +7,12 @@
   margin: -24px;
 }
 
+/* When split terminal is active, prevent panels from bleeding into the terminal area */
+.split-active .split-main #panel-changes,
+.split-active .split-main #panel-files {
+  margin-right: 0;
+}
+
 #panel-changes > .card,
 #panel-files > .card {
   border: none !important;

@@ -325,3 +325,36 @@
 
 .btn-sm { padding: 5px 12px; font-size: 0.75rem; }
 
+/* ═══════════════════════════════════════════════ */
+/*  BUTTON DROPDOWN                                */
+/* ═══════════════════════════════════════════════ */
+.btn-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 120px;
+  margin-top: 4px;
+}
+
+.btn-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
