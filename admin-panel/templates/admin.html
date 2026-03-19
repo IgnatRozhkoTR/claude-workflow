@@ -140,6 +140,29 @@
     </div>
     <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>
 
+    <!-- Claude Command -->
+    <div class="card collapsed">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.claudeCommand">Claude Command</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <label style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; display: block;" data-i18n="config.commandLabel">Command</label>
+            <input type="text" class="context-input" id="claudeCommandInput" placeholder="claude" style="width: 100%;">
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="skipPermissionsCheck" checked>
+            <label for="skipPermissionsCheck" style="font-size: 0.82rem; color: var(--text-primary); cursor: pointer;" data-i18n="config.skipPermissions">Include --dangerously-skip-permissions flag</label>
+          </div>
+          <div style="display: flex; gap: 6px; justify-content: flex-end;">
+            <button class="btn btn-sm" onclick="saveClaudeCommand()" data-i18n="buttons.save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Git Configuration -->
     <div class="card collapsed">
       <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">

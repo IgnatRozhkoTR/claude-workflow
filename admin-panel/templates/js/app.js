@@ -88,6 +88,7 @@ async function initApp() {
   loadCriteria();
   loadGitConfig();
   loadGitRules();
+  loadClaudeCommand();
 
   // Restore diff toggle states from localStorage
   document.querySelectorAll('#viewModeToggle .toggle-opt').forEach(function(b) {

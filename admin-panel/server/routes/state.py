@@ -127,6 +127,8 @@ def get_workspace_state(project_id, branch):
             "session_id": ws["session_id"],
             "working_dir": ws["working_dir"],
             "branch": ws["branch"],
+            "claude_command": ws["claude_command"] or "claude",
+            "skip_permissions": bool(ws["skip_permissions"]),
             "comments": comments,
             "research": research,
             "discussions": discussions,

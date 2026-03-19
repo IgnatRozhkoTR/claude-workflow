@@ -453,6 +453,55 @@ function saveGitRules() {
     .catch(function(e) { showToast(t('messages.gitSaveFailed', {error: e.message})); });
 }
 
+function loadClaudeCommand() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/command')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var input = document.getElementById('claudeCommandInput');
+      var checkbox = document.getElementById('skipPermissionsCheck');
+      if (input) input.value = data.claude_command || 'claude';
+      if (checkbox) checkbox.checked = data.skip_permissions !== false;
+    })
+    .catch(function() {});
+}
+
+function saveClaudeCommand() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var input = document.getElementById('claudeCommandInput');
+  var checkbox = document.getElementById('skipPermissionsCheck');
+
+  var cmd = input ? input.value.trim() : 'claude';
+  var skip = checkbox ? checkbox.checked : true;
+
+  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/command', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      claude_command: cmd,
+      skip_permissions: skip
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      var btn = document.querySelector('[onclick="saveClaudeCommand()"]');
+      if (btn) {
+        var original = btn.textContent;
+        btn.textContent = t('actions.copied') || 'Saved!';
+        setTimeout(function() { btn.textContent = original; }, 1500);
+      }
+    }
+  })
+  .catch(function(e) {
+    showToast('Save failed: ' + e.message);
+  });
+}
+
 function showToast(message) {
   var existing = document.getElementById('toast');
   if (existing) existing.remove();

@@ -18,6 +18,7 @@
   "sidebar.changes": "Изменения кода",
   "sidebar.plan": "Обзор плана",
 
+  "cards.claudeCommand": "Команда Claude",
   "cards.gitConfiguration": "Конфигурация Git",
   "cards.gitRules": "Правила Git",
   "cards.taskContext": "Контекст задачи",
@@ -67,6 +68,9 @@
   "buttons.backToProjects": "Назад к проектам",
   "buttons.viewScope": "Перейти к скоупу",
   "buttons.viewPlan": "Перейти к плану",
+
+  "config.commandLabel": "Команда",
+  "config.skipPermissions": "Включить флаг --dangerously-skip-permissions",
 
   "labels.provider": "Провайдер",
   "labels.host": "Хост",

@@ -12,7 +12,7 @@ import signal
 from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
-from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available
+from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available, build_claude_command
 from db import get_db
 
 bp = Blueprint('terminal', __name__)
@@ -114,7 +114,7 @@ def terminal_start(project, branch):
             kill_session(name)
 
         create_session(name, working_dir)
-        send_keys(name, 'claude --dangerously-skip-permissions')
+        send_keys(name, build_claude_command(ws))
 
         return jsonify({
             'session': name,
@@ -142,21 +142,68 @@ def terminal_resume(project, branch):
 
         name = session_name(project, branch)
         working_dir = ws['working_dir']
-        session_id = ws['session_id']
 
         if not session_exists(name):
             create_session(name, working_dir)
 
-        if session_id:
-            send_keys(name, f'claude --dangerously-skip-permissions -r {session_id}')
-        else:
-            send_keys(name, 'claude --dangerously-skip-permissions')
+        send_keys(name, build_claude_command(ws, resume=True))
 
         return jsonify({
             'session': name,
             'attach_command': f'tmux attach -t {name}',
             'status': 'resumed'
         })
+    finally:
+        db.close()
+
+
+@bp.route('/api/ws/<project>/<branch>/command', methods=['GET'])
+def get_command_config(project, branch):
+    db = get_db()
+    try:
+        ws = db.execute(
+            "SELECT claude_command, skip_permissions FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
+            (project, branch)
+        ).fetchone()
+        if not ws:
+            return jsonify({'error': 'Workspace not found'}), 404
+        return jsonify({
+            'claude_command': ws['claude_command'] or 'claude',
+            'skip_permissions': bool(ws['skip_permissions'])
+        })
+    finally:
+        db.close()
+
+
+@bp.route('/api/ws/<project>/<branch>/command', methods=['PUT'])
+def update_command_config(project, branch):
+    db = get_db()
+    try:
+        data = request.get_json() or {}
+
+        updates = []
+        params = []
+
+        if 'claude_command' in data:
+            cmd = (data['claude_command'] or '').strip() or 'claude'
+            updates.append('claude_command = ?')
+            params.append(cmd)
+
+        if 'skip_permissions' in data:
+            updates.append('skip_permissions = ?')
+            params.append(1 if data['skip_permissions'] else 0)
+
+        if not updates:
+            return jsonify({'error': 'No fields to update'}), 400
+
+        params.extend([project, branch])
+        db.execute(
+            "UPDATE workspaces SET " + ", ".join(updates) + " WHERE project_id = ? AND sanitized_branch = ?",
+            params
+        )
+        db.commit()
+
+        return jsonify({'ok': True})
     finally:
         db.close()
 

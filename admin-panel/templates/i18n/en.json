@@ -18,6 +18,7 @@
   "sidebar.changes": "Code Changes",
   "sidebar.plan": "Plan Review",
 
+  "cards.claudeCommand": "Claude Command",
   "cards.gitConfiguration": "Git Configuration",
   "cards.gitRules": "Git Rules",
   "cards.taskContext": "Task Context",
@@ -67,6 +68,9 @@
   "buttons.backToProjects": "Back to projects",
   "buttons.viewScope": "View Scope",
   "buttons.viewPlan": "View Plan",
+
+  "config.commandLabel": "Command",
+  "config.skipPermissions": "Include --dangerously-skip-permissions flag",
 
   "labels.provider": "Provider",
   "labels.host": "Host",

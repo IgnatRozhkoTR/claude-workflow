@@ -45,6 +45,16 @@ def kill_session(name):
     subprocess.run(['tmux', 'kill-session', '-t', name], capture_output=True)
 
 
+def build_claude_command(ws, resume=False):
+    """Build the full claude command from workspace config."""
+    cmd = ws.get('claude_command') or 'claude'
+    if ws.get('skip_permissions', 1):
+        cmd += ' --dangerously-skip-permissions'
+    if resume and ws.get('session_id'):
+        cmd += ' -r ' + ws['session_id']
+    return cmd
+
+
 def get_active_session(project_id, branch):
     """Get info about the workspace's tmux session."""
     name = session_name(project_id, branch)
