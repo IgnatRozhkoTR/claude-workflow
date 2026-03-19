@@ -88,6 +88,9 @@ function renderScopeSubTabs() {
 function renderScope() {
   renderScopeSubTabs();
 
+  // On first render, default to merged view so "All" tab matches behavior
+  if (_selectedScopeTab === null) _selectedScopeTab = 'all';
+
   var displayScope = _getDisplayScope();
 
   if (_hasPlanScopes()) {
