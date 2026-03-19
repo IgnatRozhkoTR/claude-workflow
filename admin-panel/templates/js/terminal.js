@@ -287,6 +287,9 @@ function toggleSplitTerminal() {
 
     if (splitFitAddon) {
       setTimeout(function() { splitFitAddon.fit(); }, 100);
+      setTimeout(function() {
+        if (splitTerm) splitTerm.focus();
+      }, 150);
     }
 
     connectSplitTerminal();
@@ -352,6 +355,7 @@ function connectSplitTerminal() {
     if (splitTerm) splitTerm.clear();
     if (splitFitAddon) {
       splitFitAddon.fit();
+      if (splitTerm) splitTerm.focus();
       var dims = splitFitAddon.proposeDimensions();
       if (dims) {
         splitWs.send(JSON.stringify({ resize: [dims.cols, dims.rows] }));
