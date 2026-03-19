@@ -30,3 +30,8 @@ def js_files(filename):
 @bp.route("/i18n/<path:filename>")
 def serve_i18n(filename):
     return send_from_directory(TEMPLATES_DIR / "i18n", filename)
+
+
+@bp.route("/img/<path:filename>")
+def img_files(filename):
+    return send_from_directory(TEMPLATES_DIR / "img", filename)
