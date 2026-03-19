@@ -330,6 +330,15 @@ class AddressFixAdvancer(PhaseAdvancer):
         return "4.2"
 
 
+class DoneAdvancer(PhaseAdvancer):
+    def validate(self, ws, body, project_path):
+        locale = ws["locale"]
+        return False, {"error": t("phase.done.complete", locale)}
+
+    def next_phase(self, ws):
+        return "5"
+
+
 class ExecutionAdvancer(PhaseAdvancer):
     def __init__(self, phase):
         parts = phase.split(".")
@@ -500,6 +509,7 @@ ADVANCER_CLASSES = {
     "2.0": PlanAdvancer,
     "4.0": AgenticReviewAdvancer,
     "4.1": AddressFixAdvancer,
+    "5": DoneAdvancer,
 }
 
 

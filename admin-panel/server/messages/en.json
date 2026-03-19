@@ -10,6 +10,7 @@
   "phase.guide.4_1": "Address Review Findings. Call workspace_get_review_issues to see all items. Deploy engineer SUB-AGENTS to fix legitimate issues — they call workspace_resolve_review_issue('fixed'). Mark false positives or out-of-scope items yourself. All review items must then be resolved by the user in the admin panel. Call workspace_update_progress('4') when done.",
   "phase.guide.4_2": "User Approval (USER GATE). All work complete. Awaiting user's final approval in admin panel. Do NOT proceed — wait for the user.",
   "phase.guide.5": "Done. Commit any remaining changes, then push and create MR/PR. Do this DIRECTLY — do NOT delegate git push or MR creation to a sub-agent.",
+  "phase.done.complete": "Task complete! The workflow has finished successfully. Push and MR/PR creation are now available.",
   "phase.guide.sub.0": "Implementation. Deploy engineer SUB-AGENTS for production code, then test engineer SUB-AGENTS for tests (separate agents — never same agent for code + tests). Code edits are ON within the phase scope.",
   "phase.guide.sub.1": "Validation. Deploy validator SUB-AGENTS to review the implementation. Do NOT brief them with how the code was implemented — provide only the task description and phase scope. Results go to workspace/validation/3.{n}.json.",
   "phase.guide.sub.2": "Fixes. Deploy engineer SUB-AGENTS to address validation issues and/or user review comments (check workspace_get_comments). Code edits are ON within the phase scope. Advance when fixes are complete — this returns to Code Review for re-approval.",
