@@ -31,6 +31,7 @@ def create_session(name, working_dir):
     subprocess.run(['tmux', 'new-session', '-d', '-s', name, '-c', working_dir],
                    check=True)
     subprocess.run(['tmux', 'set-option', '-t', name, 'mouse', 'on'], capture_output=True)
+    subprocess.run(['tmux', 'set-option', '-t', name, 'set-clipboard', 'on'], capture_output=True)
     # Override WheelUpPane to always enter copy mode (fixes Claude Code stealing scroll)
     subprocess.run(['tmux', 'bind-key', '-n', 'WheelUpPane',
                     'if-shell', '-F', '#{pane_in_mode}',

@@ -84,6 +84,21 @@ function initTerminal() {
   term.open(container);
   fitAddon.fit();
 
+  if (term.parser) {
+    term.parser.registerOscHandler(52, function(data) {
+      var parts = data.split(';');
+      if (parts.length >= 2) {
+        try {
+          var decoded = atob(parts[parts.length - 1]);
+          if (typeof safeCopyToClipboard === 'function') {
+            safeCopyToClipboard(decoded);
+          }
+        } catch(e) {}
+      }
+      return true;
+    });
+  }
+
   container.addEventListener('wheel', function(e) {
     e.stopPropagation();
   }, { passive: true });
@@ -317,6 +332,21 @@ function initSplitTerminal() {
 
   splitTerm.open(container);
   splitFitAddon.fit();
+
+  if (splitTerm.parser) {
+    splitTerm.parser.registerOscHandler(52, function(data) {
+      var parts = data.split(';');
+      if (parts.length >= 2) {
+        try {
+          var decoded = atob(parts[parts.length - 1]);
+          if (typeof safeCopyToClipboard === 'function') {
+            safeCopyToClipboard(decoded);
+          }
+        } catch(e) {}
+      }
+      return true;
+    });
+  }
 
   splitTerm.onData(function(data) {
     if (splitWs && splitWs.readyState === WebSocket.OPEN) {
