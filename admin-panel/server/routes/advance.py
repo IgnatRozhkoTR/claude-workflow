@@ -33,7 +33,7 @@ def approve(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             exists = session_exists(tmux_name)
-            logger.info(f"Approve notification: session={tmux_name}, exists={exists}")
+            print(f"[TMUX] Approve notification: session={tmux_name}, exists={exists}")
             if exists:
                 phase = ws['phase']
                 phase_names = {
@@ -46,12 +46,12 @@ def approve(project_id, branch):
                     msg = 'Code review approved for sub-phase ' + phase.replace('.3', '') + '. Proceed to commit.'
                 if not msg:
                     msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
-                logger.info(f"Sending to tmux: {msg}")
+                print(f"[TMUX] Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
             else:
-                logger.warning(f"No tmux session found: {tmux_name}")
+                print(f"[TMUX] WARNING: No tmux session found: {tmux_name}")
         except Exception as e:
-            logger.error(f"Tmux notification failed: {e}")
+            print(f"[TMUX] ERROR: Tmux notification failed: {e}")
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
 
 
@@ -75,7 +75,7 @@ def reject(project_id, branch):
         try:
             tmux_name = session_name(project_id, branch)
             exists = session_exists(tmux_name)
-            logger.info(f"Reject notification: session={tmux_name}, exists={exists}")
+            print(f"[TMUX] Reject notification: session={tmux_name}, exists={exists}")
             if exists:
                 phase = ws['phase']
                 phase_names = {
@@ -88,10 +88,10 @@ def reject(project_id, branch):
                     msg = 'Code review rejected for sub-phase ' + phase.replace('.3', '') + '. Fix issues per comments.'
                 if not msg:
                     msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
-                logger.info(f"Sending to tmux: {msg}")
+                print(f"[TMUX] Sending to tmux: {msg}")
                 send_keys(tmux_name, msg)
             else:
-                logger.warning(f"No tmux session found: {tmux_name}")
+                print(f"[TMUX] WARNING: No tmux session found: {tmux_name}")
         except Exception as e:
-            logger.error(f"Tmux notification failed: {e}")
+            print(f"[TMUX] ERROR: Tmux notification failed: {e}")
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
