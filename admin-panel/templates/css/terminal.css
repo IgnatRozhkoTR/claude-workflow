@@ -81,6 +81,11 @@
   padding: 0;
 }
 
+.main.terminal-active .split-container {
+  margin: 0;
+  width: 100%;
+}
+
 .split-handle {
   display: none;
   width: 5px;
@@ -149,21 +154,23 @@
   color: var(--accent);
 }
 
-/* ═══════════════════════════════════════════════ */
-/*  xterm.js 256-color overrides for Claude Code  */
-/* ═══════════════════════════════════════════════ */
+/* ─── xterm.js 256-color overrides for Claude Code ─── */
+/* Must use high specificity to override xterm.js generated styles */
 
-/* File paths / links — ANSI 153 is too light, make it brighter */
-.xterm-fg-153 {
-  color: #93c5fd !important;
+#terminalContainer .xterm-fg-153,
+#splitTerminalContainer .xterm-fg-153,
+.xterm-rows .xterm-fg-153 {
+  color: #60a5fa !important;
 }
 
-/* User message background — ANSI 237 is too dark/black, make it a subtle highlight */
-.xterm-bg-237 {
-  background-color: #2d3748 !important;
+#terminalContainer .xterm-bg-237,
+#splitTerminalContainer .xterm-bg-237,
+.xterm-rows .xterm-bg-237 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
 }
 
-/* Prompt arrow color — ANSI 239 is too dim */
-.xterm-fg-239 {
+#terminalContainer .xterm-fg-239,
+#splitTerminalContainer .xterm-fg-239,
+.xterm-rows .xterm-fg-239 {
   color: #9ca3af !important;
 }
