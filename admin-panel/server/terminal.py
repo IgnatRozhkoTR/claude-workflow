@@ -36,6 +36,11 @@ def create_session(name, working_dir):
                     'if-shell', '-F', '#{pane_in_mode}',
                     'send-keys -M',
                     'copy-mode -e; send-keys -M'], capture_output=True)
+    # Copy mouse selection to system clipboard, stay in copy mode
+    subprocess.run(['tmux', 'bind-key', '-T', 'copy-mode', 'MouseDragEnd1Pane',
+                    'send-keys', '-X', 'copy-pipe', 'pbcopy'], capture_output=True)
+    subprocess.run(['tmux', 'bind-key', '-T', 'copy-mode-vi', 'MouseDragEnd1Pane',
+                    'send-keys', '-X', 'copy-pipe', 'pbcopy'], capture_output=True)
 
 
 def send_keys(name, command):
