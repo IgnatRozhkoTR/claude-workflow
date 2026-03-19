@@ -99,6 +99,9 @@
   line-height: 1.5;
   color: var(--text-primary);
   word-break: break-word;
+  background: var(--bg-raised);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
 }
 
 .pp-impact-text ul,
@@ -116,6 +119,29 @@
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.82rem;
+}
+
+.pp-impact-text table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 0.82rem;
+}
+
+.pp-impact-text th,
+.pp-impact-text td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.pp-impact-text th {
+  background: var(--bg-input);
+  font-weight: 600;
+}
+
+.pp-impact-text tr:hover {
+  background: var(--bg-hover);
 }
 
 .pp-impact-empty {
