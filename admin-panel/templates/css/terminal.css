@@ -47,3 +47,13 @@
 #terminalContainer .xterm-viewport {
   overflow-y: auto !important;
 }
+
+/* Fix 1: Remove main padding when terminal is active */
+#panel-terminal {
+  margin: -24px;
+  height: calc(100vh - 56px);
+}
+
+.terminal-container {
+  height: 100%;
+}
