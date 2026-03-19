@@ -10,8 +10,10 @@ from .criteria import bp as criteria_bp
 from .static import bp as static_bp
 from .git_config import bp as git_config_bp
 from .advance import bp as advance_bp
+from .terminal_routes import bp as terminal_bp, register_terminal_ws
 
 
 def register_blueprints(app):
-    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp]:
+    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp, terminal_bp]:
         app.register_blueprint(bp_module)
+    register_terminal_ws(app)

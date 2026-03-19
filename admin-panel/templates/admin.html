@@ -51,6 +51,11 @@
 <link rel="stylesheet" href="css/context.css">
 <link rel="stylesheet" href="css/diff-viewer.css">
 <link rel="stylesheet" href="css/preplanning.css">
+<link rel="stylesheet" href="css/terminal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
 </head>
 <body>
 
@@ -98,6 +103,12 @@
   <button class="sidebar-btn" data-tab="review" title="Review" data-i18n-title="tabs.review">
     <span data-i18n-title="tabs.review">💬</span>
     <span class="review-badge" id="reviewBadge" style="display:none"></span>
+  </button>
+  <button class="sidebar-btn" data-tab="terminal" title="Terminal" data-i18n-title="tabs.terminal">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="4 17 10 11 4 5"></polyline>
+      <line x1="12" y1="19" x2="20" y2="19"></line>
+    </svg>
   </button>
 </aside>
 
@@ -487,6 +498,20 @@
     </div>
   </div>
 
+  <!-- ─── TERMINAL ─── -->
+  <div class="tab-panel" id="panel-terminal">
+    <div class="terminal-container">
+      <div class="terminal-toolbar">
+        <span class="terminal-status" id="terminalStatus">Disconnected</span>
+        <div class="terminal-actions">
+          <button class="btn btn-sm" id="terminalConnectBtn" onclick="connectTerminal()">Connect</button>
+          <button class="btn btn-sm btn-outline" id="terminalDisconnectBtn" onclick="disconnectTerminal()" style="display:none;">Disconnect</button>
+        </div>
+      </div>
+      <div id="terminalContainer"></div>
+    </div>
+  </div>
+
   <!-- ─── PHASE CONTROL ─── -->
   <div class="tab-panel" id="panel-phases">
     <div class="card card-primary">
@@ -523,6 +548,7 @@
 <script src="js/review-tab.js"></script>
 <script src="js/comments.js"></script>
 <script src="js/theme.js"></script>
+<script src="js/terminal.js"></script>
 <script src="js/tabs.js"></script>
 <script src="js/phase.js"></script>
 <script src="js/plan.js"></script>

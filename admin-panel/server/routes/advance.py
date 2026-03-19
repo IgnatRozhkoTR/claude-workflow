@@ -5,6 +5,7 @@ from advance_service import approve_gate, reject_gate
 from db import get_db
 from helpers import find_workspace
 from i18n import t
+from terminal import session_name, session_exists, send_keys
 
 bp = Blueprint("advance", __name__)
 
@@ -25,6 +26,13 @@ def approve(project_id, branch):
 
     body = request.get_json(silent=True) or {}
     result = approve_gate(ws, body.get("token", ""), body.get("commit_message"))
+    if result.get("status_code", 200) == 200:
+        try:
+            tmux_name = session_name(project_id, branch)
+            if session_exists(tmux_name):
+                send_keys(tmux_name, '')
+        except Exception:
+            pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
 
 
@@ -44,4 +52,11 @@ def reject(project_id, branch):
 
     body = request.get_json(silent=True) or {}
     result = reject_gate(ws, body.get("token", ""), body.get("comments", ""))
+    if result.get("status_code", 200) == 200:
+        try:
+            tmux_name = session_name(project_id, branch)
+            if session_exists(tmux_name):
+                send_keys(tmux_name, '')
+        except Exception:
+            pass
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)

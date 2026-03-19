@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════ */
+/*  TERMINAL TAB                                   */
+/* ═══════════════════════════════════════════════ */
+
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px);
+  background: var(--bg-primary);
+}
+
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.terminal-status {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.terminal-status.connected {
+  color: var(--success);
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#terminalContainer {
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+}
+
+/* Override xterm.js viewport to fill container */
+#terminalContainer .xterm {
+  height: 100%;
+}
+
+#terminalContainer .xterm-viewport {
+  overflow-y: auto !important;
+}

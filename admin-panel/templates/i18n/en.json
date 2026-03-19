@@ -348,5 +348,11 @@
   "review.resolution.out_of_scope": "out of scope",
 
   "actions.copyPath": "Path",
-  "actions.copied": "Copied!"
+  "actions.copied": "Copied!",
+
+  "tabs.terminal": "Terminal",
+  "terminal.connected": "Connected",
+  "terminal.connecting": "Connecting...",
+  "terminal.disconnected": "Disconnected",
+  "terminal.error": "Connection error"
 }

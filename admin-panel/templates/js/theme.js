@@ -12,6 +12,7 @@ function toggleTheme() {
       ? 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css'
       : 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css';
   }
+  if (typeof updateTerminalTheme === 'function') updateTerminalTheme();
   if (state.selectedFile) renderDiff(state.selectedFile);
   // Re-initialize mermaid with new theme and re-render diagrams
   if (typeof mermaid !== 'undefined' && typeof getMermaidTheme === 'function') {

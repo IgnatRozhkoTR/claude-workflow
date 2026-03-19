@@ -63,6 +63,8 @@ async function switchTab(tabId) {
       _explorerLoaded = true;
       loadExplorerFiles();
     }
+  } else if (tabId === 'terminal') {
+    if (typeof onTerminalTabActivated === 'function') onTerminalTabActivated();
   }
 }
 

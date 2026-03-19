@@ -106,29 +106,57 @@ async function initApp() {
 }
 
 function copyStartCommand() {
-  var workingDir = LOCK_DATA.working_dir;
-  var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions';
-  navigator.clipboard.writeText(cmd).then(function() {
-    var btn = document.getElementById('startBtn');
-    if (!btn) return;
-    var original = btn.textContent;
-    btn.textContent = t('actions.copied');
-    setTimeout(function() { btn.textContent = original; }, 1500);
-  });
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var btn = document.getElementById('startBtn');
+  if (btn) btn.disabled = true;
+
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', {})
+    .then(function(result) {
+      navigator.clipboard.writeText(result.attach_command).then(function() {
+        if (btn) {
+          var original = btn.textContent;
+          btn.textContent = t('actions.copied');
+          btn.disabled = false;
+          setTimeout(function() { btn.textContent = original; }, 1500);
+        }
+      });
+
+      switchTab('terminal');
+      setTimeout(function() { connectTerminal(); }, 500);
+    })
+    .catch(function(e) {
+      if (btn) btn.disabled = false;
+      showToast('Start failed: ' + e.message);
+    });
 }
 
 function copyResumeCommand() {
-  var sessionId = LOCK_DATA.session_id;
-  var workingDir = LOCK_DATA.working_dir;
-  if (!sessionId) return;
-  var cmd = (workingDir ? 'cd ' + workingDir + ' && ' : '') + 'claude --dangerously-skip-permissions -r ' + sessionId;
-  navigator.clipboard.writeText(cmd).then(function() {
-    var btn = document.getElementById('resumeBtn');
-    if (!btn) return;
-    var original = btn.textContent;
-    btn.textContent = t('actions.copied');
-    setTimeout(function() { btn.textContent = original; }, 1500);
-  });
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var btn = document.getElementById('resumeBtn');
+  if (btn) btn.disabled = true;
+
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', {})
+    .then(function(result) {
+      navigator.clipboard.writeText(result.attach_command).then(function() {
+        if (btn) {
+          var original = btn.textContent;
+          btn.textContent = t('actions.copied');
+          btn.disabled = false;
+          setTimeout(function() { btn.textContent = original; }, 1500);
+        }
+      });
+
+      switchTab('terminal');
+      setTimeout(function() { connectTerminal(); }, 500);
+    })
+    .catch(function(e) {
+      if (btn) btn.disabled = false;
+      showToast('Resume failed: ' + e.message);
+    });
 }
 
 function copyWorkspacePath() {
