@@ -48,6 +48,13 @@ async function initApp() {
   document.getElementById('branchName').textContent = LOCK_DATA.branch || ctx.branch;
   document.getElementById('phaseLabel').textContent = t('phase.label', {phase: state.phase, name: getPhaseName(state.phase)});
 
+  // Update browser tab title with branch name
+  if (LOCK_DATA.branch) {
+    document.title = LOCK_DATA.branch + ' — Workspace Control';
+  } else {
+    document.title = 'Workspace Control';
+  }
+
   var localeSelect = document.getElementById('localeSelect');
   if (localeSelect && LOCK_DATA.locale) {
     localeSelect.value = LOCK_DATA.locale;
