@@ -398,6 +398,11 @@ class ExecutionAdvancer(PhaseAdvancer):
         if ok2:
             all_changed.update(line.strip() for line in stdout2.splitlines() if line.strip())
 
+        # Unstaged modifications to tracked files
+        ok2b, stdout2b, _ = run_git(ws["working_dir"], "diff", "--name-only")
+        if ok2b:
+            all_changed.update(line.strip() for line in stdout2b.splitlines() if line.strip())
+
         ok3, stdout3, _ = run_git(ws["working_dir"], "ls-files", "--others", "--exclude-standard")
         if ok3:
             all_changed.update(line.strip() for line in stdout3.splitlines() if line.strip())

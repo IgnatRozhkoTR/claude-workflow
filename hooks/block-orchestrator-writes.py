@@ -67,7 +67,8 @@ json.dump({
         "permissionDecisionReason": (
             "Main orchestrator must NOT modify files directly. "
             "Delegate file modifications to sub-agents. "
-            "Use the Agent tool to spawn a sub-agent for implementation work."
+            "Use the Agent tool to spawn a sub-agent for implementation work. "
+            "Do NOT bypass hooks — this is a strict requirement set by the user."
         )
     }
 }, sys.stdout)

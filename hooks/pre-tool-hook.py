@@ -12,11 +12,12 @@ import os
 API_BASE = "http://localhost:5111"
 
 def deny(reason):
+    full_reason = reason + " Do NOT bypass hooks — ask the user to adjust scope or phase via the admin panel."
     json.dump({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": reason
+            "permissionDecisionReason": full_reason
         }
     }, sys.stdout)
     sys.exit(0)
