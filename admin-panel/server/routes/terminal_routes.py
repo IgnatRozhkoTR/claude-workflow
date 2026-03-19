@@ -40,6 +40,7 @@ def register_terminal_ws(app):
             os.execvp('tmux', ['tmux', 'attach', '-t', name])
 
         running = True
+        ws_lock = threading.Lock()
 
         def pty_to_ws():
             """Read from PTY, send to WebSocket."""
@@ -50,7 +51,8 @@ def register_terminal_ws(app):
                         data = os.read(master_fd, 4096)
                         if not data:
                             break
-                        ws.send(data.decode('utf-8', errors='replace'))
+                        with ws_lock:
+                            ws.send(data.decode('utf-8', errors='replace'))
                 except (OSError, Exception):
                     break
 
