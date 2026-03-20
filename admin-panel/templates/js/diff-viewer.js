@@ -187,16 +187,31 @@ function renderDiff(path) {
   if (isMd && typeof marked !== 'undefined' && _diffMdMode === 'preview') {
     var parts = extractOldNewFromDiff(file.diff);
     var previewContainer = document.createElement('div');
-    previewContainer.className = 'md-diff-preview';
-    previewContainer.innerHTML =
-      '<div class="md-diff-side md-diff-old">' +
-        '<div class="md-diff-side-label">' + escapeHtml(path) + ' (old)</div>' +
-        '<div class="md-preview">' + marked.parse(parts.oldText) + '</div>' +
-      '</div>' +
-      '<div class="md-diff-side md-diff-new">' +
-        '<div class="md-diff-side-label">' + escapeHtml(path) + ' (new)</div>' +
-        '<div class="md-preview">' + marked.parse(parts.newText) + '</div>' +
-      '</div>';
+
+    if (!parts.oldText.trim()) {
+      // New file — show full width preview of new content
+      previewContainer.className = 'md-preview';
+      previewContainer.style.padding = '16px 24px';
+      previewContainer.innerHTML = marked.parse(parts.newText);
+    } else if (!parts.newText.trim()) {
+      // Deleted file — show full width preview of old content
+      previewContainer.className = 'md-preview';
+      previewContainer.style.padding = '16px 24px';
+      previewContainer.innerHTML = marked.parse(parts.oldText);
+    } else {
+      // Modified file — side by side
+      previewContainer.className = 'md-diff-preview';
+      previewContainer.innerHTML =
+        '<div class="md-diff-side md-diff-old">' +
+          '<div class="md-diff-side-label">' + t('buttons.source') + ' (old)</div>' +
+          '<div class="md-preview">' + marked.parse(parts.oldText) + '</div>' +
+        '</div>' +
+        '<div class="md-diff-side md-diff-new">' +
+          '<div class="md-diff-side-label">' + t('buttons.source') + ' (new)</div>' +
+          '<div class="md-preview">' + marked.parse(parts.newText) + '</div>' +
+        '</div>';
+    }
+
     container.appendChild(previewContainer);
     if (typeof hljs !== 'undefined') {
       previewContainer.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
