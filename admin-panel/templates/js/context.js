@@ -514,8 +514,9 @@ function saveClaudeCommand() {
 }
 
 function loadChannelsPreference() {
+  var defaultValue = 'plugin:telegram@claude-plugins-official';
   var enabled = localStorage.getItem('channels_enabled') === 'true';
-  var value = localStorage.getItem('channels_value') || '';
+  var value = localStorage.getItem('channels_value') || defaultValue;
   var check = document.getElementById('channelsEnabledCheck');
   var input = document.getElementById('channelsValueInput');
   if (check) check.checked = enabled;
@@ -526,9 +527,11 @@ function loadChannelsPreference() {
 }
 
 function saveChannelsPreference() {
+  var defaultValue = 'plugin:telegram@claude-plugins-official';
   var check = document.getElementById('channelsEnabledCheck');
   var input = document.getElementById('channelsValueInput');
   if (!check || !input) return;
+  if (!input.value) input.value = defaultValue;
   localStorage.setItem('channels_enabled', check.checked ? 'true' : 'false');
   localStorage.setItem('channels_value', input.value);
   input.style.display = check.checked ? '' : 'none';
