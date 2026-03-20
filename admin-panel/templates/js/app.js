@@ -85,6 +85,7 @@ async function initApp() {
   loadGitConfig();
   loadGitRules();
   loadClaudeCommand();
+  loadChannelsPreference();
 
   // Restore diff toggle states from localStorage
   document.querySelectorAll('#viewModeToggle .toggle-opt').forEach(function(b) {
@@ -160,7 +161,14 @@ function doStart(mode) {
   var btn = document.getElementById('startBtn');
   if (btn) btn.disabled = true;
 
-  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', {})
+  var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
+  var channelsValue = localStorage.getItem('channels_value') || '';
+  var startBody = {};
+  if (channelsEnabled && channelsValue) {
+    startBody.channels = channelsValue;
+  }
+
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', startBody)
     .then(function(result) {
       if (mode === 'split') {
         var container = document.getElementById('splitContainer');
@@ -198,7 +206,14 @@ function doResume(mode) {
   var btn = document.getElementById('resumeBtn');
   if (btn) btn.disabled = true;
 
-  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', {})
+  var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
+  var channelsValue = localStorage.getItem('channels_value') || '';
+  var resumeBody = {};
+  if (channelsEnabled && channelsValue) {
+    resumeBody.channels = channelsValue;
+  }
+
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', resumeBody)
     .then(function(result) {
       if (mode === 'split') {
         var container = document.getElementById('splitContainer');

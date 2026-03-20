@@ -60,14 +60,15 @@ def kill_session(name):
     subprocess.run(['tmux', 'kill-session', '-t', name], capture_output=True)
 
 
-def build_claude_command(ws, resume=False):
+def build_claude_command(ws, resume=False, channels=None):
     """Build the full claude command from workspace config."""
     cmd = (ws['claude_command'] if 'claude_command' in ws.keys() else None) or 'claude'
     skip = ws['skip_permissions'] if 'skip_permissions' in ws.keys() else 1
     if skip:
         cmd += ' --dangerously-skip-permissions'
-    if ws.get('channels'):
-        cmd += f" --channels {ws['channels']}"
+    ch = channels if channels is not None else ws.get('channels', '')
+    if ch:
+        cmd += f' --channels {ch}'
     if resume:
         session_id = ws['session_id'] if 'session_id' in ws.keys() else None
         if session_id:

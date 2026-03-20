@@ -115,8 +115,11 @@ def terminal_start(project, branch):
         if session_exists(name):
             kill_session(name)
 
+        data = request.get_json(silent=True)
+        channels = data.get('channels', '') if data else ''
+
         create_session(name, working_dir)
-        send_keys(name, build_claude_command(ws))
+        send_keys(name, build_claude_command(ws, channels=channels))
 
         return jsonify({
             'session': name,
@@ -145,10 +148,13 @@ def terminal_resume(project, branch):
         name = session_name(project, branch)
         working_dir = ws['working_dir']
 
+        data = request.get_json(silent=True)
+        channels = data.get('channels', '') if data else ''
+
         created = False
         if not session_exists(name):
             create_session(name, working_dir)
-            send_keys(name, build_claude_command(ws, resume=True))
+            send_keys(name, build_claude_command(ws, resume=True, channels=channels))
             created = True
 
         return jsonify({
@@ -165,7 +171,7 @@ def get_command_config(project, branch):
     db = get_db()
     try:
         ws = db.execute(
-            "SELECT claude_command, skip_permissions, restrict_to_workspace, allowed_external_paths, channels FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
+            "SELECT claude_command, skip_permissions, restrict_to_workspace, allowed_external_paths FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
             (project, branch)
         ).fetchone()
         if not ws:
@@ -174,8 +180,7 @@ def get_command_config(project, branch):
             'claude_command': ws['claude_command'] or 'claude',
             'skip_permissions': bool(ws['skip_permissions']),
             'restrict_to_workspace': bool(ws['restrict_to_workspace']) if 'restrict_to_workspace' in ws.keys() else True,
-            'allowed_external_paths': ws['allowed_external_paths'] if 'allowed_external_paths' in ws.keys() else '/tmp/',
-            'channels': ws['channels'] if 'channels' in ws.keys() else ''
+            'allowed_external_paths': ws['allowed_external_paths'] if 'allowed_external_paths' in ws.keys() else '/tmp/'
         })
     finally:
         db.close()
@@ -206,10 +211,6 @@ def update_command_config(project, branch):
         if 'allowed_external_paths' in data:
             updates.append('allowed_external_paths = ?')
             params.append((data['allowed_external_paths'] or '').strip() or '/tmp/')
-
-        if 'channels' in data:
-            updates.append('channels = ?')
-            params.append((data['channels'] or '').strip())
 
         if not updates:
             return jsonify({'error': 'No fields to update'}), 400

@@ -72,6 +72,7 @@
   "buttons.source": "Исходный код",
   "buttons.preview": "Просмотр",
 
+  "config.deviceSettings": "Настройки устройства",
   "config.commandLabel": "Команда",
   "config.skipPermissions": "Включить флаг --dangerously-skip-permissions",
   "config.restrictToWorkspace": "Ограничить модификацию файлов директорией workspace",

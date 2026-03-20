@@ -471,8 +471,6 @@ function loadClaudeCommand() {
       }
       var pathsInput = document.getElementById('allowedExternalPathsInput');
       if (pathsInput) pathsInput.value = data.allowed_external_paths || '/tmp/';
-      var channelsInput = document.getElementById('channelsInput');
-      if (channelsInput) channelsInput.value = data.channels || '';
     })
     .catch(function() {});
 }
@@ -485,7 +483,6 @@ function saveClaudeCommand() {
   var checkbox = document.getElementById('skipPermissionsCheck');
   var restrictCheck = document.getElementById('restrictToWorkspaceCheck');
   var pathsInput = document.getElementById('allowedExternalPathsInput');
-  var channelsInput = document.getElementById('channelsInput');
 
   var cmd = input ? input.value.trim() : 'claude';
   var skip = checkbox ? checkbox.checked : true;
@@ -497,8 +494,7 @@ function saveClaudeCommand() {
       claude_command: cmd,
       skip_permissions: skip,
       restrict_to_workspace: restrictCheck ? restrictCheck.checked : true,
-      allowed_external_paths: pathsInput ? pathsInput.value.trim() : '/tmp/',
-      channels: channelsInput ? channelsInput.value.trim() : ''
+      allowed_external_paths: pathsInput ? pathsInput.value.trim() : '/tmp/'
     })
   })
   .then(function(r) { return r.json(); })
@@ -515,6 +511,27 @@ function saveClaudeCommand() {
   .catch(function(e) {
     showToast('Save failed: ' + e.message);
   });
+}
+
+function loadChannelsPreference() {
+  var enabled = localStorage.getItem('channels_enabled') === 'true';
+  var value = localStorage.getItem('channels_value') || '';
+  var check = document.getElementById('channelsEnabledCheck');
+  var input = document.getElementById('channelsValueInput');
+  if (check) check.checked = enabled;
+  if (input) {
+    input.value = value;
+    input.style.display = enabled ? '' : 'none';
+  }
+}
+
+function saveChannelsPreference() {
+  var check = document.getElementById('channelsEnabledCheck');
+  var input = document.getElementById('channelsValueInput');
+  if (!check || !input) return;
+  localStorage.setItem('channels_enabled', check.checked ? 'true' : 'false');
+  localStorage.setItem('channels_value', input.value);
+  input.style.display = check.checked ? '' : 'none';
 }
 
 function showToast(message) {

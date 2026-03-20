@@ -72,6 +72,7 @@
   "buttons.source": "Source",
   "buttons.preview": "Preview",
 
+  "config.deviceSettings": "Device Settings",
   "config.commandLabel": "Command",
   "config.skipPermissions": "Include --dangerously-skip-permissions flag",
   "config.restrictToWorkspace": "Restrict file modifications to workspace directory",
