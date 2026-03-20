@@ -116,15 +116,9 @@ def get_diff(project_id, branch):
         mode = "branch"
 
     if mode == "uncommitted":
-        ok1, unstaged_out, _ = run_git(working_dir, "diff")
-        ok2, staged_out, _ = run_git(working_dir, "diff", "--cached")
-        diff_output = ""
-        if ok1 and unstaged_out:
-            diff_output += unstaged_out
-        if ok2 and staged_out:
-            if diff_output:
-                diff_output += "\n"
-            diff_output += staged_out
+        ok, diff_output, _ = run_git(working_dir, "diff", "HEAD")
+        if not ok:
+            diff_output = ""
     else:
         # Diff against remote source branch (local ref may be stale in worktrees)
         ok, diff_output, _ = run_git(working_dir, "diff", f"origin/{source_branch}")
