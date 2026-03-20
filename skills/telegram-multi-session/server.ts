@@ -38,6 +38,7 @@ const ENV_FILE = join(STATE_DIR, '.env')
 // --- Multi-session state ---
 const SESSIONS_DIR = join(STATE_DIR, 'sessions')
 const CLAIM_DIR = join(STATE_DIR, 'claim')
+const POLLING_LOCK = join(STATE_DIR, 'polling.lock')
 
 function deriveSessionName(): string {
   if (process.env.WORKSPACE) return process.env.WORKSPACE
@@ -323,6 +324,11 @@ function registerSession(): void {
 
 function unregisterSession(): void {
   try { rmSync(join(SESSIONS_DIR, `${SESSION_NAME}.json`), { force: true }) } catch {}
+  // Clear polling lock if we were the poller
+  try {
+    const current = readFileSync(POLLING_LOCK, 'utf8').trim()
+    if (current === SESSION_NAME) rmSync(POLLING_LOCK, { force: true })
+  } catch {}
 }
 
 registerSession()
@@ -363,12 +369,33 @@ function startPolling(): void {
     onStart: info => {
       botUsername = info.username
       pollingActive = true
+      try { writeFileSync(POLLING_LOCK, SESSION_NAME) } catch {}
       process.stderr.write(`telegram channel [${SESSION_NAME}]: polling as @${info.username}\n`)
     },
   }).catch(err => {
     pollingActive = false
     process.stderr.write(`telegram channel [${SESSION_NAME}]: polling stopped: ${err}\n`)
   })
+}
+
+/** If no alive session is polling, this session volunteers to take over. */
+function checkPollingOrphan(): void {
+  if (pollingActive) return
+
+  // Read the lock to find who claims to be polling
+  let poller: string | undefined
+  try { poller = readFileSync(POLLING_LOCK, 'utf8').trim() } catch {}
+
+  if (poller) {
+    // Check if the poller is still alive
+    const sessions = listSessions()
+    const pollerSession = sessions.find(s => s.name === poller)
+    if (pollerSession?.alive) return // poller is alive, assume it's fine
+  }
+
+  // Nobody is polling — volunteer
+  process.stderr.write(`telegram channel [${SESSION_NAME}]: no active poller detected, volunteering\n`)
+  startPolling()
 }
 
 // --- Claim signal checking ---
@@ -386,6 +413,7 @@ function checkClaimSignals(): void {
       process.stderr.write(`telegram channel [${SESSION_NAME}]: claim signal received\n`)
 
       void bot.stop().catch(() => {}).then(() => {
+        try { rmSync(POLLING_LOCK, { force: true }) } catch {}
         startPolling()
         if (chatId) {
           void bot.api.sendMessage(chatId, `Session '${SESSION_NAME}' is now active.`).catch(() => {})
@@ -396,7 +424,11 @@ function checkClaimSignals(): void {
   }
 }
 
-setInterval(checkClaimSignals, 5000)
+setInterval(() => {
+  checkClaimSignals()
+  cleanStaleSessions()
+  checkPollingOrphan()
+}, 5000)
 
 // The /telegram:access skill drops a file at approved/<senderId> when it pairs
 // someone. Poll for it, send confirmation, clean up. For Telegram DMs,
