@@ -48,6 +48,7 @@ function renderFileList() {
       const div = document.createElement('div');
       div.className = 'file-item' + (state.selectedFile === f.path ? ' active' : '');
       div.title = f.path;
+      div.dataset.path = f.path;
       div.onclick = (e) => { if (!e.target.closest('.comment-icon')) selectFile(f.path); };
       var unresolvedDot = fileHasUnresolvedComments(f.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
       div.innerHTML = `<span>${escapeHtml(f.path.split('/').pop())}</span>${unresolvedDot}${renderCommentIcon('review', f.path)}<div class="file-stat"><span class="file-stat-add">+${f.additions}</span><span class="file-stat-del">-${f.deletions}</span></div>`;
@@ -79,6 +80,7 @@ function renderTreeNode(node, container, prefix, depth) {
       const div = document.createElement('div');
       div.className = 'file-item' + (state.selectedFile === val.path ? ' active' : '');
       div.style.paddingLeft = (pad + 11) + 'px';
+      div.dataset.path = val.path;
       div.onclick = (e) => { if (!e.target.closest('.comment-icon')) selectFile(val.path); };
       var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
       div.innerHTML = `<span>${escapeHtml(key)}</span>${unresolvedDot}${renderCommentIcon('review', val.path)}<div class="file-stat"><span class="file-stat-add">+${val.additions}</span><span class="file-stat-del">-${val.deletions}</span></div>`;
@@ -114,7 +116,16 @@ function renderTreeNode(node, container, prefix, depth) {
 
 function selectFile(path) {
   state.selectedFile = path;
-  renderFileList();
+  var fileList = document.getElementById('diffFileList');
+  if (fileList) {
+    fileList.querySelectorAll('.file-item').forEach(function(el) {
+      if (el.dataset.path === path) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    });
+  }
   renderDiff(path);
   var btn = document.getElementById('viewFileBtn');
   if (btn) btn.style.display = path ? '' : 'none';

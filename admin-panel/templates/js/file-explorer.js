@@ -63,6 +63,7 @@ function renderExplorerTreeNode(node, container, depth) {
       var div = document.createElement('div');
       div.className = 'file-item' + (explorerState.selectedFile === val._path ? ' active' : '');
       div.style.paddingLeft = (pad + 11) + 'px';
+      div.dataset.path = val._path;
       div.onclick = function() { selectExplorerFile(val._path); };
       div.innerHTML = '<span>' + escapeHtml(key) + '</span>';
       container.appendChild(div);
@@ -111,6 +112,7 @@ function renderExplorerFileList() {
     files.forEach(function(path) {
       var div = document.createElement('div');
       div.className = 'file-item' + (explorerState.selectedFile === path ? ' active' : '');
+      div.dataset.path = path;
       div.onclick = function() { selectExplorerFile(path); };
       div.innerHTML = '<span>' + escapeHtml(path) + '</span>';
       container.appendChild(div);
@@ -126,7 +128,16 @@ var _explorerFileLines = [];
 async function selectExplorerFile(path) {
   explorerState.selectedFile = path;
   explorerState.mdMode = 'preview';
-  renderExplorerFileList();
+  var fileList = document.getElementById('explorerFileList');
+  if (fileList) {
+    fileList.querySelectorAll('.file-item').forEach(function(el) {
+      if (el.dataset.path === path) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    });
+  }
 
   var content = document.getElementById('explorerContent');
   content.innerHTML = '<div class="diff-placeholder">' + t('explorer.loading') + '</div>';
