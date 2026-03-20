@@ -319,7 +319,7 @@
 [data-theme="dark"] .d2h-file-diff { background: var(--bg-surface) !important; }
 [data-theme="dark"] .d2h-code-linenumber,
 [data-theme="dark"] .d2h-code-side-linenumber { background: transparent !important; color: var(--text-primary) !important; border: none !important; }
-[data-theme="dark"] .d2h-code-line { background: var(--bg-surface) !important; color: var(--text-secondary) !important; }
+[data-theme="dark"] .d2h-code-line { color: var(--text-secondary) !important; }
 [data-theme="dark"] .d2h-code-side-line { background: var(--bg-surface) !important; color: var(--text-secondary) !important; }
 /* Inside ins/del cells, make the inner div transparent so the td's green/red shows through */
 [data-theme="dark"] .d2h-ins .d2h-code-side-line,
