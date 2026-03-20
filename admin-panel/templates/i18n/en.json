@@ -69,6 +69,8 @@
   "buttons.backToProjects": "Back to projects",
   "buttons.viewScope": "View Scope",
   "buttons.viewPlan": "View Plan",
+  "buttons.source": "Source",
+  "buttons.preview": "Preview",
 
   "config.commandLabel": "Command",
   "config.skipPermissions": "Include --dangerously-skip-permissions flag",

@@ -69,6 +69,8 @@
   "buttons.backToProjects": "Назад к проектам",
   "buttons.viewScope": "Перейти к скоупу",
   "buttons.viewPlan": "Перейти к плану",
+  "buttons.source": "Исходный код",
+  "buttons.preview": "Просмотр",
 
   "config.commandLabel": "Команда",
   "config.skipPermissions": "Включить флаг --dangerously-skip-permissions",

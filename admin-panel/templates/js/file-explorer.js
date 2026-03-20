@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 var EXPLORER_DATA = { files: [], filtered: [] };
-var explorerState = { view: 'tree', selectedFile: null, filter: '' };
+var explorerState = { view: 'tree', selectedFile: null, filter: '', mdMode: 'source' };
 
 async function loadExplorerFiles() {
   var ctx = getWorkspaceContext();
@@ -108,8 +108,11 @@ function renderExplorerFileList() {
   }
 }
 
+var _explorerFileLines = [];
+
 async function selectExplorerFile(path) {
   explorerState.selectedFile = path;
+  explorerState.mdMode = 'source';
   renderExplorerFileList();
 
   var content = document.getElementById('explorerContent');
@@ -120,40 +123,64 @@ async function selectExplorerFile(path) {
 
   try {
     var data = await apiReadFile(ctx.projectId, ctx.branch, path);
-    var lines = data.lines || [];
-    var ext = path.split('.').pop().toLowerCase();
-    var isMarkdown = (ext === 'md' || ext === 'markdown' || ext === 'mdx');
-
-    if (isMarkdown && typeof marked !== 'undefined') {
-      content.innerHTML = '<div class="explorer-file-header">' + escapeHtml(path) +
-        '<span class="explorer-line-count">' + lines.length + ' lines</span></div>' +
-        '<div class="explorer-file-body explorer-markdown">' + marked.parse(escapeHtml(lines.join('\n'))) + '</div>';
-      if (typeof hljs !== 'undefined') {
-        content.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
-      }
-    } else {
-      var lang = ext;
-      var langMap = { kt: 'kotlin', py: 'python', js: 'javascript', ts: 'typescript', yml: 'yaml', sh: 'bash', rb: 'ruby', rs: 'rust' };
-      if (langMap[ext]) lang = langMap[ext];
-
-      var numbered = lines.map(function(line, i) {
-        return '<tr><td class="explorer-line-num">' + (i + 1) + '</td><td class="explorer-line-code">' + escapeHtml(line) + '</td></tr>';
-      }).join('');
-
-      content.innerHTML = '<div class="explorer-file-header">' + escapeHtml(path) +
-        '<span class="explorer-line-count">' + lines.length + ' lines</span></div>' +
-        '<div class="explorer-file-body"><table class="explorer-code-table"><tbody>' + numbered + '</tbody></table></div>';
-
-      if (typeof hljs !== 'undefined') {
-        var codeLines = content.querySelectorAll('.explorer-line-code');
-        codeLines.forEach(function(td) {
-          var result = hljs.highlight(td.textContent, { language: lang, ignoreIllegals: true });
-          td.innerHTML = result.value;
-        });
-      }
-    }
+    _explorerFileLines = data.lines || [];
+    renderExplorerContent(path, _explorerFileLines);
   } catch (e) {
     content.innerHTML = '<div class="diff-placeholder">' + t('explorer.failedToLoad', {error: escapeHtml(e.message)}) + '</div>';
+  }
+}
+
+function isMarkdownFile(path) {
+  var ext = path.split('.').pop().toLowerCase();
+  return ext === 'md' || ext === 'markdown' || ext === 'mdx';
+}
+
+function renderExplorerContent(path, lines) {
+  var content = document.getElementById('explorerContent');
+  var ext = path.split('.').pop().toLowerCase();
+  var isMd = isMarkdownFile(path);
+
+  var headerHtml = '<div class="explorer-file-header">' + escapeHtml(path);
+  if (isMd && typeof marked !== 'undefined') {
+    headerHtml += '<div class="toggle-group md-toggle" style="margin-left: 12px;">' +
+      '<button class="toggle-opt' + (explorerState.mdMode === 'source' ? ' active' : '') + '" data-mode="source" onclick="setExplorerMdMode(\'source\')">' + t('buttons.source') + '</button>' +
+      '<button class="toggle-opt' + (explorerState.mdMode === 'preview' ? ' active' : '') + '" data-mode="preview" onclick="setExplorerMdMode(\'preview\')">' + t('buttons.preview') + '</button>' +
+      '</div>';
+  }
+  headerHtml += '<span class="explorer-line-count">' + lines.length + ' lines</span></div>';
+
+  if (isMd && typeof marked !== 'undefined' && explorerState.mdMode === 'preview') {
+    content.innerHTML = headerHtml +
+      '<div class="explorer-file-body md-preview">' + marked.parse(lines.join('\n')) + '</div>';
+    if (typeof hljs !== 'undefined') {
+      content.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
+    }
+  } else {
+    var lang = ext;
+    var langMap = { kt: 'kotlin', py: 'python', js: 'javascript', ts: 'typescript', yml: 'yaml', sh: 'bash', rb: 'ruby', rs: 'rust' };
+    if (langMap[ext]) lang = langMap[ext];
+
+    var numbered = lines.map(function(line, i) {
+      return '<tr><td class="explorer-line-num">' + (i + 1) + '</td><td class="explorer-line-code">' + escapeHtml(line) + '</td></tr>';
+    }).join('');
+
+    content.innerHTML = headerHtml +
+      '<div class="explorer-file-body"><table class="explorer-code-table"><tbody>' + numbered + '</tbody></table></div>';
+
+    if (typeof hljs !== 'undefined') {
+      var codeLines = content.querySelectorAll('.explorer-line-code');
+      codeLines.forEach(function(td) {
+        var result = hljs.highlight(td.textContent, { language: lang, ignoreIllegals: true });
+        td.innerHTML = result.value;
+      });
+    }
+  }
+}
+
+function setExplorerMdMode(mode) {
+  explorerState.mdMode = mode;
+  if (explorerState.selectedFile) {
+    renderExplorerContent(explorerState.selectedFile, _explorerFileLines);
   }
 }
 
