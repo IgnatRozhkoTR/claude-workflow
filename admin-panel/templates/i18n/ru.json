@@ -76,6 +76,7 @@
   "config.skipPermissions": "Включить флаг --dangerously-skip-permissions",
   "config.restrictToWorkspace": "Ограничить модификацию файлов директорией workspace",
   "config.externalPaths": "Разрешённые внешние пути (через запятую)",
+  "config.channels": "Каналы",
 
   "labels.provider": "Провайдер",
   "labels.host": "Хост",

@@ -66,6 +66,8 @@ def build_claude_command(ws, resume=False):
     skip = ws['skip_permissions'] if 'skip_permissions' in ws.keys() else 1
     if skip:
         cmd += ' --dangerously-skip-permissions'
+    if ws.get('channels'):
+        cmd += f" --channels {ws['channels']}"
     if resume:
         session_id = ws['session_id'] if 'session_id' in ws.keys() else None
         if session_id:
