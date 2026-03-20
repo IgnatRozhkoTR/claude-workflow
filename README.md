@@ -92,6 +92,8 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 **Session recovery.** When a session ends (context compaction or restart), all teammates are lost. The orchestrator re-spawns them using progress entries that document what happened at each phase — actions taken, obstacles hit, decisions made, files changed.
 
+**Telegram integration.** Sessions can be controlled remotely via a Telegram bot. A custom multi-session server replaces the default plugin, allowing multiple Claude Code sessions to share one bot — each session prefixes replies with its workspace name (e.g., `[mp-72]`). Telegram users can list active sessions with `/sessions` and switch between them with `/switch <name>`. Orphan detection ensures that if the polling session dies, another session auto-recovers within seconds. Setup: `/telegram-multi-session install`. See [skills/telegram-multi-session/](skills/telegram-multi-session/) for details.
+
 ## Repository Structure
 
 ```
@@ -109,7 +111,8 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 │   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
 │   ├── planning/         #   Planning phase 2.0 (/planning)
 │   ├── stride/           #   Lightweight version without backend (/stride)
-│   └── workflow-migration/ # Setup on new devices including Windows/WSL
+│   ├── workflow-migration/ # Setup on new devices including Windows/WSL
+│   └── telegram-multi-session/ # Remote session control via Telegram bot
 ├── rules/                # Coding standards, test standards, validation pipeline
 └── defaults/             # Git hook templates, MCP config template
 ```
