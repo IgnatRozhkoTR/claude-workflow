@@ -82,6 +82,13 @@
     <span class="header-branch" id="branchName">feature/scope-locked-flow</span>
   </div>
   <div class="header-right">
+    <span class="badge badge-warning mobile-phase-badge" id="phaseLabelMobile"></span>
+    <div class="mobile-yolo" style="display: flex; align-items: center; gap: 4px;">
+      <input type="checkbox" id="yoloCheck" onchange="toggleYoloMode(this.checked)" style="margin: 0;">
+      <label for="yoloCheck" style="font-size: 0.7rem; cursor: pointer; color: var(--text-muted); user-select: none;" data-i18n="config.yoloMode">YOLO</label>
+    </div>
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()">&#8942;</button>
+    <div class="mobile-menu-dropdown" id="mobileMenuDropdown">
     <div id="sessionBlock" style="display: flex; gap: 8px; align-items: center;">
       <div class="btn-dropdown" style="position: relative; display: inline-block;">
         <button class="btn btn-sm btn-outline" id="notifyBtn" onclick="showTerminalDropdown('notify', this)" data-i18n="actions.notify">Notify</button>
@@ -98,10 +105,6 @@
         </div>
       </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 4px; margin-left: 4px;">
-      <input type="checkbox" id="yoloCheck" onchange="toggleYoloMode(this.checked)" style="margin: 0;">
-      <label for="yoloCheck" style="font-size: 0.7rem; cursor: pointer; color: var(--text-muted); user-select: none;" data-i18n="config.yoloMode">YOLO</label>
-    </div>
     <select id="localeSelect" class="locale-select" onchange="onLocaleChange(this.value)">
       <option value="en">EN</option>
       <option value="ru">RU</option>
@@ -109,6 +112,7 @@
     <button class="header-refresh-btn" onclick="location.reload()" title="Refresh page" data-i18n-title="header.refresh">&#x21bb;</button>
     <button class="btn btn-sm" onclick="showProjectSelector()" title="Switch project" id="switchProjectBtn" data-i18n="header.switch">Switch</button>
     <span class="badge badge-warning" id="phaseLabel">Phase 3 — Planning</span>
+    </div>
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">☀</button>
   </div>
 </header>
@@ -126,7 +130,7 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
   </button>
   <button class="sidebar-btn" data-tab="review" title="Review" data-i18n-title="tabs.review">
-    <span data-i18n-title="tabs.review">💬</span>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     <span class="review-badge" id="reviewBadge" style="display:none"></span>
   </button>
   <button class="sidebar-btn" data-tab="terminal" title="Terminal" data-i18n-title="tabs.terminal">
@@ -136,11 +140,11 @@
     </svg>
   </button>
   <button class="sidebar-btn" id="splitTerminalBtn" title="Split Terminal" data-i18n-title="tabs.splitTerminal" onclick="toggleSplitTerminal()">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-      <line x1="12" y1="3" x2="12" y2="21"></line>
-      <polyline points="16 10 19 7 16 4" stroke-width="1.5"></polyline>
-      <line x1="14" y1="19" x2="20" y2="19" stroke-width="1.5"></line>
+      <line x1="10" y1="3" x2="10" y2="21"></line>
+      <polyline points="13 14 16 11 13 8" stroke-width="2"></polyline>
+      <line x1="17" y1="14" x2="20" y2="14" stroke-width="2"></line>
     </svg>
   </button>
 </aside>
@@ -636,6 +640,12 @@
 </div><!-- /split-container -->
 
 </main>
+
+<div class="term-scroll-controls" id="termScrollControls">
+  <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(-3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(-3)" onmouseup="stopTermScroll()">&#9650;</button>
+  <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(3)" onmouseup="stopTermScroll()">&#9660;</button>
+</div>
+
 </div>
 
 <script>
@@ -694,6 +704,53 @@ if (window.matchMedia('(max-width: 768px)').matches) {
     });
   });
 }
+function toggleMobileMenu() {
+  var dd = document.getElementById('mobileMenuDropdown');
+  dd.classList.toggle('open');
+}
+function syncMobilePhase() {
+  var src = document.getElementById('phaseLabel');
+  var dst = document.getElementById('phaseLabelMobile');
+  if (src && dst) { dst.textContent = src.textContent; dst.className = src.className + ' mobile-phase-badge'; }
+}
+setInterval(syncMobilePhase, 1000);
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('mobileMenuDropdown');
+  var btn = document.getElementById('mobileMenuBtn');
+  if (dd && dd.classList.contains('open') && !dd.contains(e.target) && e.target !== btn) {
+    dd.classList.remove('open');
+  }
+});
+var _termScrollInterval = null;
+function startTermScroll(delta) {
+  stopTermScroll();
+  doTermScroll(delta);
+  _termScrollInterval = setInterval(function() { doTermScroll(delta); }, 80);
+}
+function stopTermScroll() {
+  if (_termScrollInterval) { clearInterval(_termScrollInterval); _termScrollInterval = null; }
+}
+function doTermScroll(delta) {
+  var vp = document.querySelector('#terminalContainer .xterm-viewport') ||
+           document.querySelector('#splitTerminalContainer .xterm-viewport');
+  if (!vp) return;
+  var evt = new WheelEvent('wheel', {
+    deltaY: delta * 100,
+    deltaMode: 0,
+    bubbles: true,
+    cancelable: true
+  });
+  vp.dispatchEvent(evt);
+}
+function updateTermScrollVisibility() {
+  var ctrl = document.getElementById('termScrollControls');
+  if (!ctrl || !window.matchMedia('(max-width: 768px)').matches) return;
+  var termVisible = document.querySelector('#panel-terminal.active') ||
+                    document.querySelector('.split-active .split-terminal');
+  ctrl.style.display = termVisible ? 'flex' : 'none';
+}
+var _origSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+setInterval(updateTermScrollVisibility, 500);
 </script>
 </body>
 </html>
