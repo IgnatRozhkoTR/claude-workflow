@@ -57,20 +57,18 @@ function renderPPResearchSummaries() {
   });
 }
 
-function navigateToResearchEntry(entry) {
-  switchTab('research');
-  setTimeout(function() {
-    var groups = document.querySelectorAll('.research-group');
-    groups.forEach(function(g) {
-      var titleEl = g.querySelector('.research-group-title');
-      if (titleEl && titleEl.textContent === (entry.topic || '')) {
-        g.classList.remove('collapsed');
-        g.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        g.style.outline = '2px solid var(--accent)';
-        setTimeout(function() { g.style.outline = ''; }, 3000);
-      }
-    });
-  }, 350);
+async function navigateToResearchEntry(entry) {
+  await switchTab('research');
+  var groups = document.querySelectorAll('.research-group');
+  groups.forEach(function(g) {
+    var titleEl = g.querySelector('.research-group-title');
+    if (titleEl && titleEl.textContent === (entry.topic || '')) {
+      g.classList.remove('collapsed');
+      g.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      g.style.outline = '2px solid var(--accent)';
+      setTimeout(function() { g.style.outline = ''; }, 3000);
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════

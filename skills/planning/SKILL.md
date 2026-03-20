@@ -28,9 +28,17 @@ This paragraph is the first thing the user reads. Keep it under 5 sentences. No 
 
 Each sub-phase has `id`, `name`, and `tasks`. Sub-phases map to execution cycles (3.1, 3.2, ...) — each goes through implementation, validation, review, and commit.
 
-**When to use multiple sub-phases**: Only when the task naturally splits into independent, separately reviewable chunks — different layers, modules, or concerns that benefit from isolated review. For simple or atomic tasks, a single sub-phase (just `3.1`) is sufficient.
+**Splitting into sub-phases is NOT required.** A single sub-phase (`3.1`) is the default. Only split when:
 
-**When in doubt, fewer sub-phases is better.** The purpose of sub-phases is to make the user's review manageable, not to inflate the plan. Do NOT create a sub-phase per file.
+- The task has **large, independently reviewable parts** — e.g., backend feature implementation, frontend UI, and BDD scenarios are three distinct review scopes that benefit from separate commits and reviews.
+- Each part is **self-contained enough** to be reviewed on its own — it compiles, tests pass, and the reviewer can understand the change without seeing the other sub-phases.
+
+**Do NOT split when:**
+- Two changes depend on each other (e.g., an entity and the service that uses it) — these belong in the same sub-phase even if they're in different files.
+- The split would create sub-phases so small they don't warrant independent review.
+- You're splitting just to organize by file or class — that's what tasks within a sub-phase are for.
+
+**The litmus test: will the reviewer get lost?** If the combined diff would be large and span multiple concerns, split it. If the reviewer can follow the changes as a single coherent unit, keep it together. The purpose of sub-phases is to make review manageable — don't avoid splitting when the review genuinely needs it, but don't inflate the plan either.
 
 ### Tasks — two-layer structure
 
