@@ -27,6 +27,10 @@ class PhaseAdvancer(ABC):
         """Returns the next phase string."""
         ...
 
+    def progress_key(self, ws):
+        """Return the progress key required before this advance, or None if not needed."""
+        return None
+
     def success_message(self, ws, new_phase):
         locale = ws["locale"]
         phase_guides = {
@@ -67,11 +71,11 @@ class InitAdvancer(PhaseAdvancer):
 
 
 class AssessmentAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "1.0"
+
     def validate(self, ws, body, project_path):
         locale = ws["locale"]
-        ok = check_progress(ws["id"], "1.0")
-        if not ok:
-            return False, {"message": t("advance.error.noAssessmentProgress", locale)}
 
         # Check that at least one research discussion exists
         db = get_db()
@@ -184,6 +188,9 @@ class ResearchAdvancer(PhaseAdvancer):
 
 
 class ProverAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "1"
+
     def validate(self, ws, body, project_path):
         locale = ws["locale"]
         db = get_db()
@@ -213,9 +220,6 @@ class ProverAdvancer(PhaseAdvancer):
                 "unproven": unproven,
             }
 
-        if not check_progress(ws["id"], "1"):
-            return False, {"message": t("advance.error.noResearchCompletionProgress", locale)}
-
         return True, {}
 
     def next_phase(self, ws):
@@ -223,10 +227,10 @@ class ProverAdvancer(PhaseAdvancer):
 
 
 class ImpactAnalysisAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "1.3"
+
     def validate(self, ws, body, project_path):
-        locale = ws["locale"]
-        if not check_progress(ws["id"], "1.3"):
-            return False, {"message": t("advance.error.noImpactAnalysisProgress", locale)}
         return True, {}
 
     def next_phase(self, ws):
@@ -234,10 +238,10 @@ class ImpactAnalysisAdvancer(PhaseAdvancer):
 
 
 class PreparationReviewAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "1.3"
+
     def validate(self, ws, body, project_path):
-        locale = ws["locale"]
-        if not check_progress(ws["id"], "1.3"):
-            return False, {"message": t("advance.error.noImpactAnalysisProgress", locale)}
         return True, {}
 
     def next_phase(self, ws):
@@ -245,6 +249,9 @@ class PreparationReviewAdvancer(PhaseAdvancer):
 
 
 class PlanAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "2"
+
     def validate(self, ws, body, project_path):
         locale = ws["locale"]
         plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {}
@@ -293,9 +300,6 @@ class PlanAdvancer(PhaseAdvancer):
         if count == 0:
             return False, {"message": t("advance.error.noCriteria", locale)}
 
-        if not check_progress(ws["id"], "2"):
-            return False, {"message": t("advance.error.noPlanningProgress", locale)}
-
         return True, {}
 
     def next_phase(self, ws):
@@ -309,10 +313,10 @@ class PlanAdvancer(PhaseAdvancer):
 
 
 class AgenticReviewAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "4.0"
+
     def validate(self, ws, body, project_path):
-        locale = ws["locale"]
-        if not check_progress(ws["id"], "4.0"):
-            return False, {"message": t("advance.error.noAgenticReviewProgress", locale)}
         return True, {}
 
     def next_phase(self, ws):
@@ -320,10 +324,10 @@ class AgenticReviewAdvancer(PhaseAdvancer):
 
 
 class AddressFixAdvancer(PhaseAdvancer):
+    def progress_key(self, ws):
+        return "4"
+
     def validate(self, ws, body, project_path):
-        locale = ws["locale"]
-        if not check_progress(ws["id"], "4"):
-            return False, {"message": t("advance.error.noFixAddressingProgress", locale)}
         return True, {}
 
     def next_phase(self, ws):
@@ -345,6 +349,11 @@ class ExecutionAdvancer(PhaseAdvancer):
         self._n = int(parts[1])
         self._k = int(parts[2])
         self._phase = phase
+
+    def progress_key(self, ws):
+        if self._k == 4:
+            return f"3.{self._n}"
+        return None
 
     def validate(self, ws, body, project_path):
         self._project_path = project_path
@@ -458,9 +467,6 @@ class ExecutionAdvancer(PhaseAdvancer):
 
         if used:
             return False, {"message": t("advance.error.commitAlreadyUsed", locale, commit_hash=commit_hash)}
-
-        if not check_progress(ws["id"], f"3.{self._n}"):
-            return False, {"message": t("advance.error.noSubPhaseProgress", locale)}
 
         plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {}
         execution = plan.get("execution", [])
@@ -697,6 +703,14 @@ def perform_advance(ws, project_path, body=None):
     ok, details = advancer.validate(ws, body, project_path)
     if not ok:
         return {"phase": phase, "status": "blocked", **details}, 422
+
+    required_key = advancer.progress_key(ws)
+    if required_key and not check_progress(ws["id"], required_key):
+        return {
+            "phase": phase,
+            "status": "blocked",
+            "message": t("advance.error.noProgress", locale, phase=required_key, next=advancer.next_phase(ws)),
+        }, 422
 
     from advance_guards import GUARD_ORCHESTRATOR
     guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase, ws, body)
