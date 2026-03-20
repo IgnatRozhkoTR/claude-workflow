@@ -215,6 +215,7 @@ def _migrate_db(db):
         ("restrict_to_workspace", "INTEGER NOT NULL DEFAULT 1"),
         ("allowed_external_paths", "TEXT NOT NULL DEFAULT '/tmp/'"),
         ("channels", "TEXT DEFAULT ''"),
+        ("yolo_mode", "INTEGER NOT NULL DEFAULT 0"),
     ]
     for column_name, column_def in new_columns:
         if column_name not in existing_columns:

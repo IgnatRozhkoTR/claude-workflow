@@ -682,6 +682,17 @@ def reject_gate(ws, token, comments=""):
         db.close()
 
 
+def _notify_yolo_approve(ws, phase):
+    """Send a YOLO auto-approval notification to the tmux session."""
+    try:
+        from terminal import send_keys, session_name, session_exists
+        name = session_name(ws["project_id"], ws["sanitized_branch"])
+        if session_exists(name):
+            send_keys(name, f"[YOLO] Auto-approved phase {phase}. Proceeding.")
+    except Exception:
+        pass
+
+
 def perform_advance(ws, project_path, body=None):
     """Core advance logic. Returns (result_dict, http_status_code).
 
@@ -694,6 +705,15 @@ def perform_advance(ws, project_path, body=None):
     locale = ws["locale"]
 
     if is_user_gate(phase):
+        yolo = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+        if yolo:
+            nonce = ws["gate_nonce"]
+            if nonce:
+                result = approve_gate(ws, nonce)
+                status_code = result.pop("status_code", 200)
+                if status_code == 200:
+                    _notify_yolo_approve(ws, phase)
+                    return result, status_code
         return {"error": t("advance.error.awaitingUserApproval", locale), "phase": phase}, 409
 
     advancer = get_advancer(phase)
@@ -726,6 +746,20 @@ def perform_advance(ws, project_path, body=None):
             return {"error": t("advance.error.phaseAlreadyChanged", locale)}, 409
 
         db.commit()
+
+        yolo_enabled = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+        if is_user_gate(new_phase) and yolo_enabled:
+            ws_fresh = db.execute(
+                "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
+                (ws["project_id"], ws["sanitized_branch"])
+            ).fetchone()
+            nonce = ws_fresh["gate_nonce"] if ws_fresh else None
+            if nonce:
+                approve_result = approve_gate(ws_fresh, nonce)
+                approve_status = approve_result.pop("status_code", 200)
+                if approve_status == 200:
+                    _notify_yolo_approve(ws_fresh, new_phase)
+                    return approve_result, approve_status
 
         code = 202 if is_user_gate(new_phase) else 200
         result = {

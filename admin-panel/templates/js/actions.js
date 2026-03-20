@@ -211,6 +211,10 @@ async function refreshState() {
     applyStateData(stateData);
 
     document.getElementById('phaseLabel').textContent = t('phase.label', {phase: state.phase, name: getPhaseName(state.phase)});
+
+    var yoloCheck = document.getElementById('yoloCheck');
+    if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
+
     renderPhaseBar('phaseBarControl', 'phaseLabelsControl');
     renderPhaseActions();
     renderPhaseHistory();

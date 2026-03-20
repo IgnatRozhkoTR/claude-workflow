@@ -146,6 +146,7 @@ def get_workspace_state(project_id, branch):
             "progress": progress,
             "sessions": sessions,
             "impact_analysis": impact_analysis,
+            "yolo_mode": bool(ws["yolo_mode"]) if "yolo_mode" in ws.keys() else False,
         })
     finally:
         db.close()
@@ -165,6 +166,22 @@ def set_locale(project_id, branch):
         db.execute("UPDATE workspaces SET locale = ? WHERE id = ?", (locale, ws["id"]))
         db.commit()
         return jsonify({"ok": True, "locale": locale})
+    finally:
+        db.close()
+
+
+@bp.route("/api/ws/<project_id>/<path:branch>/yolo", methods=["PUT"])
+def set_yolo_mode(project_id, branch):
+    db = get_db()
+    try:
+        ws = find_workspace(db, project_id, branch)
+        if not ws:
+            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+        body = request.get_json(silent=True) or {}
+        enabled = 1 if body.get("enabled") else 0
+        db.execute("UPDATE workspaces SET yolo_mode = ? WHERE id = ?", (enabled, ws["id"]))
+        db.commit()
+        return jsonify({"ok": True, "yolo_mode": bool(enabled)})
     finally:
         db.close()
 

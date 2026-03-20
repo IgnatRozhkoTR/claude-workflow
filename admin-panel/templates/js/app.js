@@ -60,6 +60,9 @@ async function initApp() {
     localeSelect.value = LOCK_DATA.locale;
   }
 
+  var yoloCheck = document.getElementById('yoloCheck');
+  if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
+
   if (LOCK_DATA.session_id) {
     var sessionBlock = document.getElementById('sessionBlock');
     if (sessionBlock) {
@@ -296,6 +299,14 @@ function copyWorkspacePath() {
 
 function onLocaleChange(locale) {
   setLocale(locale);
+}
+
+function toggleYoloMode(enabled) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  LOCK_DATA.yolo_mode = enabled;
+  apiPut('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/yolo',
+    { enabled: enabled });
 }
 
 function setupCollapsibleCards() {

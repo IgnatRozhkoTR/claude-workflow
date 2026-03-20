@@ -78,6 +78,7 @@
   "config.restrictToWorkspace": "Ограничить модификацию файлов директорией workspace",
   "config.externalPaths": "Разрешённые внешние пути (через запятую)",
   "config.channels": "Каналы",
+  "config.yoloMode": "YOLO",
 
   "labels.provider": "Провайдер",
   "labels.host": "Хост",

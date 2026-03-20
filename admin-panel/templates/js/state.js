@@ -92,6 +92,7 @@ function applyStateData(stateData) {
   LOCK_DATA.has_prev_plan = !!stateData.has_prev_plan;
   LOCK_DATA.prev_plan_status = stateData.prev_plan_status || null;
   LOCK_DATA.locale = stateData.locale || null;
+  LOCK_DATA.yolo_mode = !!stateData.yolo_mode;
 
   if (stateData.plan) {
     PLAN_DATA = stateData.plan;

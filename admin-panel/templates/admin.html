@@ -96,6 +96,10 @@
         </div>
       </div>
     </div>
+    <div style="display: flex; align-items: center; gap: 4px; margin-left: 4px;">
+      <input type="checkbox" id="yoloCheck" onchange="toggleYoloMode(this.checked)" style="margin: 0;">
+      <label for="yoloCheck" style="font-size: 0.7rem; cursor: pointer; color: var(--text-muted); user-select: none;" data-i18n="config.yoloMode">YOLO</label>
+    </div>
     <select id="localeSelect" class="locale-select" onchange="onLocaleChange(this.value)">
       <option value="en">EN</option>
       <option value="ru">RU</option>
