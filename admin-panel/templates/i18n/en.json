@@ -385,5 +385,9 @@
   "terminal.connecting": "Connecting...",
   "terminal.disconnected": "Disconnected",
   "terminal.error": "Connection error",
-  "terminal.kill": "Kill"
+  "terminal.kill": "Kill",
+  "terminal.noSessions": "No sessions",
+  "terminal.attached": "attached",
+  "terminal.detached": "detached",
+  "terminal.killSession": "Kill session"
 }

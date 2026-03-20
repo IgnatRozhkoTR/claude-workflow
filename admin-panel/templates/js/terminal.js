@@ -218,6 +218,7 @@ function killTerminalSession() {
   .then(function(r) { return r.json(); })
   .then(function(data) {
     if (term) term.writeln('\r\n\x1b[33mSession killed.\x1b[0m');
+    loadTerminalSessions();
   })
   .catch(function(e) {
     if (term) term.writeln('\r\n\x1b[31mKill failed: ' + e.message + '\x1b[0m');
@@ -270,6 +271,65 @@ function onTerminalTabActivated() {
   }
   if (fitAddon) {
     setTimeout(function() { fitAddon.fit(); }, 50);
+  }
+  startSessionListPolling();
+}
+
+// ═══════════════════════════════════════════════
+//  SESSION LIST
+// ═══════════════════════════════════════════════
+var _sessionListInterval = null;
+
+function loadTerminalSessions() {
+  fetch('/api/terminal/sessions')
+    .then(function(r) { return r.json(); })
+    .then(function(sessions) {
+      renderSessionList(sessions);
+    })
+    .catch(function() {
+      renderSessionList([]);
+    });
+}
+
+function renderSessionList(sessions) {
+  var container = document.getElementById('terminalSessionList');
+  if (!container) return;
+
+  if (!sessions.length) {
+    container.innerHTML = '<span style="color: var(--text-muted); font-size: 0.75rem;">' + t('terminal.noSessions') + '</span>';
+    return;
+  }
+
+  var html = '';
+  sessions.forEach(function(s) {
+    var statusClass = s.attached ? 'session-attached' : 'session-detached';
+    var statusText = s.attached ? t('terminal.attached') : t('terminal.detached');
+    html += '<div class="session-item" title="' + escapeHtml(s.command || s.name) + '">' +
+      '<span class="session-status-dot ' + statusClass + '"></span>' +
+      '<span class="session-name">' + escapeHtml(s.name) + '</span>' +
+      '<span class="session-status-label">' + statusText + '</span>' +
+      '<button class="session-kill-btn" onclick="killSessionByName(\'' + escapeHtml(s.name) + '\')" title="' + t('terminal.killSession') + '">&times;</button>' +
+      '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function killSessionByName(name) {
+  fetch('/api/terminal/sessions/' + encodeURIComponent(name) + '/kill', { method: 'POST' })
+    .then(function() { loadTerminalSessions(); })
+    .catch(function() {});
+}
+
+function startSessionListPolling() {
+  loadTerminalSessions();
+  if (_sessionListInterval) clearInterval(_sessionListInterval);
+  _sessionListInterval = setInterval(loadTerminalSessions, 5000);
+}
+
+function stopSessionListPolling() {
+  if (_sessionListInterval) {
+    clearInterval(_sessionListInterval);
+    _sessionListInterval = null;
   }
 }
 

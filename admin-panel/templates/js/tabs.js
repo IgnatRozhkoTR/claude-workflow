@@ -32,6 +32,7 @@ async function switchTab(tabId) {
       mainEl.classList.add('terminal-active');
     } else {
       mainEl.classList.remove('terminal-active');
+      if (typeof stopSessionListPolling === 'function') stopSessionListPolling();
     }
   }
 

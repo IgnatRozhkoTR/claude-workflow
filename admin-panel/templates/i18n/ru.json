@@ -385,5 +385,9 @@
   "terminal.connecting": "Подключение...",
   "terminal.disconnected": "Отключено",
   "terminal.error": "Ошибка подключения",
-  "terminal.kill": "Завершить"
+  "terminal.kill": "Завершить",
+  "terminal.noSessions": "Нет сессий",
+  "terminal.attached": "подключена",
+  "terminal.detached": "отключена",
+  "terminal.killSession": "Завершить сессию"
 }

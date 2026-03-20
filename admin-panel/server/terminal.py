@@ -76,6 +76,53 @@ def build_claude_command(ws, resume=False, channels=None):
     return cmd
 
 
+def list_sessions():
+    """List all running tmux sessions."""
+    if not tmux_available():
+        return []
+    try:
+        result = subprocess.run(
+            ['tmux', 'list-sessions', '-F', '#{session_name}||#{session_attached}||#{session_activity}'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode != 0:
+            return []
+        sessions = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('||')
+            if len(parts) < 3:
+                continue
+            name = parts[0]
+            attached = int(parts[1]) > 0
+            sessions.append({
+                'name': name,
+                'attached': attached
+            })
+        return sessions
+    except Exception:
+        return []
+
+
+def get_session_command(name):
+    """Get the first line of the session pane (the command that started it)."""
+    try:
+        result = subprocess.run(
+            ['tmux', 'capture-pane', '-t', name, '-p', '-S', '0', '-E', '2'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode != 0:
+            return ''
+        lines = [l.strip() for l in result.stdout.split('\n') if l.strip()]
+        for line in lines:
+            if 'claude' in line.lower():
+                return line
+        return lines[0] if lines else ''
+    except Exception:
+        return ''
+
+
 def get_active_session(project_id, branch):
     """Get info about the workspace's tmux session."""
     name = session_name(project_id, branch)

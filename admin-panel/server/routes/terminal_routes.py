@@ -12,7 +12,7 @@ import signal
 from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
-from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available, build_claude_command
+from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command
 from db import get_db
 
 bp = Blueprint('terminal', __name__)
@@ -92,6 +92,24 @@ def register_terminal_ws(app):
                 os.waitpid(pid, os.WNOHANG)
             except ChildProcessError:
                 pass
+
+
+@bp.route('/api/terminal/sessions', methods=['GET'])
+def list_terminal_sessions():
+    """List all running tmux sessions."""
+    sessions = list_sessions()
+    for s in sessions:
+        s['command'] = get_session_command(s['name'])
+    return jsonify(sessions)
+
+
+@bp.route('/api/terminal/sessions/<name>/kill', methods=['POST'])
+def kill_terminal_session_by_name(name):
+    """Kill a tmux session by name."""
+    if not session_exists(name):
+        return jsonify({'ok': False, 'status': 'not_found'}), 404
+    kill_session(name)
+    return jsonify({'ok': True, 'status': 'killed'})
 
 
 @bp.route('/api/ws/<project>/<branch>/terminal/start', methods=['POST'])

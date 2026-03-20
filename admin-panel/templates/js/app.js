@@ -182,6 +182,8 @@ function doStart(mode) {
         setTimeout(function() { connectTerminal(); }, 500);
       }
 
+      if (typeof loadTerminalSessions === 'function') loadTerminalSessions();
+
       safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
           var original = btn.textContent;
@@ -226,6 +228,8 @@ function doResume(mode) {
         switchTab('terminal');
         setTimeout(function() { connectTerminal(); }, 500);
       }
+
+      if (typeof loadTerminalSessions === 'function') loadTerminalSessions();
 
       safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
