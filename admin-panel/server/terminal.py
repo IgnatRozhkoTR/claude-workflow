@@ -73,12 +73,11 @@ def build_claude_command(ws, resume=False, channels=None):
     if ch:
         cmd += f' --channels {ch}'
     label = ws['sanitized_branch'] if 'sanitized_branch' in ws.keys() else None
-    if resume and label:
+    session_id = ws['session_id'] if 'session_id' in ws.keys() else None
+    if resume and session_id:
+        cmd += f' -r {session_id}'
+    elif resume and label:
         cmd += f' -r {label}'
-    elif resume:
-        session_id = ws['session_id'] if 'session_id' in ws.keys() else None
-        if session_id:
-            cmd += f' -r {session_id}'
     elif label:
         cmd += f' -n {label}'
     return cmd
