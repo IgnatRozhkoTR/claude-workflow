@@ -100,13 +100,16 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 │   └── templates/        #   Frontend: HTML, CSS, JS (vanilla SPA)
 ├── agents/               # Agent role definitions (16 specialized roles)
 ├── hooks/                # Claude Code hook scripts
-│   ├── pre-tool-hook.sh  #   Scope enforcement, edit gating, curl blocking
-│   ├── session-start.sh  #   Session registration with admin panel
+│   ├── pre-tool-hook.py  #   Scope/phase enforcement via Flask API
+│   ├── session-start.py  #   Session registration + context banner via Flask API
+│   ├── block-orchestrator-writes.py  # Prevents orchestrator from direct file edits
 │   └── user-prompt-submit.sh  # Orchestrator role enforcement
 ├── skills/               # Claude Code slash-command skills
 │   ├── governed-workflow/ #   Full orchestrated workflow (/governed-workflow)
+│   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
+│   ├── planning/         #   Planning phase 2.0 (/planning)
 │   ├── stride/           #   Lightweight version without backend (/stride)
-│   └── ...               #   Code review, commit-push-mr, workflow-migration
+│   └── workflow-migration/ # Setup on new devices including Windows/WSL
 ├── rules/                # Coding standards, test standards, validation pipeline
 └── defaults/             # Git hook templates, MCP config template
 ```
@@ -121,6 +124,6 @@ See [admin-panel/README.md](admin-panel/README.md) for setup, installation, API 
 |---|---|---|
 | Backend | Flask + SQLite + MCP server | None |
 | Phase enforcement | Server-validated, scope-locked | Conversational discipline |
-| User gates | 3 hard gates with nonce tokens | Plan approval only |
+| User gates | 4 hard gates with nonce tokens | Plan approval only |
 | Agent team | 16 specialized roles, persistent teammates | Sub-agents as needed |
 | Best for | High-stakes changes, multi-file refactors | Smaller tasks, quick iterations |

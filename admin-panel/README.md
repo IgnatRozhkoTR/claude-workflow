@@ -6,7 +6,7 @@ The admin panel and MCP server for the [governed workflow](../README.md). Flask 
 
 | Layer | Details |
 |-------|---------|
-| Backend | Flask with Blueprints (11 route modules) |
+| Backend | Flask with Blueprints (13 route modules) |
 | Frontend | Vanilla HTML/CSS/JS (19 JS modules, 12 CSS modules) |
 | Storage | SQLite (`server/admin-panel.db`) |
 | Agent Interface | MCP server over stdio (`server/mcp_server.py`) |
@@ -26,7 +26,7 @@ The admin panel and MCP server for the [governed workflow](../README.md). Flask 
 cd ~/.claude/admin-panel
 python3 -m venv .venv
 source .venv/bin/activate
-pip install flask mcp
+pip install flask mcp flask-sock
 ```
 
 ### Run
@@ -92,7 +92,10 @@ admin-panel/
       files.py            # File read, directory listing, git diff
       git_config.py       # Git config + rules management
       hooks.py            # Session start hook
+      hook_api.py         # Pre-tool hook API (check-permission, session-context)
       static.py           # Serves templates/ (HTML, CSS, JS, i18n)
+      terminal_routes.py  # WebSocket terminal + tmux management
+    terminal.py        # tmux session helpers (create, attach, send-keys)
     tests/                # pytest test suite (15 modules)
   templates/
     admin.html            # Single-page admin UI
@@ -104,13 +107,17 @@ admin-panel/
 
 ## Admin Panel Tabs
 
-| Tab | Visible During | Purpose |
-|-----|---------------|---------|
-| Pre-planning | Phases 1.0–1.4 | Review research summaries, impact analysis, and discussions. Approve/reject preparation gate (1.4). |
-| Configuration | All phases | Workspace settings (previously called Dashboard). |
-| Plan | Phases 2.0+ | Execution plan, sub-phases, scope, and acceptance criteria. |
-| Execution | Phases 3.N.x | Per-sub-phase implementation, validation, diff viewer, and code review gate. |
-| Review | Phases 4.0–4.2 | Final review issues, address & fix, and final approval gate. |
+| Tab | Location | Purpose |
+|-----|----------|---------|
+| Pre-planning | Tab bar | Research summaries, impact analysis, discussions, phase 1.4 gate |
+| Planning | Tab bar | Execution plan, scope, system diagrams, acceptance criteria |
+| Research | Tab bar | Full research findings with proof references |
+| Phase Control | Tab bar | Phase progression, approval status |
+| Files | Sidebar | File browser with markdown preview |
+| Code Changes | Sidebar | Git diff viewer |
+| Configuration | Sidebar | Workspace settings, Claude command, git config |
+| Review | Sidebar | Code review issues |
+| Terminal | Sidebar | Built-in terminal (tmux + xterm.js) |
 
 ## API Overview
 
@@ -132,6 +139,9 @@ All workspace endpoints are scoped under `/api/ws/<project_id>/<branch>/`.
 | Files | `GET .../file`, `GET .../files`, `GET .../diff` |
 | Git Config | `GET/PUT .../git-config`, `GET/PUT .../git-rules` |
 | Hooks | `POST /api/hook/session-start` |
+| Hooks API | `POST /api/hook/check-permission`, `GET /api/hook/session-context` |
+| Terminal | `POST .../terminal/start`, `POST .../terminal/resume`, `GET .../terminal/status`, `POST .../terminal/kill`, `POST .../terminal/notify`, `WS /ws/terminal/<project>/<branch>` |
+| Command | `GET/PUT .../command` |
 | Progress | `GET /api/progress` |
 | Modify Check | `POST .../can-modify` |
 
@@ -162,3 +172,4 @@ All workspace endpoints are scoped under `/api/ws/<project_id>/<branch>/`.
 | `workspace_propose_criteria` | Propose an acceptance criterion (test, scenario, or custom) |
 | `workspace_get_criteria` | Get acceptance criteria, optionally filtered by status or type |
 | `workspace_update_criteria` | Update an existing criterion's description or details |
+| `workspace_set_impact_analysis` | Save structured impact analysis (6 fields: affected flows, API changes, data flow, dependencies, ticket gaps, questions) |
