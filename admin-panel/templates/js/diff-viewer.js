@@ -66,7 +66,7 @@ function renderFileList() {
 
 function renderTreeNode(node, container, prefix, depth) {
   depth = depth || 0;
-  var pad = 14 + depth * 14;
+  var pad = 11 + depth * 11;
   Object.keys(node).sort((a, b) => {
     const aIsDir = !node[a].path;
     const bIsDir = !node[b].path;
@@ -78,22 +78,35 @@ function renderTreeNode(node, container, prefix, depth) {
     if (val.path) {
       const div = document.createElement('div');
       div.className = 'file-item' + (state.selectedFile === val.path ? ' active' : '');
-      div.style.paddingLeft = (pad + 14) + 'px';
+      div.style.paddingLeft = (pad + 11) + 'px';
       div.onclick = (e) => { if (!e.target.closest('.comment-icon')) selectFile(val.path); };
       var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
       div.innerHTML = `<span>${escapeHtml(key)}</span>${unresolvedDot}${renderCommentIcon('review', val.path)}<div class="file-stat"><span class="file-stat-add">+${val.additions}</span><span class="file-stat-del">-${val.deletions}</span></div>`;
       container.appendChild(div);
     } else {
+      var displayName = key;
+      var currentSubtree = val;
+      while (true) {
+        var subKeys = Object.keys(currentSubtree).filter(k => !currentSubtree[k].path);
+        var subFiles = Object.keys(currentSubtree).filter(k => currentSubtree[k].path);
+        if (subKeys.length === 1 && subFiles.length === 0) {
+          displayName += '/' + subKeys[0];
+          currentSubtree = currentSubtree[subKeys[0]];
+        } else {
+          break;
+        }
+      }
+
       const dir = document.createElement('div');
       dir.className = 'file-dir';
       dir.style.paddingLeft = pad + 'px';
-      dir.innerHTML = `<span class="arrow">▼</span> ${escapeHtml(key)}/`;
+      dir.innerHTML = `<span class="arrow">▼</span> ${escapeHtml(displayName)}/`;
       dir.onclick = (e) => { e.stopPropagation(); dir.classList.toggle('collapsed'); };
       container.appendChild(dir);
 
       const children = document.createElement('div');
       children.className = 'dir-children';
-      renderTreeNode(val, children, prefix + key + '/', depth + 1);
+      renderTreeNode(currentSubtree, children, prefix + displayName + '/', depth + 1);
       container.appendChild(children);
     }
   });

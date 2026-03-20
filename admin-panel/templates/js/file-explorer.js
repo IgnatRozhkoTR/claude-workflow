@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 var EXPLORER_DATA = { files: [], filtered: [] };
-var explorerState = { view: 'tree', selectedFile: null, filter: '', mdMode: 'source' };
+var explorerState = { view: 'tree', selectedFile: null, filter: '', mdMode: 'preview' };
 
 async function loadExplorerFiles() {
   var ctx = getWorkspaceContext();
@@ -50,7 +50,7 @@ function buildExplorerTree(files) {
 
 function renderExplorerTreeNode(node, container, depth) {
   depth = depth || 0;
-  var pad = 14 + depth * 14;
+  var pad = 11 + depth * 11;
   Object.keys(node).sort(function(a, b) {
     var aIsDir = !node[a]._path;
     var bIsDir = !node[b]._path;
@@ -62,21 +62,34 @@ function renderExplorerTreeNode(node, container, depth) {
     if (val._path) {
       var div = document.createElement('div');
       div.className = 'file-item' + (explorerState.selectedFile === val._path ? ' active' : '');
-      div.style.paddingLeft = (pad + 14) + 'px';
+      div.style.paddingLeft = (pad + 11) + 'px';
       div.onclick = function() { selectExplorerFile(val._path); };
       div.innerHTML = '<span>' + escapeHtml(key) + '</span>';
       container.appendChild(div);
     } else {
+      var displayName = key;
+      var currentSubtree = val;
+      while (true) {
+        var subKeys = Object.keys(currentSubtree).filter(function(k) { return !currentSubtree[k]._path; });
+        var subFiles = Object.keys(currentSubtree).filter(function(k) { return currentSubtree[k]._path; });
+        if (subKeys.length === 1 && subFiles.length === 0) {
+          displayName += '/' + subKeys[0];
+          currentSubtree = currentSubtree[subKeys[0]];
+        } else {
+          break;
+        }
+      }
+
       var dir = document.createElement('div');
       dir.className = 'file-dir';
       dir.style.paddingLeft = pad + 'px';
-      dir.innerHTML = '<span class="arrow">\u25BC</span> ' + escapeHtml(key) + '/';
+      dir.innerHTML = '<span class="arrow">\u25BC</span> ' + escapeHtml(displayName) + '/';
       dir.onclick = function(e) { e.stopPropagation(); dir.classList.toggle('collapsed'); };
       container.appendChild(dir);
 
       var children = document.createElement('div');
       children.className = 'dir-children';
-      renderExplorerTreeNode(val, children, depth + 1);
+      renderExplorerTreeNode(currentSubtree, children, depth + 1);
       container.appendChild(children);
     }
   });
@@ -112,7 +125,7 @@ var _explorerFileLines = [];
 
 async function selectExplorerFile(path) {
   explorerState.selectedFile = path;
-  explorerState.mdMode = 'source';
+  explorerState.mdMode = 'preview';
   renderExplorerFileList();
 
   var content = document.getElementById('explorerContent');
