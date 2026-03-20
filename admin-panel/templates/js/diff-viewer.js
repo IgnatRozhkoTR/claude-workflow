@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════
 var _diffFilter = '';
 var _showResolved = false;
-var _diffMdMode = 'source';
 
 function filterDiffFiles(query) {
   _diffFilter = query.toLowerCase();
@@ -102,48 +101,12 @@ function renderTreeNode(node, container, prefix, depth) {
 
 function selectFile(path) {
   state.selectedFile = path;
-  _diffMdMode = 'source';
   renderFileList();
   renderDiff(path);
   var btn = document.getElementById('viewFileBtn');
   if (btn) btn.style.display = path ? '' : 'none';
 }
 
-function setDiffMdMode(mode) {
-  _diffMdMode = mode;
-  if (state.selectedFile) renderDiff(state.selectedFile);
-}
-
-function isDiffMarkdownFile(path) {
-  var ext = path.split('.').pop().toLowerCase();
-  return ext === 'md' || ext === 'markdown' || ext === 'mdx';
-}
-
-function extractOldNewFromDiff(diffText) {
-  var oldLines = [];
-  var newLines = [];
-  var lines = diffText.split('\n');
-  var inHunk = false;
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    if (line.startsWith('@@')) {
-      inHunk = true;
-      continue;
-    }
-    if (!inHunk) continue;
-    if (line.startsWith('diff --git')) break;
-    if (line.startsWith('-')) {
-      oldLines.push(line.substring(1));
-    } else if (line.startsWith('+')) {
-      newLines.push(line.substring(1));
-    } else if (line.startsWith(' ') || line === '') {
-      var content = line.startsWith(' ') ? line.substring(1) : line;
-      oldLines.push(content);
-      newLines.push(content);
-    }
-  }
-  return { oldText: oldLines.join('\n'), newText: newLines.join('\n') };
-}
 
 function openSelectedFile() {
   if (state.selectedFile) showFilePreview(state.selectedFile);
@@ -155,23 +118,11 @@ function renderDiff(path) {
   const container = document.getElementById('diffContent');
   container.innerHTML = '';
 
-  var isMd = isDiffMarkdownFile(path);
-
   const pathHeader = document.createElement('div');
   pathHeader.className = 'diff-path-header';
   pathHeader.style.cssText = 'padding: 6px 12px; font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-secondary); background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;';
 
   pathHeader.innerHTML = '<span style="opacity: 0.6;">\uD83D\uDCC4</span> ' + escapeHtml(path) + ' <span style="font-size: 0.75rem; color: var(--text-muted);">+' + file.additions + ' \u2212' + file.deletions + '</span>';
-
-  if (isMd && typeof marked !== 'undefined') {
-    var mdToggle = document.createElement('div');
-    mdToggle.className = 'toggle-group md-toggle';
-    mdToggle.style.cssText = 'margin-left: 12px;';
-    mdToggle.innerHTML =
-      '<button class="toggle-opt' + (_diffMdMode === 'source' ? ' active' : '') + '" data-mode="source" onclick="setDiffMdMode(\'source\')">' + t('buttons.source') + '</button>' +
-      '<button class="toggle-opt' + (_diffMdMode === 'preview' ? ' active' : '') + '" data-mode="preview" onclick="setDiffMdMode(\'preview\')">' + t('buttons.preview') + '</button>';
-    pathHeader.appendChild(mdToggle);
-  }
 
   var showResolvedBtn = document.createElement('button');
   showResolvedBtn.className = 'btn btn-sm';
@@ -183,41 +134,6 @@ function renderDiff(path) {
   };
   pathHeader.appendChild(showResolvedBtn);
   container.appendChild(pathHeader);
-
-  if (isMd && typeof marked !== 'undefined' && _diffMdMode === 'preview') {
-    var parts = extractOldNewFromDiff(file.diff);
-    var previewContainer = document.createElement('div');
-
-    if (!parts.oldText.trim()) {
-      // New file — show full width preview of new content
-      previewContainer.className = 'md-preview';
-      previewContainer.style.padding = '16px 24px';
-      previewContainer.innerHTML = marked.parse(parts.newText);
-    } else if (!parts.newText.trim()) {
-      // Deleted file — show full width preview of old content
-      previewContainer.className = 'md-preview';
-      previewContainer.style.padding = '16px 24px';
-      previewContainer.innerHTML = marked.parse(parts.oldText);
-    } else {
-      // Modified file — side by side
-      previewContainer.className = 'md-diff-preview';
-      previewContainer.innerHTML =
-        '<div class="md-diff-side md-diff-old">' +
-          '<div class="md-diff-side-label">' + t('buttons.source') + ' (old)</div>' +
-          '<div class="md-preview">' + marked.parse(parts.oldText) + '</div>' +
-        '</div>' +
-        '<div class="md-diff-side md-diff-new">' +
-          '<div class="md-diff-side-label">' + t('buttons.source') + ' (new)</div>' +
-          '<div class="md-preview">' + marked.parse(parts.newText) + '</div>' +
-        '</div>';
-    }
-
-    container.appendChild(previewContainer);
-    if (typeof hljs !== 'undefined') {
-      previewContainer.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
-    }
-    return;
-  }
 
   const targetEl = document.createElement('div');
   container.appendChild(targetEl);
