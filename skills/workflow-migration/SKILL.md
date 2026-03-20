@@ -284,6 +284,19 @@ If `hooks` or `env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` are missing, add them (
 - **Clipboard (macOS)**: `pbcopy` — used by tmux `copy-pipe-and-cancel`
 - **Clipboard (Linux/WSL)**: `xclip -selection clipboard` — replace `pbcopy` in `~/.tmux.conf`
 
+## Optional: Telegram Integration
+
+For remote session control via Telegram, install the multi-session Telegram channel:
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token
+2. Install Bun runtime: `curl -fsSL https://bun.sh/install | bash`
+3. Install the plugin: `/plugin install telegram@claude-plugins-official`
+4. Configure the token: `/telegram:configure <token>`
+5. Install the multi-session interceptor: `/telegram-multi-session install`
+6. Enable channels in the admin panel: Configuration → Device Settings → toggle Channels on, enter `plugin:telegram@claude-plugins-official`
+
+The admin panel automatically sets `WORKSPACE=<branch>` on every session start, so Telegram messages show which workspace they come from (e.g., `[mp-72] response text`).
+
 ## Troubleshooting
 
 - **MCP server not connecting**: Check `.mcp.json` path is absolute and file exists. Restart Claude Code session after adding `.mcp.json`.

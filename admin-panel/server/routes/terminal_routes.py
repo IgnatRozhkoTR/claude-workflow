@@ -136,7 +136,8 @@ def terminal_start(project, branch):
         data = request.get_json(silent=True)
         channels = data.get('channels', '') if data else ''
 
-        create_session(name, working_dir)
+        label = ws['sanitized_branch'] or branch
+        create_session(name, working_dir, env={'WORKSPACE': label})
         send_keys(name, build_claude_command(ws, channels=channels))
 
         return jsonify({
@@ -171,7 +172,8 @@ def terminal_resume(project, branch):
 
         created = False
         if not session_exists(name):
-            create_session(name, working_dir)
+            label = ws['sanitized_branch'] or branch
+            create_session(name, working_dir, env={'WORKSPACE': label})
             send_keys(name, build_claude_command(ws, resume=True, channels=channels))
             created = True
 
