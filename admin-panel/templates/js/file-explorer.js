@@ -174,8 +174,14 @@ function renderExplorerContent(path, lines) {
   headerHtml += '<span class="explorer-line-count">' + lines.length + ' lines</span></div>';
 
   if (isMd && typeof marked !== 'undefined' && explorerState.mdMode === 'preview') {
+    var parsed = marked.parse(lines.join('\n'));
+    var tmp = document.createElement('div');
+    tmp.innerHTML = parsed;
+    tmp.querySelectorAll('code').forEach(function(el) {
+      el.innerHTML = el.innerHTML.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;').replace(/&amp;amp;/g, '&amp;');
+    });
     content.innerHTML = headerHtml +
-      '<div class="explorer-file-body md-preview">' + marked.parse(lines.join('\n')) + '</div>';
+      '<div class="explorer-file-body md-preview">' + tmp.innerHTML + '</div>';
     if (typeof hljs !== 'undefined') {
       content.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
     }
