@@ -52,6 +52,7 @@
 <link rel="stylesheet" href="css/diff-viewer.css">
 <link rel="stylesheet" href="css/preplanning.css">
 <link rel="stylesheet" href="css/terminal.css">
+<link rel="stylesheet" href="css/mobile.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
@@ -75,6 +76,7 @@
 <!-- ═══ HEADER ═══ -->
 <header class="header">
   <div class="header-left">
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileSidebar()">&#9776;</button>
     <img src="/img/logo.png" alt="WC" width="36" height="36" style="border-radius: 6px;">
     <span class="header-title" data-i18n="header.title">Workspace Control</span>
     <span class="header-branch" id="branchName">feature/scope-locked-flow</span>
@@ -112,6 +114,7 @@
 </header>
 
 <!-- ═══ SIDEBAR ═══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <button class="sidebar-btn" data-tab="files" title="Files" data-i18n-title="sidebar.files">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -674,6 +677,23 @@
 </div>
 <script>
   document.addEventListener('DOMContentLoaded', function() { applyI18nToDOM(); });
+</script>
+<script>
+function toggleMobileSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('visible');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+}
+if (window.matchMedia('(max-width: 768px)').matches) {
+  document.querySelectorAll('.diff-file-list-header').forEach(function(hdr) {
+    hdr.addEventListener('click', function() {
+      this.closest('.diff-file-list').classList.toggle('mobile-open');
+    });
+  });
+}
 </script>
 </body>
 </html>
