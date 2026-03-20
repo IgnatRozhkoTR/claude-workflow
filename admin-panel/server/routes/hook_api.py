@@ -428,6 +428,9 @@ def check_permission():
         if not ws:
             return jsonify({"governed": False, "allowed": True})
 
+        if ws.get("yolo_mode") if "yolo_mode" in ws.keys() else False:
+            return jsonify({"governed": True, "allowed": True})
+
         if tool_name in _EDIT_TOOLS:
             return jsonify(_check_edit_tool(ws, file_path, cwd))
 
