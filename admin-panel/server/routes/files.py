@@ -76,7 +76,7 @@ def read_file(project_id, branch):
 
 @bp.route("/api/ws/<project_id>/<path:branch>/files", methods=["GET"])
 def list_files(project_id, branch):
-    """List tracked files as a flat list. Uses git ls-files for accuracy."""
+    """List directory entries lazily. Returns one level of entries at a time."""
     db = get_db()
     try:
         ws = find_workspace(db, project_id, branch)
@@ -86,12 +86,40 @@ def list_files(project_id, branch):
     finally:
         db.close()
 
+    dir_path = request.args.get("path", "")
+    search = request.args.get("search", "").strip().lower()
+
     ok, output, _ = run_git(working_dir, "ls-files")
     if not ok:
         return jsonify({"error": t("api.error.failedToListFiles")}), 500
 
-    files = [f for f in output.strip().split("\n") if f]
-    return jsonify({"files": files})
+    all_files = [f for f in output.strip().split("\n") if f]
+
+    if search:
+        matched = [f for f in all_files if search in f.split("/")[-1].lower()]
+        return jsonify({"entries": [{"name": f, "path": f, "type": "file"} for f in matched[:200]]})
+
+    if dir_path:
+        prefix = dir_path.rstrip("/") + "/"
+        children_files = [f for f in all_files if f.startswith(prefix)]
+    else:
+        prefix = ""
+        children_files = all_files
+
+    entries = {}
+    for f in children_files:
+        relative = f[len(prefix):]
+        first_part = relative.split("/")[0]
+        is_dir = "/" in relative
+        if first_part not in entries:
+            entries[first_part] = {"name": first_part, "type": "dir" if is_dir else "file", "path": (prefix + first_part) if is_dir else f}
+
+    sorted_entries = sorted(entries.values(), key=lambda e: (0 if e["type"] == "dir" else 1, e["name"].lower()))
+
+    result = {"entries": sorted_entries}
+    if not dir_path:
+        result["total"] = len(all_files)
+    return jsonify(result)
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/diff", methods=["GET"])

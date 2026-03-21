@@ -71,7 +71,98 @@ def test_list_files(client, workspace):
     _git(workspace["working_dir"], "commit", "-m", "Add file")
     r = client.get("/api/ws/test-project/feature/test/files")
     assert r.status_code == 200
-    assert "hello.py" in r.json["files"]
+    names = [e["name"] for e in r.json["entries"]]
+    assert "hello.py" in names
+
+
+def test_list_files_root_has_total(client, workspace):
+    Path(workspace["working_dir"]).joinpath("a.py").write_text("x = 1")
+    Path(workspace["working_dir"]).joinpath("b.py").write_text("y = 2")
+    _git(workspace["working_dir"], "add", "a.py", "b.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add files")
+    r = client.get("/api/ws/test-project/feature/test/files")
+    assert r.status_code == 200
+    assert "total" in r.json
+    assert r.json["total"] >= 2
+
+
+def test_list_files_subdirectory(client, workspace):
+    subdir = Path(workspace["working_dir"]) / "subpkg"
+    subdir.mkdir()
+    (subdir / "service.py").write_text("class Service: pass")
+    (subdir / "utils.py").write_text("def helper(): pass")
+    Path(workspace["working_dir"]).joinpath("root.py").write_text("x = 1")
+    _git(workspace["working_dir"], "add", "subpkg/service.py", "subpkg/utils.py", "root.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add subdir files")
+    r = client.get("/api/ws/test-project/feature/test/files?path=subpkg")
+    assert r.status_code == 200
+    names = [e["name"] for e in r.json["entries"]]
+    assert "service.py" in names
+    assert "utils.py" in names
+    assert "root.py" not in names
+
+
+def test_list_files_entries_have_type(client, workspace):
+    subdir = Path(workspace["working_dir"]) / "mypkg"
+    subdir.mkdir()
+    (subdir / "module.py").write_text("pass")
+    Path(workspace["working_dir"]).joinpath("main.py").write_text("pass")
+    _git(workspace["working_dir"], "add", "mypkg/module.py", "main.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add files and dir")
+    r = client.get("/api/ws/test-project/feature/test/files")
+    assert r.status_code == 200
+    types = {e["name"]: e["type"] for e in r.json["entries"]}
+    assert types["mypkg"] == "dir"
+    assert types["main.py"] == "file"
+
+
+def test_list_files_dirs_sorted_first(client, workspace):
+    subdir = Path(workspace["working_dir"]) / "alpha"
+    subdir.mkdir()
+    (subdir / "code.py").write_text("pass")
+    Path(workspace["working_dir"]).joinpath("zz_file.py").write_text("pass")
+    _git(workspace["working_dir"], "add", "alpha/code.py", "zz_file.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add dir and file")
+    r = client.get("/api/ws/test-project/feature/test/files")
+    assert r.status_code == 200
+    entries = r.json["entries"]
+    dir_indices = [i for i, e in enumerate(entries) if e["type"] == "dir"]
+    file_indices = [i for i, e in enumerate(entries) if e["type"] == "file"]
+    assert all(d < f for d in dir_indices for f in file_indices)
+
+
+def test_list_files_search(client, workspace):
+    Path(workspace["working_dir"]).joinpath("order_service.py").write_text("pass")
+    Path(workspace["working_dir"]).joinpath("order_repo.py").write_text("pass")
+    Path(workspace["working_dir"]).joinpath("user_service.py").write_text("pass")
+    _git(workspace["working_dir"], "add", "order_service.py", "order_repo.py", "user_service.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add service files")
+    r = client.get("/api/ws/test-project/feature/test/files?search=order")
+    assert r.status_code == 200
+    names = [e["name"] for e in r.json["entries"]]
+    assert "order_service.py" in names
+    assert "order_repo.py" in names
+    assert "user_service.py" not in names
+
+
+def test_list_files_search_empty(client, workspace):
+    Path(workspace["working_dir"]).joinpath("readme.txt").write_text("docs")
+    _git(workspace["working_dir"], "add", "readme.txt")
+    _git(workspace["working_dir"], "commit", "-m", "Add readme")
+    r = client.get("/api/ws/test-project/feature/test/files?search=nonexistentxyz")
+    assert r.status_code == 200
+    assert r.json["entries"] == []
+
+
+def test_list_files_subdirectory_no_total(client, workspace):
+    subdir = Path(workspace["working_dir"]) / "pkg"
+    subdir.mkdir()
+    (subdir / "a.py").write_text("pass")
+    _git(workspace["working_dir"], "add", "pkg/a.py")
+    _git(workspace["working_dir"], "commit", "-m", "Add pkg")
+    r = client.get("/api/ws/test-project/feature/test/files?path=pkg")
+    assert r.status_code == 200
+    assert "total" not in r.json
 
 
 def test_list_files_workspace_not_found(client, project):

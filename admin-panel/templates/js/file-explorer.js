@@ -1,126 +1,151 @@
 // ═══════════════════════════════════════════════
-//  FILE EXPLORER
+//  FILE EXPLORER (lazy directory loading)
 // ═══════════════════════════════════════════════
 
-var EXPLORER_DATA = { files: [], filtered: [] };
-var explorerState = { view: 'tree', selectedFile: null, filter: '', mdMode: 'preview' };
+var explorerState = { selectedFile: null, filter: '', mdMode: 'preview', dirCache: {}, totalFiles: 0 };
+
+function explorerApiUrl(ctx, params) {
+  var url = '/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/files';
+  if (params) url += '?' + params;
+  return url;
+}
 
 async function loadExplorerFiles() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
+  explorerState.dirCache = {};
+  explorerState.filter = '';
+  var searchInput = document.getElementById('fileExplorerSearch');
+  if (searchInput) searchInput.value = '';
   try {
-    var data = await apiGet('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/files');
-    EXPLORER_DATA.files = data.files || [];
-    EXPLORER_DATA.filtered = EXPLORER_DATA.files;
-    renderExplorerFileList();
+    var data = await apiGet(explorerApiUrl(ctx));
+    explorerState.dirCache[''] = data.entries || [];
+    explorerState.totalFiles = data.total || 0;
+    renderExplorerLazy();
   } catch (e) {
     console.warn('Failed to load files:', e.message);
   }
 }
 
-function filterExplorerFiles(query) {
-  explorerState.filter = query.toLowerCase();
-  if (!explorerState.filter) {
-    EXPLORER_DATA.filtered = EXPLORER_DATA.files;
+async function expandExplorerDir(dirPath, dirEl) {
+  if (dirEl.dataset.loading === 'true') return;
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var childrenEl = dirEl.nextElementSibling;
+  if (!childrenEl || !childrenEl.classList.contains('dir-children')) return;
+
+  if (dirEl.classList.contains('collapsed')) {
+    dirEl.classList.remove('collapsed');
+    if (explorerState.dirCache[dirPath]) {
+      if (!childrenEl.hasChildNodes()) {
+        renderExplorerEntries(explorerState.dirCache[dirPath], childrenEl, dirPath);
+      }
+      childrenEl.style.display = '';
+      return;
+    }
+    dirEl.dataset.loading = 'true';
+    childrenEl.innerHTML = '<div style="padding: 6px 14px; font-size: 0.72rem; color: var(--text-muted);">Loading...</div>';
+    childrenEl.style.display = '';
+    try {
+      var data = await apiGet(explorerApiUrl(ctx, 'path=' + encodeURIComponent(dirPath)));
+      explorerState.dirCache[dirPath] = data.entries || [];
+      childrenEl.innerHTML = '';
+      renderExplorerEntries(data.entries || [], childrenEl, dirPath);
+    } catch (e) {
+      childrenEl.innerHTML = '<div style="padding: 6px 14px; font-size: 0.72rem; color: var(--danger);">Failed to load</div>';
+    }
+    delete dirEl.dataset.loading;
   } else {
-    EXPLORER_DATA.filtered = EXPLORER_DATA.files.filter(function(f) {
-      var name = f.split('/').pop().toLowerCase();
-      return name.indexOf(explorerState.filter) !== -1;
-    });
+    dirEl.classList.add('collapsed');
+    childrenEl.style.display = 'none';
   }
-  renderExplorerFileList();
 }
 
-function buildExplorerTree(files) {
-  var tree = {};
-  files.forEach(function(path) {
-    var parts = path.split('/');
-    var node = tree;
-    parts.forEach(function(part, i) {
-      if (i === parts.length - 1) {
-        node[part] = { _path: path };
-      } else {
-        if (!node[part] || node[part]._path) node[part] = node[part] || {};
-        node = node[part];
-      }
-    });
-  });
-  return tree;
-}
-
-function renderExplorerTreeNode(node, container, depth) {
-  depth = depth || 0;
+function renderExplorerEntries(entries, container, parentPath) {
+  var depth = parentPath ? parentPath.split('/').length : 0;
   var pad = 11 + depth * 11;
-  Object.keys(node).sort(function(a, b) {
-    var aIsDir = !node[a]._path;
-    var bIsDir = !node[b]._path;
-    if (aIsDir && !bIsDir) return -1;
-    if (!aIsDir && bIsDir) return 1;
-    return a.localeCompare(b);
-  }).forEach(function(key) {
-    var val = node[key];
-    if (val._path) {
-      var div = document.createElement('div');
-      div.className = 'file-item' + (explorerState.selectedFile === val._path ? ' active' : '');
-      div.style.paddingLeft = (pad + 11) + 'px';
-      div.dataset.path = val._path;
-      div.onclick = function() { selectExplorerFile(val._path); };
-      div.innerHTML = '<span>' + escapeHtml(key) + '</span>';
-      container.appendChild(div);
-    } else {
-      var displayName = key;
-      var currentSubtree = val;
-      while (true) {
-        var subKeys = Object.keys(currentSubtree).filter(function(k) { return !currentSubtree[k]._path; });
-        var subFiles = Object.keys(currentSubtree).filter(function(k) { return currentSubtree[k]._path; });
-        if (subKeys.length === 1 && subFiles.length === 0) {
-          displayName += '/' + subKeys[0];
-          currentSubtree = currentSubtree[subKeys[0]];
-        } else {
-          break;
-        }
-      }
 
+  entries.forEach(function(entry) {
+    if (entry.type === 'dir') {
       var dir = document.createElement('div');
-      dir.className = 'file-dir';
+      dir.className = 'file-dir collapsed';
       dir.style.paddingLeft = pad + 'px';
-      dir.innerHTML = '<span class="arrow">\u25BC</span> ' + escapeHtml(displayName) + '/';
-      dir.onclick = function(e) { e.stopPropagation(); dir.classList.toggle('collapsed'); };
+      dir.innerHTML = '<span class="arrow">\u25BC</span> ' + escapeHtml(entry.name) + '/';
+      dir.onclick = function(e) { e.stopPropagation(); expandExplorerDir(entry.path, dir); };
       container.appendChild(dir);
 
       var children = document.createElement('div');
       children.className = 'dir-children';
-      renderExplorerTreeNode(currentSubtree, children, depth + 1);
+      children.style.display = 'none';
       container.appendChild(children);
+    } else {
+      var div = document.createElement('div');
+      div.className = 'file-item' + (explorerState.selectedFile === entry.path ? ' active' : '');
+      div.style.paddingLeft = (pad + 11) + 'px';
+      div.dataset.path = entry.path;
+      div.onclick = function() { selectExplorerFile(entry.path); };
+      div.innerHTML = '<span>' + escapeHtml(entry.name) + '</span>';
+      container.appendChild(div);
     }
   });
 }
 
-function renderExplorerFileList() {
+function renderExplorerLazy() {
   var container = document.getElementById('explorerFileList');
   var header = container.querySelector('.diff-file-list-header');
   container.innerHTML = '';
   container.appendChild(header);
 
-  var files = EXPLORER_DATA.filtered;
   var countEl = document.getElementById('explorerCount');
-  if (countEl) countEl.textContent = files.length;
+  if (countEl) countEl.textContent = explorerState.totalFiles;
   var badgeEl = document.getElementById('explorerFileCount');
-  if (badgeEl) badgeEl.textContent = t('badges.fileCount', {count: files.length});
+  if (badgeEl) badgeEl.textContent = explorerState.totalFiles + ' files';
 
-  if (explorerState.view === 'flat') {
-    files.forEach(function(path) {
-      var div = document.createElement('div');
-      div.className = 'file-item' + (explorerState.selectedFile === path ? ' active' : '');
-      div.dataset.path = path;
-      div.onclick = function() { selectExplorerFile(path); };
-      div.innerHTML = '<span>' + escapeHtml(path) + '</span>';
-      container.appendChild(div);
-    });
-  } else {
-    var tree = buildExplorerTree(files);
-    renderExplorerTreeNode(tree, container, 0);
+  var entries = explorerState.dirCache[''] || [];
+  renderExplorerEntries(entries, container, '');
+}
+
+var _explorerSearchTimeout = null;
+
+async function filterExplorerFiles(query) {
+  explorerState.filter = query.trim().toLowerCase();
+  if (_explorerSearchTimeout) clearTimeout(_explorerSearchTimeout);
+
+  if (!explorerState.filter) {
+    renderExplorerLazy();
+    return;
   }
+
+  _explorerSearchTimeout = setTimeout(async function() {
+    var ctx = getWorkspaceContext();
+    if (!ctx) return;
+    try {
+      var data = await apiGet(explorerApiUrl(ctx, 'search=' + encodeURIComponent(explorerState.filter)));
+      var container = document.getElementById('explorerFileList');
+      var header = container.querySelector('.diff-file-list-header');
+      container.innerHTML = '';
+      container.appendChild(header);
+
+      var entries = data.entries || [];
+      var countEl = document.getElementById('explorerCount');
+      if (countEl) countEl.textContent = entries.length;
+      var badgeEl = document.getElementById('explorerFileCount');
+      if (badgeEl) badgeEl.textContent = entries.length + ' results';
+
+      entries.forEach(function(entry) {
+        var div = document.createElement('div');
+        div.className = 'file-item' + (explorerState.selectedFile === entry.path ? ' active' : '');
+        div.dataset.path = entry.path;
+        div.onclick = function() { selectExplorerFile(entry.path); };
+        div.innerHTML = '<span>' + escapeHtml(entry.path) + '</span>';
+        container.appendChild(div);
+      });
+    } catch (e) {
+      console.warn('Search failed:', e.message);
+    }
+  }, 300);
 }
 
 var _explorerFileLines = [];
@@ -209,17 +234,12 @@ function renderExplorerContent(path, lines) {
 
 function setExplorerMdMode(mode) {
   explorerState.mdMode = mode;
-  if (explorerState.selectedFile) {
+  if (_explorerFileLines.length > 0 && explorerState.selectedFile) {
     renderExplorerContent(explorerState.selectedFile, _explorerFileLines);
   }
-}
-
-function setExplorerView(mode) {
-  explorerState.view = mode;
-  document.querySelectorAll('#fileExplorerViewToggle .toggle-opt').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.mode === mode);
+  document.querySelectorAll('.md-toggle .toggle-opt').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
   });
-  renderExplorerFileList();
 }
 
 // Resize handle for explorer panel
