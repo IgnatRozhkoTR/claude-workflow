@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 VALID_CRITERIA_TYPES = ("unit_test", "integration_test", "bdd_scenario", "custom")
+DEFAULT_SOURCE_BRANCH = "develop"
 
 
 def compute_phase_sequence(plan):

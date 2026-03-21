@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_db
 from decorators import with_workspace
-from helpers import sanitize_branch, workspace_dir, run_git
+from helpers import sanitize_branch, workspace_dir, run_git, DEFAULT_SOURCE_BRANCH
 from i18n import t
 from terminal import session_name
 
@@ -492,7 +492,7 @@ def create_workspace(project_id):
 
     body = request.get_json(silent=True) or {}
     branch = body.get("branch", "").strip()
-    source = body.get("source", "develop").strip()
+    source = body.get("source", DEFAULT_SOURCE_BRANCH).strip()
     use_worktree = body.get("worktree", True)
     locale = body.get("locale", "en").strip()
 

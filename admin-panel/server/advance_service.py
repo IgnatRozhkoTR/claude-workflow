@@ -9,13 +9,12 @@ import re
 import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 from criteria_validators import validate_all
 from db import get_db
-from helpers import workspace_dir, run_git, match_scope_pattern
+from helpers import workspace_dir, run_git, match_scope_pattern, DEFAULT_SOURCE_BRANCH
 import scope_service
 from i18n import t
 
@@ -390,9 +389,9 @@ class ExecutionAdvancer(PhaseAdvancer):
             return True, {}
 
         try:
-            source = ws["source_branch"] or "main"
+            source = ws["source_branch"] or DEFAULT_SOURCE_BRANCH
         except (IndexError, KeyError):
-            source = "main"
+            source = DEFAULT_SOURCE_BRANCH
 
         all_changed = set()
 

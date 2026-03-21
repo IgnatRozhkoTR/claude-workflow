@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request
 
 from decorators import with_workspace
-from helpers import run_git
+from helpers import run_git, DEFAULT_SOURCE_BRANCH
 from i18n import t
 
 bp = Blueprint("files", __name__)
@@ -162,7 +162,7 @@ def list_files(db, ws, project):
 @with_workspace
 def get_diff(db, ws, project):
     working_dir = ws["working_dir"]
-    source_branch = ws["source_branch"] or "develop"
+    source_branch = ws["source_branch"] or DEFAULT_SOURCE_BRANCH
 
     mode = request.args.get("mode", "branch")
     if mode not in ("branch", "uncommitted"):
