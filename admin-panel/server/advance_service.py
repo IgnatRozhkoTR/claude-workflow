@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 from criteria_validators import validate_all
 from db import get_db
 from helpers import workspace_dir, run_git, match_scope_pattern
+import scope_service
 from i18n import t
 
 
@@ -383,10 +384,7 @@ class ExecutionAdvancer(PhaseAdvancer):
     def _validate_implementation(self, ws, project_path):
         scope_map = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
         phase = ws["phase"]
-        parts = phase.split(".")
-        sub_key = parts[0] + "." + parts[1] if len(parts) >= 2 else phase
-        phase_scope = scope_map.get(sub_key, {})
-        must_patterns = phase_scope.get("must", [])
+        must_patterns = scope_service.get_phase_must_patterns(scope_map, phase)
 
         if not must_patterns:
             return True, {}

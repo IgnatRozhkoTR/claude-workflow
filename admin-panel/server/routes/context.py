@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+import discussion_service
 from helpers import find_workspace, run_git
 from i18n import t
 
@@ -19,22 +20,7 @@ def get_context(project_id, branch):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        discussions = db.execute(
-            "SELECT id, parent_id, text, author, status, type, hidden, created_at, resolved_at "
-            "FROM discussions WHERE workspace_id = ? AND scope IS NULL AND parent_id IS NULL ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-
-        discussions_list = []
-        for row in discussions:
-            d = dict(row)
-            replies = db.execute(
-                "SELECT id, text, author, status, created_at, resolved_at "
-                "FROM discussions WHERE parent_id = ? ORDER BY id",
-                (row["id"],)
-            ).fetchall()
-            d["replies"] = [dict(r) for r in replies]
-            discussions_list.append(d)
+        discussions_list = discussion_service.list_discussions(db, ws["id"])
 
         return jsonify({
             "ticket_id": ws["ticket_id"] or ws["branch"],
@@ -102,15 +88,27 @@ def add_discussion(project_id, branch):
         scope = body.get("scope")
         target = body.get("target")
 
-        cursor = db.execute(
-            "INSERT INTO discussions (workspace_id, parent_id, text, author, type, scope, target, status, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)",
-            (ws["id"], parent_id, topic, body.get("author", "user"),
-             disc_type, scope, target, datetime.now().isoformat())
+        if scope is not None:
+            cursor = db.execute(
+                "INSERT INTO discussions (workspace_id, parent_id, text, author, type, scope, target, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)",
+                (ws["id"], parent_id, topic, body.get("author", "user"),
+                 disc_type, scope, target, datetime.now().isoformat())
+            )
+            db.commit()
+            return jsonify({"ok": True, "id": cursor.lastrowid})
+
+        result = discussion_service.post_discussion(
+            db, ws["id"], topic,
+            author=body.get("author", "user"),
+            disc_type=disc_type,
+            parent_id=parent_id,
         )
+        if "error" in result:
+            return jsonify({"error": t("api.error.discussionNotFound")}), 404
         db.commit()
 
-        return jsonify({"ok": True, "id": cursor.lastrowid})
+        return jsonify({"ok": True, "id": result["id"]})
     finally:
         db.close()
 
@@ -123,31 +121,16 @@ def update_discussion(project_id, branch, discussion_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        row = db.execute(
-            "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
-            (discussion_id, ws["id"])
-        ).fetchone()
-        if not row:
+        body = request.get_json(silent=True) or {}
+        result = discussion_service.update_discussion(
+            db, discussion_id, ws["id"],
+            text=body.get("text"),
+            status=body.get("status"),
+        )
+        if "error" in result:
             return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
-        body = request.get_json(silent=True) or {}
-        updates = []
-        params = []
-        if "text" in body:
-            updates.append("text = ?")
-            params.append(body["text"])
-        if "status" in body:
-            updates.append("status = ?")
-            params.append(body["status"])
-            if body["status"] == "resolved":
-                updates.append("resolved_at = ?")
-                params.append(datetime.now().isoformat())
-
-        if updates:
-            params.append(discussion_id)
-            db.execute(f"UPDATE discussions SET {', '.join(updates)} WHERE id = ?", params)
-            db.commit()
-
+        db.commit()
         return jsonify({"ok": True})
     finally:
         db.close()
@@ -161,25 +144,21 @@ def reply_to_discussion(project_id, branch, discussion_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        parent = db.execute(
-            "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
-            (discussion_id, ws["id"])
-        ).fetchone()
-        if not parent:
-            return jsonify({"error": t("api.error.discussionNotFound")}), 404
-
         body = request.get_json(silent=True) or {}
         text = body.get("text", "").strip()
         if not text:
             return jsonify({"error": t("api.error.textRequired")}), 400
 
-        cursor = db.execute(
-            "INSERT INTO discussions (workspace_id, parent_id, text, author, status, created_at) "
-            "VALUES (?, ?, ?, ?, 'open', ?)",
-            (ws["id"], discussion_id, text, body.get("author", "user"), datetime.now().isoformat())
+        result = discussion_service.post_discussion(
+            db, ws["id"], text,
+            author=body.get("author", "user"),
+            parent_id=discussion_id,
         )
+        if "error" in result:
+            return jsonify({"error": t("api.error.discussionNotFound")}), 404
+
         db.commit()
-        return jsonify({"ok": True, "id": cursor.lastrowid})
+        return jsonify({"ok": True, "id": result["id"]})
     finally:
         db.close()
 
@@ -230,13 +209,10 @@ def delete_discussion(project_id, branch, discussion_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        rows = db.execute(
-            "DELETE FROM discussions WHERE id = ? AND workspace_id = ?",
-            (discussion_id, ws["id"])
-        ).rowcount
+        deleted = discussion_service.delete_discussion(db, discussion_id, ws["id"])
         db.commit()
 
-        if rows == 0:
+        if not deleted:
             return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
         return jsonify({"ok": True})

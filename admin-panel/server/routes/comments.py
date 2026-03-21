@@ -3,6 +3,8 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+import comment_service
+import discussion_service
 from db import get_db
 from helpers import find_workspace
 from i18n import t
@@ -24,29 +26,23 @@ def add_comment(project_id, branch):
 
         body = request.get_json(silent=True) or {}
         scope = body.get("scope", "").strip()
-        target = body.get("target", "").strip()
         text = body.get("text", "").strip()
-        file_path = body.get("file_path")
-        line_start = body.get("line_start")
-        line_end = body.get("line_end")
-        line_hash = body.get("line_hash")
-        author = body.get("author", "user")
 
         if not scope or not text:
             return jsonify({"error": t("api.error.scopeAndTextRequired")}), 400
 
-        resolution = 'open' if scope == 'review' else None
-        cursor = db.execute(
-            "INSERT INTO discussions "
-            "(workspace_id, scope, target, file_path, line_start, line_end, line_hash, "
-            "text, author, status, resolution, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)",
-            (ws["id"], scope, target, file_path, line_start, line_end, line_hash,
-             text, author, resolution, datetime.now().isoformat())
+        result = comment_service.post_comment(
+            db, ws["id"], text=text, scope=scope,
+            author=body.get("author", "user"),
+            target=body.get("target", "").strip() or None,
+            file_path=body.get("file_path"),
+            line_start=body.get("line_start"),
+            line_end=body.get("line_end"),
+            line_hash=body.get("line_hash"),
         )
         db.commit()
 
-        return jsonify({"ok": True, "id": cursor.lastrowid})
+        return jsonify(result)
     finally:
         db.close()
 
@@ -63,53 +59,22 @@ def list_comments(project_id, branch):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        query = (
-            "SELECT id, parent_id, scope, target, file_path, line_start, line_end, line_hash, "
-            "text, author, type, created_at, status, resolved_at, resolution "
-            "FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND parent_id IS NULL"
-        )
-        params = [ws["id"]]
-
-        scope_filter = request.args.get("scope")
-        if scope_filter:
-            query += " AND scope = ?"
-            params.append(scope_filter)
-
+        scope_filter = request.args.get("scope") or None
         resolved_filter = request.args.get("resolved")
+
+        unresolved_only = False
+        resolved_only = False
         if resolved_filter == "true":
-            query += " AND status = 'resolved'"
+            resolved_only = True
         elif resolved_filter == "false":
-            query += " AND status = 'open'"
+            unresolved_only = True
 
-        query += " ORDER BY id"
+        comments = comment_service.get_comments(
+            db, ws["id"], scope=scope_filter, unresolved_only=unresolved_only
+        )
 
-        rows = db.execute(query, params).fetchall()
-        comments = []
-        for row in rows:
-            comment = {
-                "id": row["id"],
-                "parent_id": row["parent_id"],
-                "scope": row["scope"],
-                "target": row["target"],
-                "file_path": row["file_path"],
-                "line_start": row["line_start"],
-                "line_end": row["line_end"],
-                "line_hash": row["line_hash"],
-                "text": row["text"],
-                "author": row["author"],
-                "type": row["type"],
-                "created_at": row["created_at"],
-                "resolved": row["status"] == "resolved",
-                "resolved_at": row["resolved_at"],
-                "resolution": row["resolution"],
-            }
-            replies = db.execute(
-                "SELECT id, text, author, created_at, status, resolved_at "
-                "FROM discussions WHERE parent_id = ? ORDER BY id",
-                (row["id"],)
-            ).fetchall()
-            comment["replies"] = [dict(r) for r in replies]
-            comments.append(comment)
+        if resolved_only:
+            comments = [c for c in comments if c["resolved"]]
 
         return jsonify({"comments": comments})
     finally:
@@ -128,28 +93,14 @@ def resolve_comment(project_id, branch, comment_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        comment = db.execute(
-            "SELECT * FROM discussions WHERE id = ? AND workspace_id = ?",
-            (comment_id, ws["id"])
-        ).fetchone()
-        if not comment:
-            return jsonify({"error": t("api.error.commentNotFound")}), 404
-
         body = request.get_json(silent=True) or {}
         resolved = body.get("resolved", True)
 
-        if resolved:
-            db.execute(
-                "UPDATE discussions SET status = 'resolved', resolved_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), comment_id)
-            )
-        else:
-            db.execute(
-                "UPDATE discussions SET status = 'open', resolved_at = NULL WHERE id = ?",
-                (comment_id,)
-            )
-        db.commit()
+        result = comment_service.resolve_comment(db, comment_id, ws["id"], resolved=resolved)
+        if "error" in result:
+            return jsonify({"error": t("api.error.commentNotFound")}), 404
 
+        db.commit()
         return jsonify({"ok": True})
     finally:
         db.close()
@@ -167,19 +118,14 @@ def toggle_discussion_hidden(project_id, branch, discussion_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        disc = db.execute(
-            "SELECT * FROM discussions WHERE id = ? AND workspace_id = ? AND scope IS NULL AND parent_id IS NULL",
-            (discussion_id, ws["id"])
-        ).fetchone()
-        if not disc:
+        body = request.get_json(silent=True) or {}
+        hidden = body.get("hidden", True)
+
+        result = discussion_service.toggle_hidden(db, discussion_id, ws["id"], hidden=hidden)
+        if "error" in result:
             return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
-        body = request.get_json(silent=True) or {}
-        hidden = 1 if body.get("hidden", True) else 0
-
-        db.execute("UPDATE discussions SET hidden = ? WHERE id = ?", (hidden, discussion_id))
         db.commit()
-
         return jsonify({"ok": True})
     finally:
         db.close()
@@ -247,13 +193,16 @@ def add_discussion(project_id, branch):
         if disc_type not in ("general", "research"):
             return jsonify({"error": t("api.error.invalidDiscussionType")}), 400
 
-        cursor = db.execute(
-            "INSERT INTO discussions (workspace_id, parent_id, text, author, type, status, created_at) "
-            "VALUES (?, ?, ?, 'user', ?, 'open', ?)",
-            (ws["id"], parent_id, text, disc_type, datetime.now().isoformat())
+        result = discussion_service.post_discussion(
+            db, ws["id"], text,
+            author="user",
+            disc_type=disc_type,
+            parent_id=parent_id,
         )
+        if "error" in result:
+            return jsonify({"error": t("api.error.discussionNotFound")}), 404
         db.commit()
 
-        return jsonify({"ok": True, "id": cursor.lastrowid})
+        return jsonify({"ok": True, "id": result["id"]})
     finally:
         db.close()

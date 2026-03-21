@@ -9,9 +9,14 @@ from flask import Blueprint, jsonify, request
 logger = logging.getLogger(__name__)
 
 from db import get_db
+import discussion_service
 from helpers import compute_phase_sequence, find_workspace, get_comments_for_workspace
 from i18n import t
 from terminal import session_name, session_exists, send_keys
+import plan_service
+import progress_service
+import research_service
+import scope_service
 
 # Phases that have sub-phases — bare number normalizes to .0
 _PHASES_WITH_SUBS = {"1", "2", "3", "4"}
@@ -48,8 +53,8 @@ def get_workspace_state(project_id, branch):
 
         comments = get_comments_for_workspace(db, ws["id"])
 
-        scope = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
-        plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {"description": "", "systemDiagram": "", "execution": []}
+        scope = plan_service.get_scope(ws)
+        plan = plan_service.get_plan(ws)
         phase_sequence = compute_phase_sequence(plan)
 
         history_rows = db.execute(
@@ -65,57 +70,12 @@ def get_workspace_state(project_id, branch):
         ).fetchall()
         sessions = [{"session_id": r["session_id"], "started_at": r["started_at"]} for r in session_rows]
 
-        research_rows = db.execute(
-            "SELECT id, topic, summary, findings_json, proven, discussion_id, created_at "
-            "FROM research_entries WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        research = []
-        for row in research_rows:
-            try:
-                findings = json.loads(row["findings_json"])
-            except json.JSONDecodeError:
-                findings = []
-            research.append({
-                "id": row["id"],
-                "topic": row["topic"],
-                "summary": row["summary"],
-                "findings": findings,
-                "proven": row["proven"],
-                "discussion_id": row["discussion_id"],
-                "created_at": row["created_at"],
-            })
+        all_ids = [e["id"] for e in research_service.list_research(db, ws["id"])]
+        research = research_service.get_research(db, ws["id"], all_ids)
 
-        discussion_rows = db.execute(
-            "SELECT id, parent_id, text, author, status, type, hidden, created_at, resolved_at "
-            "FROM discussions WHERE workspace_id = ? AND scope IS NULL AND parent_id IS NULL ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        discussions = []
-        for row in discussion_rows:
-            d = dict(row)
-            replies = db.execute(
-                "SELECT id, text, author, status, created_at, resolved_at "
-                "FROM discussions WHERE parent_id = ? ORDER BY id",
-                (row["id"],)
-            ).fetchall()
-            d["replies"] = [dict(r) for r in replies]
-            discussions.append(d)
+        discussions = discussion_service.list_discussions(db, ws["id"])
 
-        progress_rows = db.execute(
-            "SELECT phase, summary, details_json, created_at, updated_at "
-            "FROM progress_entries WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        progress = {}
-        for row in progress_rows:
-            entry = {"summary": row["summary"], "created_at": row["created_at"], "updated_at": row["updated_at"]}
-            if row["details_json"]:
-                try:
-                    entry["details"] = json.loads(row["details_json"])
-                except json.JSONDecodeError:
-                    pass
-            progress[row["phase"]] = entry
+        progress = progress_service.get_progress(db, ws["id"])
 
         impact_analysis = None
         if "impact_analysis_json" in ws.keys() and ws["impact_analysis_json"]:
@@ -200,10 +160,8 @@ def set_scope(project_id, branch):
 
         body = request.get_json(silent=True) or {}
         scope = body.get("scope", {})
-        scope_json = json.dumps(scope)
 
-        db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (scope_json, ws["id"]))
-
+        scope_service.set_scope(db, ws, scope)
         db.commit()
         return jsonify({"ok": True, "scope": scope})
     finally:
@@ -225,10 +183,9 @@ def set_scope_status(project_id, branch):
 
         body = request.get_json(silent=True) or {}
         status = body.get("status", "pending")
-        if status not in ("pending", "approved", "rejected"):
-            return jsonify({"error": t("api.error.invalidStatus")}), 400
-
-        db.execute("UPDATE workspaces SET scope_status = ? WHERE id = ?", (status, ws["id"]))
+        result = scope_service.set_scope_status(db, ws["id"], status)
+        if "error" in result:
+            return jsonify(result), 400
         db.commit()
 
         if status in ('approved', 'rejected'):
@@ -408,30 +365,7 @@ def restore_plan(project_id, branch):
         if not ws["prev_plan_json"]:
             return jsonify({"error": t("api.error.noPreviousPlan")}), 404
 
-        # Swap current and prev (SQLite evaluates all RHS from original row before updating)
-        db.execute("""
-            UPDATE workspaces SET
-                plan_json = prev_plan_json,
-                scope_json = prev_scope_json,
-                phase = prev_phase,
-                plan_status = prev_plan_status,
-                scope_status = prev_scope_status,
-                prev_plan_json = plan_json,
-                prev_scope_json = scope_json,
-                prev_phase = phase,
-                prev_plan_status = plan_status,
-                prev_scope_status = scope_status
-            WHERE id = ?
-        """, (ws["id"],))
-
-        # Record phase history if phase changed
-        new_ws = db.execute("SELECT phase FROM workspaces WHERE id = ?", (ws["id"],)).fetchone()
-        if new_ws["phase"] != ws["phase"]:
-            db.execute(
-                "INSERT INTO phase_history (workspace_id, from_phase, to_phase, time) VALUES (?, ?, ?, ?)",
-                (ws["id"], ws["phase"], new_ws["phase"], datetime.now().isoformat())
-            )
-
+        new_ws = plan_service.restore_plan(db, ws)
         db.commit()
         return jsonify({"ok": True, "phase": new_ws["phase"]})
     finally:
@@ -443,30 +377,22 @@ def toggle_research_proven(project_id, branch, research_id):
     """Toggle research entry proven status. Body: {"proven": true/false}"""
     db = get_db()
     try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
-
         ws = find_workspace(db, project_id, branch)
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        row = db.execute(
-            "SELECT id FROM research_entries WHERE id = ? AND workspace_id = ?",
-            (research_id, ws["id"])
-        ).fetchone()
-        if not row:
+        body = request.get_json(silent=True) or {}
+        proven = body.get("proven", False)
+
+        result = research_service.set_proven(
+            db, research_id, ws["id"], proven,
+            notes="Manual override via admin panel",
+        )
+        if "error" in result:
             return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
 
-        body = request.get_json(silent=True) or {}
-        proven_val = 1 if body.get("proven", False) else -1
-
-        db.execute(
-            "UPDATE research_entries SET proven = ?, proven_notes = ? WHERE id = ?",
-            (proven_val, "Manual override via admin panel", research_id)
-        )
         db.commit()
-        return jsonify({"ok": True, "id": research_id, "proven": proven_val})
+        return jsonify(result)
     finally:
         db.close()
 
@@ -504,7 +430,7 @@ def can_modify(project_id, branch):
             return jsonify({"allowed": True, "reason": t("api.scope.workspaceMetadataAlwaysWritable", locale)})
 
         # Check plan approval (if plan exists with execution items)
-        plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {}
+        plan = plan_service.get_plan(ws)
         if plan.get("execution"):
             plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
             if plan_status != "approved":
@@ -516,36 +442,16 @@ def can_modify(project_id, branch):
             return jsonify({"allowed": False, "reason": t("api.scope.scopeNotApproved", locale)})
 
         # Check file matches scope patterns
-        scope_map = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
+        scope_map = plan_service.get_scope(ws)
         phase = ws["phase"]
-        parts = phase.split(".")
-        sub_key = parts[0] + "." + parts[1] if len(parts) >= 2 else phase
 
-        if phase.startswith("3.") and len(parts) >= 3:
-            phase_scope = scope_map.get(sub_key, {})
-            must_patterns = phase_scope.get("must", [])
-            may_patterns = phase_scope.get("may", [])
-        else:
-            must_patterns = []
-            may_patterns = []
-            for ps in scope_map.values():
-                must_patterns.extend(ps.get("must", []))
-                may_patterns.extend(ps.get("may", []))
-        all_patterns = must_patterns + may_patterns
-
-        if not all_patterns:
+        must_patterns, may_patterns = scope_service.get_scope_patterns(scope_map, phase)
+        if not must_patterns and not may_patterns:
             # No scope patterns defined — allow (scope is approved but empty means no restrictions)
             return jsonify({"allowed": True, "reason": t("api.scope.noScopePatternsDefinied", locale)})
 
-        from helpers import match_scope_pattern
-
-        for pattern in all_patterns:
-            if pattern.endswith("/"):
-                match_pattern = pattern.rstrip("/") + "/**"
-            else:
-                match_pattern = pattern
-            if match_scope_pattern(file_path, match_pattern):
-                return jsonify({"allowed": True, "reason": t("api.scope.matchesScopePattern", locale, pattern=pattern)})
+        if scope_service.match_scope_patterns(file_path, scope_map, phase):
+            return jsonify({"allowed": True, "reason": t("api.scope.matchesScopePattern", locale, pattern=file_path)})
 
         return jsonify({"allowed": False, "reason": t("api.scope.fileOutsideApprovedScope", locale, file_path=file_path)})
     finally:
@@ -560,13 +466,10 @@ def delete_research(project_id, branch, research_id):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        rows = db.execute(
-            "DELETE FROM research_entries WHERE id = ? AND workspace_id = ?",
-            (research_id, ws["id"])
-        ).rowcount
+        deleted = research_service.delete_research(db, research_id, ws["id"])
         db.commit()
 
-        if rows == 0:
+        if not deleted:
             return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
 
         return jsonify({"ok": True})

@@ -17,6 +17,13 @@ from db import get_db, init_db
 from helpers import VALID_CRITERIA_TYPES, compute_phase_sequence
 from i18n import t
 from phase import Phase
+import comment_service
+import criteria_service
+import discussion_service
+import plan_service
+import progress_service
+import research_service
+import scope_service
 
 # Initialize DB on import
 init_db()
@@ -78,8 +85,8 @@ def workspace_get_state() -> dict:
         return {"error": t("mcp.error.noWorkspace")}
 
     locale = ws["locale"] or "en"
-    scope = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
-    plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {"description": "", "systemDiagram": "", "execution": []}
+    scope = plan_service.get_scope(ws)
+    plan = plan_service.get_plan(ws)
     phase_sequence = compute_phase_sequence(plan)
 
     context = {
@@ -106,17 +113,10 @@ def workspace_get_state() -> dict:
 
     db = get_db()
     try:
-        progress_rows = db.execute(
-            "SELECT phase, summary FROM progress_entries WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        progress_summary = {row["phase"]: row["summary"] for row in progress_rows}
+        progress_summary = progress_service.get_progress_map(db, ws["id"])
 
-        research_rows = db.execute(
-            "SELECT id, topic, proven FROM research_entries WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        research_summary = [{"id": row["id"], "topic": row["topic"], "proven": row["proven"]} for row in research_rows]
+        research_entries = research_service.list_research(db, ws["id"])
+        research_summary = [{"id": e["id"], "topic": e["topic"], "proven": e["proven"]} for e in research_entries]
 
         comment_count = db.execute(
             "SELECT COUNT(*) as cnt FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND status = 'open'",
@@ -141,20 +141,7 @@ def workspace_get_state() -> dict:
             (ws["id"],)
         ).fetchone()["cnt"]
 
-        discussion_rows = db.execute(
-            "SELECT id, parent_id, text, author, status, created_at "
-            "FROM discussions WHERE workspace_id = ? AND scope IS NULL AND parent_id IS NULL AND status = 'open' ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        discussions = []
-        for row in discussion_rows:
-            d = dict(row)
-            replies = db.execute(
-                "SELECT id, text, author, created_at FROM discussions WHERE parent_id = ? ORDER BY id",
-                (row["id"],)
-            ).fetchall()
-            d["replies"] = [dict(r) for r in replies]
-            discussions.append(d)
+        discussions = discussion_service.list_discussions(db, ws["id"], open_only=True)
     finally:
         db.close()
 
@@ -227,22 +214,12 @@ def workspace_set_scope(scope: dict) -> dict:
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    locale = ws["locale"] or "en"
-    phase = ws["phase"]
-    scope_json = json.dumps(scope)
-
     db = get_db()
     try:
-        if Phase(phase) < "1.0":
-            return {"error": t("mcp.error.scopePhase0", locale)}
-
-        db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (scope_json, ws["id"]))
-
-        # Auto-revoke scope approval — user must re-approve the new scope
-        db.execute("UPDATE workspaces SET scope_status = 'pending' WHERE id = ?", (ws["id"],))
-
-        db.commit()
-        return {"ok": True, "phase": phase, "scope_status": "pending", "note": t("mcp.error.scopeNoteRevoked", locale)}
+        result = scope_service.set_scope(db, ws, scope)
+        if "error" not in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -285,45 +262,12 @@ def workspace_set_plan(plan: dict) -> dict:
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    locale = ws["locale"] or "en"
-    phase = ws["phase"]
-    if Phase(phase) < "2.0":
-        return {"error": t("mcp.error.planPhase", locale)}
-
-    plan_json = json.dumps(plan)
     db = get_db()
     try:
-        # Save current plan as previous before overwriting
-        db.execute(
-            """UPDATE workspaces SET
-                prev_plan_json = plan_json,
-                prev_scope_json = scope_json,
-                prev_phase = phase,
-                prev_plan_status = plan_status,
-                prev_scope_status = scope_status
-            WHERE id = ?""",
-            (ws["id"],)
-        )
-
-        db.execute("UPDATE workspaces SET plan_json = ? WHERE id = ?", (plan_json, ws["id"]))
-        db.execute("UPDATE workspaces SET plan_status = 'pending', scope_status = 'pending' WHERE id = ?", (ws["id"],))
-
-        # Adjust phase if in execution and new plan has fewer sub-phases
-        current_phase = ws["phase"]
-        match = re.match(r'^3\.(\d+)\.\d+$', current_phase)
-        if match:
-            execution = plan.get("execution", [])
-            if not execution:
-                new_phase = "2.0"
-            elif int(match.group(1)) > len(execution):
-                new_phase = "3.0"
-            else:
-                new_phase = current_phase
-            if new_phase != current_phase:
-                db.execute("UPDATE workspaces SET phase = ? WHERE id = ?", (new_phase, ws["id"]))
-
-        db.commit()
-        return {"ok": True, "plan_status": "pending", "scope_status": "pending", "note": t("mcp.error.planNoteRevoked", locale)}
+        result = plan_service.set_plan(db, ws, plan)
+        if "ok" in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -338,8 +282,7 @@ def workspace_get_plan() -> dict:
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {"description": "", "systemDiagram": "", "execution": []}
-    return plan
+    return plan_service.get_plan(ws)
 
 
 @mcp.tool()
@@ -360,74 +303,12 @@ def workspace_extend_plan(subphase: dict, scope: dict, diagrams: list = None, re
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    locale = ws["locale"] or "en"
-    phase = ws["phase"]
-    if Phase(phase) < "2.0":
-        return {"error": t("mcp.error.planPhase", locale)}
-
-    if not scope or not isinstance(scope, dict):
-        return {"error": "scope is required — must be a dict with 'must' and/or 'may' patterns"}
-
-    if not subphase or not isinstance(subphase, dict):
-        return {"error": "subphase must be a dict with 'name' and 'tasks'"}
-
-    name = subphase.get("name", "").strip() if isinstance(subphase.get("name"), str) else ""
-    tasks = subphase.get("tasks", [])
-    if not name:
-        return {"error": "subphase.name is required"}
-    if not tasks or not isinstance(tasks, list):
-        return {"error": "subphase.tasks must be a non-empty list"}
-
-    for i, task in enumerate(tasks):
-        if not isinstance(task, dict) or not task.get("title") or not isinstance(task.get("files"), list) or not task.get("agent"):
-            return {"error": f"task[{i}] must have title (string), files (list), and agent (string)"}
-
-    plan = json.loads(ws["plan_json"]) if ws["plan_json"] else {"description": "", "execution": []}
-    execution = plan.get("execution", [])
-
-    max_n = 0
-    for item in execution:
-        m = re.match(r'^3\.(\d+)$', item.get("id", ""))
-        if m:
-            max_n = max(max_n, int(m.group(1)))
-
-    new_n = max_n + 1
-    new_item = {"id": f"3.{new_n}", "name": name, "tasks": tasks}
-    execution.append(new_item)
-    plan["execution"] = execution
-
-    if diagrams and isinstance(diagrams, list):
-        if replace_diagrams:
-            plan["systemDiagram"] = diagrams
-        else:
-            existing = plan.get("systemDiagram", [])
-            if isinstance(existing, str):
-                existing = [{"title": "", "diagram": existing}] if existing else []
-            plan["systemDiagram"] = existing + diagrams
-
     db = get_db()
     try:
-        db.execute(
-            """UPDATE workspaces SET
-                prev_plan_json = plan_json,
-                prev_scope_json = scope_json,
-                prev_phase = phase,
-                prev_plan_status = plan_status,
-                prev_scope_status = scope_status
-            WHERE id = ?""",
-            (ws["id"],)
-        )
-
-        db.execute("UPDATE workspaces SET plan_json = ? WHERE id = ?", (json.dumps(plan), ws["id"]))
-
-        scope_json = json.loads(ws["scope_json"]) if ws["scope_json"] else {}
-        scope_json[f"3.{new_n}"] = scope
-        db.execute("UPDATE workspaces SET scope_json = ? WHERE id = ?", (json.dumps(scope_json), ws["id"]))
-
-        db.execute("UPDATE workspaces SET plan_status = 'pending', scope_status = 'pending' WHERE id = ?", (ws["id"],))
-        db.commit()
-
-        return {"ok": True, "new_subphase_id": f"3.{new_n}", "plan_status": "pending", "scope_status": "pending"}
+        result = plan_service.extend_plan(db, ws, subphase, scope, diagrams, replace_diagrams)
+        if "ok" in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -456,29 +337,14 @@ def workspace_restore_plan() -> dict:
 
     db = get_db()
     try:
-        # Swap current and prev (SQLite evaluates all RHS from original row before updating)
-        db.execute("""
-            UPDATE workspaces SET
-                plan_json = prev_plan_json,
-                scope_json = prev_scope_json,
-                phase = prev_phase,
-                plan_status = prev_plan_status,
-                scope_status = prev_scope_status,
-                prev_plan_json = plan_json,
-                prev_scope_json = scope_json,
-                prev_phase = phase,
-                prev_plan_status = plan_status,
-                prev_scope_status = scope_status
-            WHERE id = ?
-        """, (ws["id"],))
+        new_ws = plan_service.restore_plan(db, ws)
         db.commit()
 
-        ws2 = db.execute("SELECT phase, plan_status FROM workspaces WHERE id = ?", (ws["id"],)).fetchone()
         return {
             "restored": True,
-            "phase": ws2["phase"],
-            "plan_status": ws2["plan_status"],
-            "message": t("mcp.restorePlan.message", locale, phase=ws2["phase"]),
+            "phase": new_ws["phase"],
+            "plan_status": new_ws["plan_status"],
+            "message": t("mcp.restorePlan.message", locale, phase=new_ws["phase"]),
         }
     finally:
         db.close()
@@ -506,23 +372,14 @@ def workspace_post_discussion(topic: str, parent_id: int = 0, type: str = "gener
     locale = ws["locale"] or "en"
     db = get_db()
     try:
-        resolved_parent_id = parent_id if parent_id else None
-
-        if resolved_parent_id:
-            parent = db.execute(
-                "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
-                (resolved_parent_id, ws["id"])
-            ).fetchone()
-            if not parent:
-                return {"error": t("mcp.error.parentDiscussionNotFound", locale, id=resolved_parent_id)}
-
-        cursor = db.execute(
-            "INSERT INTO discussions (workspace_id, parent_id, text, author, type, status, created_at) "
-            "VALUES (?, ?, ?, 'agent', ?, 'open', ?)",
-            (ws["id"], resolved_parent_id, topic, type, datetime.now().isoformat())
+        result = discussion_service.post_discussion(
+            db, ws["id"], topic, author="agent",
+            disc_type=type, parent_id=parent_id if parent_id else None,
         )
+        if "error" in result:
+            return {"error": t("mcp.error.parentDiscussionNotFound", locale, id=result.get("parent_id", ""))}
         db.commit()
-        return {"ok": True, "discussion_id": cursor.lastrowid}
+        return {"ok": True, "discussion_id": result["id"]}
     finally:
         db.close()
 
@@ -590,54 +447,16 @@ def workspace_save_research(topic: str, findings: list, discussion_id: int = 0, 
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    locale = ws["locale"] or "en"
-    if not findings:
-        return {"error": t("mcp.error.noFindings", locale)}
-
-    # Enrich code proofs: read actual file to populate snippet text
-    working_dir = ws["working_dir"]
-
-    # Normalize proof file paths: resolve relative paths against cwd, then make relative to working_dir
-    cwd = os.getcwd()
-    for finding in findings:
-        proof = finding.get("proof", {})
-        file_ref = proof.get("file")
-        if not file_ref:
-            continue
-        # Resolve against cwd to get absolute path
-        abs_path = Path(cwd) / file_ref if not Path(file_ref).is_absolute() else Path(file_ref)
-        abs_path = abs_path.resolve()
-        # Make relative to working_dir if possible
-        try:
-            proof["file"] = str(abs_path.relative_to(Path(working_dir).resolve()))
-        except ValueError:
-            # File is outside the workspace — store absolute path
-            proof["file"] = str(abs_path)
-
-    for finding in findings:
-        proof = finding.get("proof", {})
-        if proof.get("type") == "code" and proof.get("snippet_start") and proof.get("snippet_end"):
-            file_path = Path(working_dir) / proof["file"]
-            if file_path.exists():
-                try:
-                    lines = file_path.read_text().splitlines()
-                    start = max(0, proof["snippet_start"] - 1)
-                    end = min(len(lines), proof["snippet_end"])
-                    proof["snippet"] = "\n".join(lines[start:end])
-                except Exception:
-                    logger.warning("Failed to read proof snippet from %s", proof.get("file"), exc_info=True)
-
     db = get_db()
     try:
-        resolved_discussion_id = discussion_id if discussion_id else None
-        resolved_summary = summary.strip() if summary and summary.strip() else None
-        cursor = db.execute(
-            "INSERT INTO research_entries (workspace_id, topic, summary, findings_json, discussion_id, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (ws["id"], topic, resolved_summary, json.dumps(findings), resolved_discussion_id, datetime.now().isoformat())
+        result = research_service.save_research(
+            db, ws, topic, findings,
+            discussion_id=discussion_id if discussion_id else None,
+            summary=summary,
         )
-        db.commit()
-        return {"ok": True, "research_id": cursor.lastrowid}
+        if "ok" in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -653,22 +472,7 @@ def workspace_list_research() -> list:
 
     db = get_db()
     try:
-        rows = db.execute(
-            "SELECT id, topic, summary, findings_json, proven, created_at "
-            "FROM research_entries WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        return [
-            {
-                "id": row["id"],
-                "topic": row["topic"],
-                "summary": row["summary"],
-                "findings_count": len(json.loads(row["findings_json"])),
-                "proven": row["proven"],
-                "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
+        return research_service.list_research(db, ws["id"])
     finally:
         db.close()
 
@@ -687,24 +491,7 @@ def workspace_get_research(ids: list) -> list:
 
     db = get_db()
     try:
-        placeholders = ",".join("?" * len(ids))
-        rows = db.execute(
-            f"SELECT id, topic, summary, findings_json, proven, proven_notes, created_at "
-            f"FROM research_entries WHERE workspace_id = ? AND id IN ({placeholders}) ORDER BY id",
-            [ws["id"]] + list(ids)
-        ).fetchall()
-        return [
-            {
-                "id": row["id"],
-                "topic": row["topic"],
-                "summary": row["summary"],
-                "findings": json.loads(row["findings_json"]),
-                "proven": row["proven"],
-                "proven_notes": row["proven_notes"],
-                "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
+        return research_service.get_research(db, ws["id"], ids)
     finally:
         db.close()
 
@@ -723,19 +510,11 @@ def workspace_prove_research(id: int, proven: bool, notes: str = "") -> dict:
     locale = ws["locale"] or "en"
     db = get_db()
     try:
-        row = db.execute(
-            "SELECT id FROM research_entries WHERE id = ? AND workspace_id = ?",
-            (id, ws["id"])
-        ).fetchone()
-        if not row:
+        result = research_service.set_proven(db, id, ws["id"], proven, notes=notes)
+        if "error" in result:
             return {"error": t("mcp.error.researchEntryNotFound", locale, id=id)}
-
-        db.execute(
-            "UPDATE research_entries SET proven = ?, proven_notes = ? WHERE id = ?",
-            (1 if proven else -1, notes or None, id)
-        )
         db.commit()
-        return {"ok": True, "id": id, "proven": proven}
+        return result
     finally:
         db.close()
 
@@ -749,49 +528,9 @@ def workspace_get_comments(scope: str = "", unresolved_only: bool = True) -> lis
 
     db = get_db()
     try:
-        if scope:
-            query = (
-                "SELECT id, parent_id, scope, target, file_path, line_start, line_end, line_hash, "
-                "text, author, created_at, status, resolved_at, resolution "
-                "FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND parent_id IS NULL AND scope = ?"
-            )
-            params = [ws["id"], scope]
-        else:
-            query = (
-                "SELECT id, parent_id, scope, target, file_path, line_start, line_end, line_hash, "
-                "text, author, created_at, status, resolved_at, resolution "
-                "FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND parent_id IS NULL"
-            )
-            params = [ws["id"]]
-
-        if unresolved_only:
-            query += " AND status = 'open'"
-        query += " ORDER BY id"
-
-        rows = db.execute(query, params).fetchall()
-        comments = []
-        for row in rows:
-            comment = {
-                "id": row["id"],
-                "scope": row["scope"],
-                "target": row["target"],
-                "file_path": row["file_path"],
-                "line_start": row["line_start"],
-                "line_end": row["line_end"],
-                "text": row["text"],
-                "author": row["author"],
-                "created_at": row["created_at"],
-                "resolved": row["status"] == "resolved",
-                "resolution": row["resolution"],
-            }
-            replies = db.execute(
-                "SELECT id, text, author, created_at, status, resolved_at "
-                "FROM discussions WHERE parent_id = ? ORDER BY id",
-                (row["id"],)
-            ).fetchall()
-            comment["replies"] = [dict(r) for r in replies]
-            comments.append(comment)
-        return comments
+        return comment_service.get_comments(
+            db, ws["id"], scope=scope or None, unresolved_only=unresolved_only
+        )
     finally:
         db.close()
 
@@ -823,7 +562,6 @@ def workspace_post_comment(
 
     db = get_db()
     try:
-        resolved_parent_id = None
         if parent_id > 0:
             parent = db.execute(
                 "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
@@ -831,18 +569,14 @@ def workspace_post_comment(
             ).fetchone()
             if not parent:
                 return {"error": t("mcp.error.parentCommentNotFound", locale, id=parent_id)}
-            resolved_parent_id = parent_id
 
-        cursor = db.execute(
-            "INSERT INTO discussions "
-            "(workspace_id, parent_id, scope, target, file_path, line_start, line_end, "
-            "text, author, status, resolution, created_at) "
-            "VALUES (?, ?, 'review', ?, ?, ?, ?, ?, 'agent', 'open', 'open', ?)",
-            (ws["id"], resolved_parent_id, file_path.strip(), file_path.strip(),
-             line_start, line_end, text.strip(), datetime.now().isoformat())
+        result = comment_service.post_comment(
+            db, ws["id"], text=text.strip(), scope="review", author="agent",
+            target=file_path.strip(), file_path=file_path.strip(),
+            line_start=line_start, line_end=line_end,
         )
         db.commit()
-        return {"ok": True, "id": cursor.lastrowid}
+        return result
     finally:
         db.close()
 
@@ -861,22 +595,10 @@ def workspace_resolve_comment(comment_id: int) -> dict:
     locale = ws["locale"] or "en"
     db = get_db()
     try:
-        comment = db.execute(
-            "SELECT id, scope FROM discussions WHERE id = ? AND workspace_id = ? AND scope IS NOT NULL",
-            (comment_id, ws["id"])
-        ).fetchone()
-        if not comment:
-            return {"error": t("mcp.error.commentNotFound", locale, comment_id=comment_id)}
-
-        if comment["scope"] == "review":
-            return {"error": t("mcp.error.reviewScopeResolveBlocked", locale)}
-
-        db.execute(
-            "UPDATE discussions SET status = 'resolved', resolved_at = ? WHERE id = ?",
-            (datetime.now().isoformat(), comment_id)
-        )
-        db.commit()
-        return {"ok": True, "comment_id": comment_id, "resolved": True}
+        result = comment_service.resolve_comment(db, comment_id, ws["id"], block_review_scope=True, locale=locale)
+        if "ok" in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -913,16 +635,11 @@ def workspace_submit_review_issue(file_path: str, line_start: int, line_end: int
 
     db = get_db()
     try:
-        cursor = db.execute(
-            "INSERT INTO discussions "
-            "(workspace_id, scope, target, file_path, line_start, line_end, "
-            "text, author, status, resolution, created_at) "
-            "VALUES (?, 'review', ?, ?, ?, ?, ?, 'reviewer', 'open', 'open', ?)",
-            (ws["id"], file_path.strip(), file_path.strip(),
-             line_start, line_end, description.strip(), datetime.now().isoformat())
+        result = comment_service.submit_review_issue(
+            db, ws["id"], file_path, line_start, line_end, description, author="reviewer"
         )
         db.commit()
-        return {"ok": True, "id": cursor.lastrowid}
+        return result
     finally:
         db.close()
 
@@ -939,30 +656,9 @@ def workspace_get_review_issues(status: str = "") -> list:
 
     db = get_db()
     try:
-        query = (
-            "SELECT id, file_path, line_start, line_end, text, resolution, author, status, created_at "
-            "FROM discussions WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL"
+        return comment_service.get_review_issues(
+            db, ws["id"], resolution=status or None
         )
-        params = [ws["id"]]
-        if status:
-            query += " AND resolution = ?"
-            params.append(status)
-        query += " ORDER BY id"
-
-        rows = db.execute(query, params).fetchall()
-        return [
-            {
-                "id": row["id"],
-                "file_path": row["file_path"],
-                "line_start": row["line_start"],
-                "line_end": row["line_end"],
-                "description": row["text"],
-                "resolution": row["resolution"],
-                "author": row["author"],
-                "resolved": row["status"] == "resolved",
-            }
-            for row in rows
-        ]
     finally:
         db.close()
 
@@ -987,19 +683,12 @@ def workspace_resolve_review_issue(issue_id: int, resolution: str) -> dict:
 
     db = get_db()
     try:
-        row = db.execute(
-            "SELECT id FROM discussions WHERE id = ? AND workspace_id = ? AND scope = 'review'",
-            (issue_id, ws["id"])
-        ).fetchone()
-        if not row:
-            return {"error": t("mcp.error.reviewIssueNotFound", locale, issue_id=issue_id)}
-
-        db.execute(
-            "UPDATE discussions SET resolution = ? WHERE id = ?",
-            (resolution, issue_id)
+        result = comment_service.resolve_review_issue(
+            db, issue_id, ws["id"], resolution, locale=locale
         )
-        db.commit()
-        return {"ok": True, "issue_id": issue_id, "resolution": resolution}
+        if "ok" in result:
+            db.commit()
+        return result
     finally:
         db.close()
 
@@ -1038,10 +727,7 @@ def workspace_set_impact_analysis(
 
     db = get_db()
     try:
-        db.execute(
-            "UPDATE workspaces SET impact_analysis_json = ? WHERE id = ?",
-            (json.dumps(analysis), ws["id"])
-        )
+        progress_service.set_impact_analysis(db, ws["id"], analysis)
         db.commit()
         return {"ok": True}
     finally:
@@ -1077,29 +763,13 @@ def workspace_update_progress(phase: str, summary: str, details: dict = None) ->
     if not ws:
         return {"error": t("mcp.error.noWorkspace")}
 
-    now = datetime.now().isoformat()
     details_json = json.dumps(details) if details else None
 
     db = get_db()
     try:
-        existing = db.execute(
-            "SELECT id FROM progress_entries WHERE workspace_id = ? AND phase = ?",
-            (ws["id"], phase)
-        ).fetchone()
-
-        if existing:
-            db.execute(
-                "UPDATE progress_entries SET summary = ?, details_json = ?, updated_at = ? WHERE id = ?",
-                (summary, details_json, now, existing["id"])
-            )
-        else:
-            db.execute(
-                "INSERT INTO progress_entries (workspace_id, phase, summary, details_json, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (ws["id"], phase, summary, details_json, now, now)
-            )
+        result = progress_service.update_progress(db, ws["id"], phase, summary, details_json)
         db.commit()
-        return {"ok": True, "phase": phase}
+        return result
     finally:
         db.close()
 
@@ -1117,29 +787,7 @@ def workspace_get_progress(phase: str = "") -> dict:
 
     db = get_db()
     try:
-        if phase:
-            rows = db.execute(
-                "SELECT phase, summary, details_json, created_at, updated_at "
-                "FROM progress_entries WHERE workspace_id = ? AND phase = ?",
-                (ws["id"], phase)
-            ).fetchall()
-        else:
-            rows = db.execute(
-                "SELECT phase, summary, details_json, created_at, updated_at "
-                "FROM progress_entries WHERE workspace_id = ? ORDER BY id",
-                (ws["id"],)
-            ).fetchall()
-
-        progress = {}
-        for row in rows:
-            entry = {"summary": row["summary"], "created_at": row["created_at"], "updated_at": row["updated_at"]}
-            if row["details_json"]:
-                try:
-                    entry["details"] = json.loads(row["details_json"])
-                except json.JSONDecodeError:
-                    pass
-            progress[row["phase"]] = entry
-        return progress
+        return progress_service.get_progress(db, ws["id"], phase_key=phase or None)
     finally:
         db.close()
 
@@ -1164,49 +812,13 @@ def workspace_propose_criteria(type: str, description: str, details_json: str = 
     if type not in VALID_CRITERIA_TYPES:
         return {"error": t("mcp.error.invalidCriteriaType", locale, type=type, valid_types=", ".join(VALID_CRITERIA_TYPES))}
 
-    warnings = []
-    if details_json:
-        try:
-            parsed_details = json.loads(details_json)
-        except json.JSONDecodeError as e:
-            return {"error": f"details_json is not valid JSON: {e}"}
-        if not isinstance(parsed_details, dict):
-            return {"error": f"details_json must be a JSON object, got {parsed_details.__class__.__name__}"}
-        if type in ("unit_test", "integration_test") and "file" not in parsed_details:
-            warnings.append("details_json is missing recommended 'file' key for unit_test/integration_test")
-        if type == "bdd_scenario" and "file" not in parsed_details:
-            warnings.append("details_json is missing recommended 'file' key for bdd_scenario")
-
     db = get_db()
     try:
-        cursor = db.execute(
-            "INSERT INTO acceptance_criteria "
-            "(workspace_id, type, description, details_json, source, status, created_at) "
-            "VALUES (?, ?, ?, ?, 'agent', 'proposed', ?)",
-            (ws["id"], type, description, details_json or None, datetime.now().isoformat())
+        result = criteria_service.propose_criterion(
+            db, ws["id"], type, description, details_json=details_json or None, source="agent"
         )
-        db.commit()
-        criterion_id = cursor.lastrowid
-        row = db.execute(
-            "SELECT id, type, description, details_json, source, status, validated, validation_message "
-            "FROM acceptance_criteria WHERE id = ?",
-            (criterion_id,)
-        ).fetchone()
-        result = {
-            "ok": True,
-            "criterion": {
-                "id": row["id"],
-                "type": row["type"],
-                "description": row["description"],
-                "details": _safe_parse_json(row["details_json"]),
-                "source": row["source"],
-                "status": row["status"],
-                "validated": row["validated"],
-                "validation_message": row["validation_message"],
-            }
-        }
-        if warnings:
-            result["warnings"] = warnings
+        if "ok" in result:
+            db.commit()
         return result
     finally:
         db.close()
@@ -1226,41 +838,9 @@ def workspace_get_criteria(status: str = "", type: str = "") -> list:
 
     db = get_db()
     try:
-        query = (
-            "SELECT id, type, description, details_json, source, status, validated, validation_message "
-            "FROM acceptance_criteria WHERE workspace_id = ?"
+        return criteria_service.get_criteria(
+            db, ws["id"], status=status or None, criterion_type=type or None
         )
-        params = [ws["id"]]
-        if status:
-            query += " AND status = ?"
-            params.append(status)
-        if type:
-            query += " AND type = ?"
-            params.append(type)
-        query += " ORDER BY id"
-
-        rows = db.execute(query, params).fetchall()
-        def _parse_details(raw):
-            if not raw:
-                return None
-            try:
-                return json.loads(raw)
-            except json.JSONDecodeError:
-                return None
-
-        return [
-            {
-                "id": row["id"],
-                "type": row["type"],
-                "description": row["description"],
-                "details": _parse_details(row["details_json"]),
-                "source": row["source"],
-                "status": row["status"],
-                "validated": row["validated"],
-                "validation_message": row["validation_message"],
-            }
-            for row in rows
-        ]
     finally:
         db.close()
 
@@ -1284,70 +864,20 @@ def workspace_update_criteria(criterion_id: int, description: str = "", details_
     locale = ws["locale"] or "en"
     db = get_db()
     try:
-        row = db.execute(
-            "SELECT * FROM acceptance_criteria WHERE id = ? AND workspace_id = ?",
-            (criterion_id, ws["id"])
-        ).fetchone()
-        if not row:
-            return {"error": t("mcp.error.criterionNotFound", locale, criterion_id=criterion_id)}
-
-        if row["status"] == "accepted":
-            return {"error": t("mcp.error.cannotUpdateAcceptedCriteria", locale)}
-
-        reset_status = row["status"] == "rejected"
-
-        warnings = []
-        if details_json:
-            try:
-                parsed_details = json.loads(details_json)
-            except json.JSONDecodeError as e:
-                return {"error": f"details_json is not valid JSON: {e}"}
-            if not isinstance(parsed_details, dict):
-                return {"error": f"details_json must be a JSON object, got {type(parsed_details).__name__}"}
-            criterion_type = row["type"]
-            if criterion_type in ("unit_test", "integration_test") and "file" not in parsed_details:
-                warnings.append("details_json is missing recommended 'file' key for unit_test/integration_test")
-            if criterion_type == "bdd_scenario" and "file" not in parsed_details:
-                warnings.append("details_json is missing recommended 'file' key for bdd_scenario")
-
-        updates = []
-        params = []
-        if description:
-            updates.append("description = ?")
-            params.append(description)
-        if details_json:
-            updates.append("details_json = ?")
-            params.append(details_json)
-
-        if not updates:
-            return {"error": t("mcp.error.nothingToUpdate", locale)}
-
-        params.append(criterion_id)
-        db.execute(
-            f"UPDATE acceptance_criteria SET {', '.join(updates)} WHERE id = ?",
-            params
+        result = criteria_service.update_criterion(
+            db, criterion_id, ws["id"],
+            description=description or None, details_json=details_json or None
         )
-
-        if reset_status:
-            db.execute("UPDATE acceptance_criteria SET status = 'proposed' WHERE id = ?", (criterion_id,))
-
+        if "error" in result:
+            error_key = result["error"]
+            if error_key == "criterion_not_found":
+                return {"error": t("mcp.error.criterionNotFound", locale, criterion_id=criterion_id)}
+            if error_key == "cannot_update_accepted":
+                return {"error": t("mcp.error.cannotUpdateAcceptedCriteria", locale)}
+            if error_key == "nothing_to_update":
+                return {"error": t("mcp.error.nothingToUpdate", locale)}
+            return result
         db.commit()
-
-        updated = db.execute(
-            "SELECT * FROM acceptance_criteria WHERE id = ?", (criterion_id,)
-        ).fetchone()
-        result = {"ok": True, "id": criterion_id}
-        if reset_status:
-            result["status_reset"] = "proposed"
-        if warnings:
-            result["warnings"] = warnings
-        result["criterion"] = {
-            "id": updated["id"],
-            "type": updated["type"],
-            "description": updated["description"],
-            "details": _safe_parse_json(updated["details_json"]),
-            "status": updated["status"],
-        }
         return result
     finally:
         db.close()

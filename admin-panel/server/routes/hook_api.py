@@ -10,13 +10,12 @@ import re
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from helpers import match_scope_pattern
+import scope_service
 
 bp = Blueprint("hook_api", __name__)
 
 _EDIT_PHASE_RE = re.compile(r'^3\.\d+\.[02]$|^4\.1$')
 _COMMIT_PHASE_RE = re.compile(r'^3\.\d+\.4$|^4\.1$|^5$')
-_PHASE_3_SUB_RE = re.compile(r'^3\.\d+\.\d+$')
 
 _EDIT_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit"})
 
@@ -69,32 +68,6 @@ def _is_commit_phase(phase):
     return bool(_COMMIT_PHASE_RE.match(phase))
 
 
-def _get_scope_patterns(ws):
-    """Extract scope patterns for the current phase."""
-    scope_json = ws["scope_json"]
-    if not scope_json or scope_json in ("{}", "null"):
-        return []
-
-    try:
-        scope_map = json.loads(scope_json)
-    except json.JSONDecodeError:
-        return []
-
-    phase = ws["phase"]
-    if _PHASE_3_SUB_RE.match(phase):
-        parts = phase.split(".")
-        sub_key = parts[0] + "." + parts[1]
-        phase_scope = scope_map.get(sub_key, {})
-        return phase_scope.get("must", []) + phase_scope.get("may", [])
-
-    all_patterns = []
-    for ps in scope_map.values():
-        if isinstance(ps, dict):
-            all_patterns.extend(ps.get("must", []))
-            all_patterns.extend(ps.get("may", []))
-    return all_patterns
-
-
 def _file_matches_scope(file_path, ws):
     """Check if a file path matches the workspace scope patterns."""
     ws_dir = os.path.abspath(ws["working_dir"])
@@ -113,17 +86,26 @@ def _file_matches_scope(file_path, ws):
         return False, ["(workspace directory only)"]
 
     # Scope patterns for files inside workspace
-    patterns = _get_scope_patterns(ws)
-    if not patterns:
+    scope_json = ws["scope_json"]
+    if not scope_json or scope_json in ("{}", "null"):
+        return True, []
+
+    try:
+        scope_map = json.loads(scope_json)
+    except json.JSONDecodeError:
+        return True, []
+
+    phase = ws["phase"]
+    must_patterns, may_patterns = scope_service.get_scope_patterns(scope_map, phase)
+    all_patterns = must_patterns + may_patterns
+    if not all_patterns:
         return True, []
 
     rel_path = abs_file[len(ws_dir) + 1:] if abs_file.startswith(ws_dir + "/") else file_path
 
-    for pattern in patterns:
-        match_pattern = pattern.rstrip("/") + "/**" if pattern.endswith("/") else pattern
-        if match_scope_pattern(rel_path, match_pattern):
-            return True, patterns
-    return False, patterns
+    if scope_service.match_scope_patterns(rel_path, scope_map, phase):
+        return True, all_patterns
+    return False, all_patterns
 
 
 def _is_claude_metadata(file_path):
