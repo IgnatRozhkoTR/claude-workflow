@@ -123,7 +123,7 @@ function apiSetScope(projectId, branch, scope) {
 }
 
 function apiSetPhase(projectId, branch, phase) {
-  return apiPut('/api/ws/' + projectId + '/' + encodeURIComponent(branch) + '/phase', { phase: phase });
+  return apiPut('/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/phase', { phase: phase });
 }
 
 function apiAddComment(projectId, branch, scope, target, text, filePath, lineStart, lineEnd, lHash) {

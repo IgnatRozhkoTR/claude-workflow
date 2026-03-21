@@ -1,7 +1,7 @@
 ---
 name: junior-backend-engineer
 description: Simple backend implementation with clear instructions. Adding fields/methods, straightforward methods following patterns, DTOs/mappers, simple validation. Up to 3 files with clear patterns. NOT for multi-layer changes, call chain propagation, or business logic with edge cases.
-tools: Glob, Grep, Read, Edit, MultiEdit
+tools: Bash, Glob, Grep, Read, Edit, MultiEdit
 model: haiku
 color: blue
 ---

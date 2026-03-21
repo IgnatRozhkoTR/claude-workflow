@@ -55,7 +55,7 @@ def update_context(project_id, branch):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         updates = []
         params = []
         if "ticket_name" in body:
@@ -92,7 +92,7 @@ def add_discussion(project_id, branch):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         topic = body.get("topic") or body.get("text")
         if not topic:
             return jsonify({"error": t("api.error.topicRequired")}), 400
@@ -130,7 +130,7 @@ def update_discussion(project_id, branch, discussion_id):
         if not row:
             return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         updates = []
         params = []
         if "text" in body:
@@ -168,7 +168,7 @@ def reply_to_discussion(project_id, branch, discussion_id):
         if not parent:
             return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         text = body.get("text", "").strip()
         if not text:
             return jsonify({"error": t("api.error.textRequired")}), 400

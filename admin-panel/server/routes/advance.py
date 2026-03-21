@@ -1,4 +1,5 @@
 """Phase advancement routes: approve and reject user gates."""
+import logging
 from flask import Blueprint, jsonify, request
 
 from advance_service import approve_gate, reject_gate
@@ -6,6 +7,8 @@ from db import get_db
 from helpers import find_workspace
 from i18n import t
 from terminal import session_name, session_exists, send_keys
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("advance", __name__)
 
@@ -44,7 +47,7 @@ def approve(project_id, branch):
                     msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
                 send_keys(tmux_name, msg)
         except Exception:
-            pass
+            logger.warning("Failed to send tmux approval notification", exc_info=True)
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
 
 
@@ -82,5 +85,5 @@ def reject(project_id, branch):
                     msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
                 send_keys(tmux_name, msg)
         except Exception:
-            pass
+            logger.warning("Failed to send tmux rejection notification", exc_info=True)
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)

@@ -352,7 +352,7 @@
   border-radius: 6px;
   padding: 8px 10px;
   margin-bottom: 8px;
-  background: var(--bg-card);
+  background: var(--bg-raised);
 }
 .review-thread-resolved {
   opacity: 0.6;

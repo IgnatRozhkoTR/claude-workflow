@@ -199,7 +199,7 @@ function renderExplorerContent(path, lines) {
   headerHtml += '<span class="explorer-line-count">' + lines.length + ' lines</span></div>';
 
   if (isMd && typeof marked !== 'undefined' && explorerState.mdMode === 'preview') {
-    var parsed = marked.parse(lines.join('\n'));
+    var parsed = DOMPurify.sanitize(marked.parse(lines.join('\n')));
     var tmp = document.createElement('div');
     tmp.innerHTML = parsed;
     tmp.querySelectorAll('code').forEach(function(el) {

@@ -322,7 +322,7 @@ def create_workspace(project_id):
     finally:
         db.close()
 
-    body = request.json
+    body = request.get_json(silent=True) or {}
     branch = body.get("branch", "").strip()
     source = body.get("source", "develop").strip()
     use_worktree = body.get("worktree", True)

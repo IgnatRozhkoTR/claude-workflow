@@ -92,7 +92,7 @@ async function setScopeStatus(status) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/scope-status', {
+    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/scope-status', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({status: status})
@@ -159,7 +159,7 @@ async function setPlanStatus(status) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/plan-status', {
+    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/plan-status', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({status: status})

@@ -1,9 +1,8 @@
 import sqlite3, json
 from datetime import datetime
+from db import DB_PATH
 
-DB_PATH = '/Users/ignatrozhko/.claude/admin-panel/server/admin-panel.db'
-
-db = sqlite3.connect(DB_PATH)
+db = sqlite3.connect(str(DB_PATH))
 db.row_factory = sqlite3.Row
 db.execute("PRAGMA foreign_keys = ON")
 

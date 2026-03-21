@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from flask import Flask
+from flask import Flask, jsonify
 from db import init_db
 from routes import register_blueprints
 
@@ -14,6 +14,15 @@ def create_app():
     templates_dir = Path(__file__).resolve().parent.parent / "templates"
     app = Flask(__name__, static_folder=None, template_folder=str(templates_dir))
     register_blueprints(app)
+
+    @app.errorhandler(404)
+    def handle_not_found(e):
+        return jsonify({"error": "Not found"}), 404
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        return jsonify({"error": str(e)}), 500
+
     return app
 
 

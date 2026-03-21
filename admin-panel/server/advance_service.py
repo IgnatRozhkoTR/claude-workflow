@@ -4,11 +4,14 @@ All domain logic for phase advancement lives here. Route handlers in routes/adva
 are thin wrappers that delegate to this module.
 """
 import json
+import logging
 import re
 import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from criteria_validators import validate_all
 from db import get_db
@@ -690,7 +693,7 @@ def _notify_yolo_approve(ws, phase):
         if session_exists(name):
             send_keys(name, f"[YOLO] Auto-approved phase {phase}. Proceeding.")
     except Exception:
-        pass
+        logger.warning("Failed to send YOLO auto-approve notification", exc_info=True)
 
 
 def perform_advance(ws, project_path, body=None):

@@ -1,7 +1,10 @@
 """Tmux session management for browser-based terminal access."""
+import logging
 import subprocess
 import re
 import shutil
+
+logger = logging.getLogger(__name__)
 
 
 def tmux_available():
@@ -109,6 +112,7 @@ def list_sessions():
             })
         return sessions
     except Exception:
+        logger.warning("Failed to list tmux sessions", exc_info=True)
         return []
 
 
@@ -127,6 +131,7 @@ def get_session_command(name):
                 return line
         return lines[0] if lines else ''
     except Exception:
+        logger.warning("Failed to get tmux session command", exc_info=True)
         return ''
 
 

@@ -1,5 +1,6 @@
 """Database connection and schema."""
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / "admin-panel.db"
@@ -10,6 +11,16 @@ def get_db():
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
     return db
+
+
+@contextmanager
+def get_db_ctx():
+    """Context manager for DB connections: ``with get_db_ctx() as db:``."""
+    db = get_db()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def init_db():

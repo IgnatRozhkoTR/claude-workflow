@@ -155,23 +155,23 @@ function showTerminalDropdown(type, btn) {
   }, 10);
 }
 
-function doStart(mode) {
+function doTerminalAction(endpoint, btnId, mode) {
   document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
 
   var ctx = getWorkspaceContext();
   if (!ctx) return;
 
-  var btn = document.getElementById('startBtn');
+  var btn = document.getElementById(btnId);
   if (btn) btn.disabled = true;
 
   var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
   var channelsValue = localStorage.getItem('channels_value') || '';
-  var startBody = {};
+  var body = {};
   if (channelsEnabled && channelsValue) {
-    startBody.channels = channelsValue;
+    body.channels = channelsValue;
   }
 
-  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/start', startBody)
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/' + endpoint, body)
     .then(function(result) {
       if (mode === 'split') {
         var container = document.getElementById('splitContainer');
@@ -198,55 +198,16 @@ function doStart(mode) {
     })
     .catch(function(e) {
       if (btn) btn.disabled = false;
-      showToast('Start failed: ' + e.message);
+      showToast(endpoint.charAt(0).toUpperCase() + endpoint.slice(1) + ' failed: ' + e.message);
     });
 }
 
+function doStart(mode) {
+  doTerminalAction('start', 'startBtn', mode);
+}
+
 function doResume(mode) {
-  document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
-
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  var btn = document.getElementById('resumeBtn');
-  if (btn) btn.disabled = true;
-
-  var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
-  var channelsValue = localStorage.getItem('channels_value') || '';
-  var resumeBody = {};
-  if (channelsEnabled && channelsValue) {
-    resumeBody.channels = channelsValue;
-  }
-
-  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/resume', resumeBody)
-    .then(function(result) {
-      if (mode === 'split') {
-        var container = document.getElementById('splitContainer');
-        if (container && !container.classList.contains('split-active')) {
-          toggleSplitTerminal();
-        } else if (container && container.classList.contains('split-active')) {
-          connectSplitTerminal();
-        }
-      } else {
-        switchTab('terminal');
-        setTimeout(function() { connectTerminal(); }, 500);
-      }
-
-      if (typeof loadTerminalSessions === 'function') loadTerminalSessions();
-
-      safeCopyToClipboard(result.attach_command).then(function() {
-        if (btn) {
-          var original = btn.textContent;
-          btn.textContent = t('actions.copied');
-          btn.disabled = false;
-          setTimeout(function() { btn.textContent = original; }, 1500);
-        }
-      });
-    })
-    .catch(function(e) {
-      if (btn) btn.disabled = false;
-      showToast('Resume failed: ' + e.message);
-    });
+  doTerminalAction('resume', 'resumeBtn', mode);
 }
 
 function doNotify(type) {

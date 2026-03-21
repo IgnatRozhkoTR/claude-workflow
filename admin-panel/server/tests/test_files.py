@@ -46,15 +46,23 @@ def test_read_file_path_traversal(client, workspace):
 
 
 def test_read_file_absolute_path(client, workspace):
-    """Read a file using absolute path (for research references to other projects)."""
+    """Read a file using absolute path within the workspace working_dir."""
+    abs_file = Path(workspace["working_dir"]) / "absolute_test.py"
+    abs_file.write_text("external_code = True\n")
+    r = client.get(f"/api/ws/test-project/feature/test/file?path={abs_file}&absolute=true")
+    assert r.status_code == 200
+    assert "external_code" in r.json["lines"][0]
+
+
+def test_read_file_absolute_path_outside_workspace(client, workspace):
+    """Absolute path outside workspace working_dir is blocked."""
     import tempfile
     fd, temp_path = tempfile.mkstemp(suffix=".py")
     try:
-        os.write(fd, b"external_code = True\n")
+        os.write(fd, b"secret = True\n")
         os.close(fd)
         r = client.get(f"/api/ws/test-project/feature/test/file?path={temp_path}&absolute=true")
-        assert r.status_code == 200
-        assert "external_code" in r.json["lines"][0]
+        assert r.status_code == 403
     finally:
         os.unlink(temp_path)
 

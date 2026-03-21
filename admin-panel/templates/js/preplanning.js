@@ -106,7 +106,7 @@ function renderPPImpactAnalysis() {
         '<span>' + s.label + '</span>' +
         '<button class="pp-comment-btn" onclick="togglePPInlineComment(this, \'impact\', \'' + s.key + '\')" title="' + t('comments.addComment') + '">\u{1F4AC}</button>' +
       '</div>' +
-      '<div class="pp-impact-text">' + (typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text)) + '</div>';
+      '<div class="pp-impact-text">' + (typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(text)) : escapeHtml(text)) + '</div>';
     container.appendChild(section);
   });
 

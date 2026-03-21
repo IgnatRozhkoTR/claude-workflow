@@ -218,7 +218,7 @@ async function renderSystemDiagram() {
 // ═══════════════════════════════════════════════
 
 function getGroupStatus(group) {
-  const done = group.tasks.filter(t => t.status === 'done').length;
+  const done = group.tasks.filter(task => task.status === 'done').length;
   const total = group.tasks.length;
   if (done === total) return 'all-done';
   if (done > 0) return 'partial';
@@ -580,7 +580,7 @@ function renderPlan() {
 
   items.forEach(function(item, itemIndex) {
     var tasks = item.tasks || [];
-    var done = tasks.filter(function(t) { return t.status === 'done'; }).length;
+    var done = tasks.filter(function(task) { return task.status === 'done'; }).length;
     var total = tasks.length;
 
     var groupDiv = document.createElement('div');

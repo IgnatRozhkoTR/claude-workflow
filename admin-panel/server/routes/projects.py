@@ -27,7 +27,7 @@ def list_projects():
 
 @bp.route("/api/projects", methods=["POST"])
 def register_project():
-    body = request.json
+    body = request.get_json(silent=True) or {}
     path = body.get("path", "").strip()
     name = body.get("name", "").strip()
 

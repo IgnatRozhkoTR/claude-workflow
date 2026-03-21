@@ -369,7 +369,9 @@ async function refreshComments() {
   if (!ctx) return;
   var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments?scope=review');
   var data = await resp.json();
-  COMMENTS = {};
+  Object.keys(COMMENTS).forEach(function(key) {
+    if (key.startsWith('review:')) delete COMMENTS[key];
+  });
   (data.comments || []).forEach(function(c) {
     var key = 'review:' + c.file_path;
     if (!COMMENTS[key]) COMMENTS[key] = [];

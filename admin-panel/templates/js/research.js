@@ -189,7 +189,7 @@ async function showFilePreview(filePath, startLine, endLine) {
       var md = lines.join('\n');
       var rendered = document.createElement('div');
       rendered.className = 'file-preview-markdown';
-      rendered.innerHTML = typeof marked !== 'undefined' ? marked.parse(escapeHtml(md)) : escapeHtml(md);
+      rendered.innerHTML = typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(md)) : escapeHtml(md);
       bodyEl.innerHTML = '';
       bodyEl.appendChild(rendered);
       // Highlight code blocks inside rendered markdown
@@ -285,7 +285,7 @@ async function toggleResearchProven(entryId, proven, btn) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/research/' + entryId + '/prove', {
+    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId + '/prove', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({proven: proven})
@@ -305,7 +305,7 @@ async function deleteResearch(entryId) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + ctx.projectId + '/' + ctx.branch + '/research/' + entryId, {
+    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId, {
       method: 'DELETE'
     });
     if (resp.ok) {

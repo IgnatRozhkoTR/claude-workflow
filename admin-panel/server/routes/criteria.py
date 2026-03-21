@@ -61,7 +61,7 @@ def create_criterion(project_id, branch):
         if not ws:
             return jsonify({"error": t("api.error.workspaceNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         criterion_type = body.get("type")
         description = body.get("description")
 
@@ -100,7 +100,7 @@ def update_criterion(project_id, branch, criterion_id):
         if not row:
             return jsonify({"error": t("api.error.criterionNotFound")}), 404
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         new_status = body.get("status")
         if not new_status:
             return jsonify({"error": t("api.error.statusRequired")}), 400
@@ -157,7 +157,7 @@ def validate_criterion_manual(project_id, branch, criterion_id):
         if row["type"] != "custom":
             return jsonify({"error": t("api.error.onlyCustomCriteriaManualValidation")}), 400
 
-        body = request.json
+        body = request.get_json(silent=True) or {}
         passed = body.get("passed")
         if passed is None:
             return jsonify({"error": t("api.error.passedRequired")}), 400

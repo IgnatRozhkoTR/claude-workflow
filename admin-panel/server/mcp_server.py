@@ -1,8 +1,11 @@
 """MCP server for workspace state management (stdio transport)."""
 import json
+import logging
 import os
 import re
 import sys
+
+logger = logging.getLogger(__name__)
 from datetime import datetime
 from pathlib import Path
 
@@ -121,7 +124,8 @@ def workspace_get_state() -> dict:
         ).fetchone()["cnt"]
 
         review_rows = db.execute(
-            "SELECT resolution, COUNT(*) as cnt FROM review_issues WHERE workspace_id = ? GROUP BY resolution",
+            "SELECT resolution, COUNT(*) as cnt FROM discussions "
+            "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL GROUP BY resolution",
             (ws["id"],)
         ).fetchall()
         review_issues_summary = {row["resolution"]: row["cnt"] for row in review_rows}
@@ -621,7 +625,7 @@ def workspace_save_research(topic: str, findings: list, discussion_id: int = 0, 
                     end = min(len(lines), proof["snippet_end"])
                     proof["snippet"] = "\n".join(lines[start:end])
                 except Exception:
-                    pass
+                    logger.warning("Failed to read proof snippet from %s", proof.get("file"), exc_info=True)
 
     db = get_db()
     try:

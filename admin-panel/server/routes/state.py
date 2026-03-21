@@ -1,9 +1,12 @@
 """Workspace state routes: phase, scope, plan, progress."""
 import json
+import logging
 import re
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
+
+logger = logging.getLogger(__name__)
 
 from db import get_db
 from helpers import compute_phase_sequence, find_workspace, get_comments_for_workspace
@@ -237,7 +240,7 @@ def set_scope_status(project_id, branch):
                     else:
                         send_keys(tmux_name, 'Scope has been rejected. Check comments for feedback.')
             except Exception:
-                pass
+                logger.warning("Failed to send tmux notification", exc_info=True)
 
         return jsonify({"ok": True, "scope_status": status})
     finally:
@@ -268,7 +271,7 @@ def set_plan_status(project_id, branch):
                     else:
                         send_keys(tmux_name, 'Plan has been rejected. Check comments for feedback.')
             except Exception:
-                pass
+                logger.warning("Failed to send tmux notification", exc_info=True)
 
         return jsonify({"ok": True, "plan_status": status})
     finally:

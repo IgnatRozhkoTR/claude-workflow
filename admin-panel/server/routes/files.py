@@ -10,6 +10,15 @@ from i18n import t
 bp = Blueprint("files", __name__)
 
 
+def _is_within(path: Path, root: Path) -> bool:
+    """Return True if path is within root (both resolved)."""
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 @bp.route("/api/ws/<project_id>/<path:branch>/file", methods=["GET"])
 def read_file(project_id, branch):
     db = get_db()
@@ -35,7 +44,13 @@ def read_file(project_id, branch):
         return jsonify({"error": t("api.error.pathRequired")}), 400
 
     if absolute:
-        file_path = Path(rel_path)
+        file_path = Path(rel_path).resolve()
+        allowed_roots = [Path(working_dir).resolve()]
+        allowed_external = ws["allowed_external_paths"] if ws["allowed_external_paths"] else ""
+        for ext_path in (p.strip() for p in allowed_external.split(",") if p.strip()):
+            allowed_roots.append(Path(ext_path).resolve())
+        if not any(_is_within(file_path, root) for root in allowed_roots):
+            return jsonify({"error": t("api.error.pathOutsideWorkingDir")}), 403
     else:
         file_path = Path(working_dir) / rel_path
         try:
