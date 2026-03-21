@@ -313,6 +313,173 @@ def list_workspaces(project_id):
         db.close()
 
 
+def _setup_worktree_workspace(project_path, branch, sanitized, source_ref):
+    """Create a git worktree for the workspace branch.
+
+    Returns (working_dir, error_response) where error_response is None on success.
+    """
+    wt_path = Path(project_path) / ".claude" / "worktrees" / sanitized
+    if wt_path.exists():
+        run_git(project_path, "worktree", "remove", str(wt_path), "--force")
+        run_git(project_path, "branch", "-D", branch)
+
+    ok_head, current_branch, _ = run_git(project_path, "symbolic-ref", "--short", "HEAD")
+    if ok_head and current_branch.strip() == branch:
+        return None, (jsonify({"error": t("api.error.cannotCreateWorktreeCheckedOut", branch=branch)}), 409)
+
+    ok_branch, _, _ = run_git(project_path, "rev-parse", "--verify", f"refs/heads/{branch}")
+    if ok_branch:
+        ok, stdout, stderr = run_git(project_path, "worktree", "add", str(wt_path), branch)
+    else:
+        ok, stdout, stderr = run_git(project_path, "worktree", "add", str(wt_path), "-b", branch, source_ref)
+
+    if not ok:
+        return None, (jsonify({"error": t("api.error.gitWorktreeAddFailed"), "details": stderr}), 409)
+
+    return str(wt_path), None
+
+
+def _setup_checkout_workspace(project_path, branch, source_ref):
+    """Checkout (or create) a branch in the main repo for non-worktree mode.
+
+    Returns (working_dir, error_response) where error_response is None on success.
+    """
+    ok_exists, _, _ = run_git(project_path, "rev-parse", "--verify", f"refs/heads/{branch}")
+    if ok_exists:
+        ok, _, stderr = run_git(project_path, "checkout", branch)
+    else:
+        ok, _, stderr = run_git(project_path, "checkout", "-b", branch, source_ref)
+
+    if not ok:
+        return None, (jsonify({"error": t("api.error.gitCheckoutFailed"), "details": stderr}), 409)
+
+    return project_path, None
+
+
+def _install_worktree_configs(project_path, wt_path):
+    """Copy .claude/ directory into worktree, symlink shared configs, CLAUDE.md, and .mcp.json."""
+    wt_path = Path(wt_path)
+    src_claude = Path(project_path) / ".claude"
+    dst_claude = wt_path / ".claude"
+
+    if src_claude.exists():
+        dst_claude.mkdir(parents=True, exist_ok=True)
+        for item in src_claude.iterdir():
+            if item.name == "worktrees":
+                continue
+            dst_item = dst_claude / item.name
+            if dst_item.exists() or dst_item.is_symlink():
+                if dst_item.is_dir() and not dst_item.is_symlink():
+                    shutil.rmtree(dst_item)
+                else:
+                    dst_item.unlink()
+            if item.is_dir():
+                shutil.copytree(item, dst_item, symlinks=True)
+            else:
+                shutil.copy2(item, dst_item)
+
+        for rel in _SYMLINK_TO_PROJECT:
+            dst = dst_claude / rel
+            src = src_claude / rel
+            if src.exists():
+                if dst.exists() or dst.is_symlink():
+                    if dst.is_dir() and not dst.is_symlink():
+                        shutil.rmtree(dst)
+                    else:
+                        dst.unlink()
+                dst.symlink_to(src)
+
+    _write_workspace_settings(dst_claude / "settings.json")
+
+    src_claude_md = Path(project_path) / "CLAUDE.md"
+    dst_claude_md = wt_path / "CLAUDE.md"
+    if src_claude_md.exists():
+        if dst_claude_md.exists() or dst_claude_md.is_symlink():
+            dst_claude_md.unlink()
+        dst_claude_md.symlink_to(src_claude_md)
+
+    _ensure_project_mcp(project_path)
+    src_mcp = Path(project_path) / ".mcp.json"
+    dst_mcp = wt_path / ".mcp.json"
+    if src_mcp.exists():
+        if dst_mcp.exists() or dst_mcp.is_symlink():
+            dst_mcp.unlink()
+        dst_mcp.symlink_to(src_mcp)
+
+    _install_git_hooks(dst_claude, str(wt_path))
+
+
+def _install_checkout_configs(project_path):
+    """Write workspace settings and ensure MCP config for non-worktree mode."""
+    _backup_project_files(project_path)
+    settings_path = Path(project_path) / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_workspace_settings(settings_path)
+    _ensure_project_mcp(project_path)
+
+
+def _ensure_project_mcp(project_path):
+    """Ensure .mcp.json exists at project level with funnel config and workspace server."""
+    mcp_path = Path(project_path) / ".mcp.json"
+    if not mcp_path.exists():
+        system_mcp = Path.home() / ".claude" / ".mcp.json"
+        if system_mcp.exists():
+            shutil.copy2(system_mcp, mcp_path)
+        else:
+            _generate_mcp_from_remote(project_path)
+    _ensure_funnel_config(project_path)
+    _ensure_workspace_mcp(mcp_path)
+
+
+def _install_git_hooks(dst_claude, working_dir):
+    """Install phase-gated git hooks into the worktree."""
+    hooks_dir = dst_claude / "git-hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+
+    system_hooks = Path.home() / ".claude" / "defaults" / "git-hooks"
+    if system_hooks.exists():
+        for hook_name in ["pre-commit", "pre-push"]:
+            src_hook = system_hooks / hook_name
+            dst_hook = hooks_dir / hook_name
+            if src_hook.exists():
+                shutil.copy2(src_hook, dst_hook)
+                dst_hook.chmod(0o755)
+
+        run_git(working_dir, "config", "extensions.worktreeConfig", "true")
+        run_git(working_dir, "config", "--worktree", "core.hooksPath", str(hooks_dir))
+
+
+def _register_workspace(project_id, branch, sanitized, working_dir, source, locale, project_path):
+    """Insert workspace into DB and return the creation response."""
+    ws_path = workspace_dir(project_path, branch)
+    ws_path.mkdir(parents=True, exist_ok=True)
+
+    created = datetime.now().isoformat()
+
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO workspaces (project_id, branch, sanitized_branch, session_id, "
+            "working_dir, created, status, phase, scope_json, plan_json, source_branch, locale) "
+            "VALUES (?, ?, ?, NULL, ?, ?, 'active', '0', ?, ?, ?, ?)",
+            (project_id, branch, sanitized, str(working_dir), created,
+             '{}', '{"description":"","systemDiagram":"","execution":[]}', source, locale)
+        )
+        db.commit()
+
+        tmux_name = session_name(project_id, sanitized)
+        command = f"cd {working_dir} && tmux attach -t {tmux_name}"
+
+        return jsonify({
+            "workspace": str(ws_path),
+            "working_dir": working_dir,
+            "branch": branch,
+            "command": command
+        }), 201
+    finally:
+        db.close()
+
+
 @bp.route("/api/projects/<project_id>/workspaces", methods=["POST"])
 def create_workspace(project_id):
     db = get_db()
@@ -352,7 +519,6 @@ def create_workspace(project_id):
             return jsonify({"error": t("api.error.sourceBranchNotFound", source=source)}), 404
         source_ref = source
 
-    # Check for active workspace with the same branch
     check_db = get_db()
     try:
         existing = check_db.execute(
@@ -365,166 +531,17 @@ def create_workspace(project_id):
         check_db.close()
 
     if use_worktree:
-        wt_path = Path(project_path) / ".claude" / "worktrees" / sanitized
-        if wt_path.exists():
-            # Stale worktree — clean up
-            run_git(project_path, "worktree", "remove", str(wt_path), "--force")
-            # Also delete the branch if it exists
-            run_git(project_path, "branch", "-D", branch)
-
-        # Can't create worktree for the currently checked-out branch
-        ok_head, current_branch, _ = run_git(project_path, "symbolic-ref", "--short", "HEAD")
-        if ok_head and current_branch.strip() == branch:
-            return jsonify({"error": t("api.error.cannotCreateWorktreeCheckedOut", branch=branch)}), 409
-
-        # Check if branch already exists
-        ok_branch, _, _ = run_git(project_path, "rev-parse", "--verify", f"refs/heads/{branch}")
-        if ok_branch:
-            # Branch exists — use it without -b
-            ok, stdout, stderr = run_git(
-                project_path, "worktree", "add", str(wt_path), branch
-            )
-        else:
-            # Create new branch
-            ok, stdout, stderr = run_git(
-                project_path, "worktree", "add", str(wt_path), "-b", branch, source_ref
-            )
-        if not ok:
-            return jsonify({"error": t("api.error.gitWorktreeAddFailed"), "details": stderr}), 409
-
-        working_dir = str(wt_path)
-
-        # Copy .claude/ from project into worktree (isolated, removed with worktree)
-        src_claude = Path(project_path) / ".claude"
-        dst_claude = wt_path / ".claude"
-        if src_claude.exists():
-            dst_claude.mkdir(parents=True, exist_ok=True)
-            for item in src_claude.iterdir():
-                if item.name == "worktrees":
-                    continue
-                dst_item = dst_claude / item.name
-                if dst_item.exists() or dst_item.is_symlink():
-                    if dst_item.is_dir() and not dst_item.is_symlink():
-                        shutil.rmtree(dst_item)
-                    else:
-                        dst_item.unlink()
-                if item.is_dir():
-                    shutil.copytree(item, dst_item, symlinks=True)
-                else:
-                    shutil.copy2(item, dst_item)
-
-            # Symlink shared configs back to project (changes persist across worktrees)
-            for rel in _SYMLINK_TO_PROJECT:
-                dst = dst_claude / rel
-                src = src_claude / rel
-                if src.exists():
-                    if dst.exists() or dst.is_symlink():
-                        if dst.is_dir() and not dst.is_symlink():
-                            shutil.rmtree(dst)
-                        else:
-                            dst.unlink()
-                    dst.symlink_to(src)
-
-        # Write orchestrator hooks into the worktree's own settings
-        _write_workspace_settings(dst_claude / "settings.json")
-
-        # Copy CLAUDE.md if it exists at project root
-        src_claude_md = Path(project_path) / "CLAUDE.md"
-        dst_claude_md = wt_path / "CLAUDE.md"
-        if src_claude_md.exists():
-            if dst_claude_md.exists() or dst_claude_md.is_symlink():
-                dst_claude_md.unlink()
-            dst_claude_md.symlink_to(src_claude_md)
-
-        # Copy .mcp.json into worktree
-        src_mcp = Path(project_path) / ".mcp.json"
-        if not src_mcp.exists():
-            system_mcp = Path.home() / ".claude" / ".mcp.json"
-            if system_mcp.exists():
-                shutil.copy2(system_mcp, src_mcp)
-            else:
-                _generate_mcp_from_remote(project_path)
-
-        _ensure_funnel_config(project_path)
-        _ensure_workspace_mcp(src_mcp)
-        dst_mcp = wt_path / ".mcp.json"
-        if src_mcp.exists():
-            if dst_mcp.exists() or dst_mcp.is_symlink():
-                dst_mcp.unlink()
-            dst_mcp.symlink_to(src_mcp)
-
-        # Install phase-gated git hooks
-        hooks_dir = dst_claude / "git-hooks"
-        hooks_dir.mkdir(parents=True, exist_ok=True)
-
-        system_hooks = Path.home() / ".claude" / "defaults" / "git-hooks"
-        if system_hooks.exists():
-            for hook_name in ["pre-commit", "pre-push"]:
-                src_hook = system_hooks / hook_name
-                dst_hook = hooks_dir / hook_name
-                if src_hook.exists():
-                    shutil.copy2(src_hook, dst_hook)
-                    dst_hook.chmod(0o755)
-
-            run_git(str(wt_path), "config", "extensions.worktreeConfig", "true")
-            run_git(str(wt_path), "config", "--worktree", "core.hooksPath", str(hooks_dir))
+        working_dir, err = _setup_worktree_workspace(project_path, branch, sanitized, source_ref)
+        if err:
+            return err
+        _install_worktree_configs(project_path, working_dir)
     else:
-        # Check if branch already exists
-        ok_exists, _, _ = run_git(project_path, "rev-parse", "--verify", f"refs/heads/{branch}")
-        if ok_exists:
-            # Branch exists — just checkout
-            ok, _, stderr = run_git(project_path, "checkout", branch)
-        else:
-            # Create new branch
-            ok, _, stderr = run_git(project_path, "checkout", "-b", branch, source_ref)
-        if not ok:
-            return jsonify({"error": t("api.error.gitCheckoutFailed"), "details": stderr}), 409
-        working_dir = project_path
+        working_dir, err = _setup_checkout_workspace(project_path, branch, source_ref)
+        if err:
+            return err
+        _install_checkout_configs(project_path)
 
-        # Back up original files before writing workspace settings
-        _backup_project_files(project_path)
-        # Write orchestrator hooks
-        settings_path = Path(project_path) / ".claude" / "settings.json"
-        settings_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_workspace_settings(settings_path)
-        # Ensure .mcp.json exists
-        mcp_path = Path(project_path) / ".mcp.json"
-        if not mcp_path.exists():
-            system_mcp = Path.home() / ".claude" / ".mcp.json"
-            if system_mcp.exists():
-                shutil.copy2(system_mcp, mcp_path)
-            else:
-                _generate_mcp_from_remote(project_path)
-        _ensure_funnel_config(project_path)
-        _ensure_workspace_mcp(mcp_path)
-
-    ws_path = workspace_dir(project_path, branch)
-    ws_path.mkdir(parents=True, exist_ok=True)
-
-    created = datetime.now().isoformat()
-
-    db = get_db()
-    try:
-        db.execute(
-            "INSERT INTO workspaces (project_id, branch, sanitized_branch, session_id, "
-            "working_dir, created, status, phase, scope_json, plan_json, source_branch, locale) "
-            "VALUES (?, ?, ?, NULL, ?, ?, 'active', '0', ?, ?, ?, ?)",
-            (project_id, branch, sanitized, str(working_dir), created,
-             '{}', '{"description":"","systemDiagram":"","execution":[]}', source, locale)
-        )
-        db.commit()
-
-        tmux_name = session_name(project_id, sanitized)
-        command = f"cd {working_dir} && tmux attach -t {tmux_name}"
-
-        return jsonify({
-            "workspace": str(ws_path),
-            "working_dir": working_dir,
-            "branch": branch,
-            "command": command
-        }), 201
-    finally:
-        db.close()
+    return _register_workspace(project_id, branch, sanitized, working_dir, source, locale, project_path)
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/archive", methods=["PUT"])
