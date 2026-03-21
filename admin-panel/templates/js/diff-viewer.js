@@ -369,6 +369,8 @@ async function refreshComments() {
     COMMENTS[key].push(c);
   });
   renderDiffView();
+  renderReviewTab();
+  updateReviewBadge();
 }
 
 function renderDiffView() {

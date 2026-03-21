@@ -31,6 +31,19 @@ function getAllCommentCount() {
   return count;
 }
 
+function getReviewComments() {
+  var result = [];
+  Object.keys(COMMENTS).forEach(function(key) {
+    if (key.startsWith('review:')) {
+      var arr = COMMENTS[key];
+      for (var i = 0; i < arr.length; i++) {
+        result.push(arr[i]);
+      }
+    }
+  });
+  return result;
+}
+
 function lineHash(str) {
   var hash = 5381;
   for (var i = 0; i < str.length; i++) {

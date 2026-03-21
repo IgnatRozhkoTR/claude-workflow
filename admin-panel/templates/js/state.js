@@ -38,7 +38,7 @@ var AppState = {
     files: []
   },
   criteria: [],
-  reviewComments: [],
+  // reviewComments removed: derived from COMMENTS via getReviewComments()
   impactAnalysis: null,
   phaseHistory: [],
 
