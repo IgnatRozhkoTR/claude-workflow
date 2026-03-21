@@ -283,7 +283,8 @@ function submitLineComment(scope, target, filePath, lineNum, lHash, btn) {
   if (!text || !text.trim()) return;
 
   addComment(scope, target, text, filePath, lineNum, lineNum, lHash);
-  form.remove();
+  var formRow = form.closest('.line-comment-row');
+  if (formRow) formRow.remove(); else form.remove();
   renderLineCommentIndicators(scope, target);
 
   EventBus.emit('comments:changed');

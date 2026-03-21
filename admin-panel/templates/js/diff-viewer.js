@@ -238,10 +238,12 @@ function autoExpandUnresolvedThreads(container, filePath) {
 
   if (Object.keys(unresolvedLines).length === 0) return;
 
+  var processedLines = {};
   var lineNumCells = container.querySelectorAll('td.d2h-code-linenumber, td.d2h-code-side-linenumber');
   lineNumCells.forEach(function(td) {
     var lineNum = getDiffLineNumber(td);
     if (!lineNum || !unresolvedLines[lineNum]) return;
+    if (processedLines[lineNum]) return;
 
     var tr = td.closest('tr');
     if (tr.nextElementSibling && tr.nextElementSibling.classList.contains('line-comment-row')) return;
@@ -253,6 +255,7 @@ function autoExpandUnresolvedThreads(container, filePath) {
     formCell.setAttribute('colspan', colSpan);
     formRow.appendChild(formCell);
     tr.parentNode.insertBefore(formRow, tr.nextSibling);
+    processedLines[lineNum] = true;
 
     var lineComments = getCommentsForLine(filePath, lineNum);
     lineComments.forEach(function(comment) {
@@ -369,4 +372,5 @@ EventBus.on('state:refreshed', function() {
 
 EventBus.on('comments:changed', function() {
   renderFileList();
+  if (state.selectedFile) renderDiff(state.selectedFile);
 });
