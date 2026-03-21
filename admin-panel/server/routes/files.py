@@ -3,8 +3,8 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
-from helpers import find_workspace, run_git
+from decorators import with_workspace
+from helpers import run_git
 from i18n import t
 
 bp = Blueprint("files", __name__)
@@ -20,20 +20,9 @@ def _is_within(path: Path, root: Path) -> bool:
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/file", methods=["GET"])
-def read_file(project_id, branch):
-    db = get_db()
-    try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
-
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-
-        working_dir = ws["working_dir"]
-    finally:
-        db.close()
+@with_workspace
+def read_file(db, ws, project):
+    working_dir = ws["working_dir"]
 
     rel_path = request.args.get("path", "")
     start_line = request.args.get("start", type=int)
@@ -127,16 +116,10 @@ def _collapse_single_dirs(entries, all_files):
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/files", methods=["GET"])
-def list_files(project_id, branch):
+@with_workspace
+def list_files(db, ws, project):
     """List directory entries lazily. Returns one level of entries at a time."""
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-        working_dir = ws["working_dir"]
-    finally:
-        db.close()
+    working_dir = ws["working_dir"]
 
     dir_path = request.args.get("path", "")
     search = request.args.get("search", "").strip().lower()
@@ -176,21 +159,10 @@ def list_files(project_id, branch):
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/diff", methods=["GET"])
-def get_diff(project_id, branch):
-    db = get_db()
-    try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
-
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-
-        working_dir = ws["working_dir"]
-        source_branch = ws["source_branch"] or "develop"
-    finally:
-        db.close()
+@with_workspace
+def get_diff(db, ws, project):
+    working_dir = ws["working_dir"]
+    source_branch = ws["source_branch"] or "develop"
 
     mode = request.args.get("mode", "branch")
     if mode not in ("branch", "uncommitted"):

@@ -9,14 +9,25 @@ from flask import Blueprint, jsonify, request
 logger = logging.getLogger(__name__)
 
 from db import get_db
+import comment_service
 import discussion_service
-from helpers import compute_phase_sequence, find_workspace, get_comments_for_workspace
+from decorators import with_workspace
+from helpers import compute_phase_sequence
 from i18n import t
 from terminal import session_name, session_exists, send_keys
 import plan_service
 import progress_service
 import research_service
 import scope_service
+
+def _group_comments(comments):
+    """Group a flat list of comment dicts by 'scope:target' key."""
+    grouped = {}
+    for comment in comments:
+        key = f"{comment['scope']}:{comment['target'] or ''}"
+        grouped.setdefault(key, []).append(comment)
+    return grouped
+
 
 # Phases that have sub-phases — bare number normalizes to .0
 _PHASES_WITH_SUBS = {"1", "2", "3", "4"}
@@ -40,203 +51,159 @@ bp = Blueprint("state", __name__)
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/state", methods=["GET"])
-def get_workspace_state(project_id, branch):
-    db = get_db()
-    try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
+@with_workspace
+def get_workspace_state(db, ws, project):
+    comments = _group_comments(comment_service.get_comments(db, ws["id"]))
 
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    scope = plan_service.get_scope(ws)
+    plan = plan_service.get_plan(ws)
+    phase_sequence = compute_phase_sequence(plan)
 
-        comments = get_comments_for_workspace(db, ws["id"])
+    history_rows = db.execute(
+        "SELECT from_phase, to_phase, time FROM phase_history WHERE workspace_id = ? ORDER BY id",
+        (ws["id"],)
+    ).fetchall()
+    history = [{"from": row["from_phase"], "to": row["to_phase"], "time": row["time"]} for row in history_rows]
 
-        scope = plan_service.get_scope(ws)
-        plan = plan_service.get_plan(ws)
-        phase_sequence = compute_phase_sequence(plan)
+    session_rows = db.execute(
+        "SELECT session_id, started_at FROM session_history "
+        "WHERE workspace_id = ? ORDER BY id DESC",
+        (ws["id"],)
+    ).fetchall()
+    sessions = [{"session_id": r["session_id"], "started_at": r["started_at"]} for r in session_rows]
 
-        history_rows = db.execute(
-            "SELECT from_phase, to_phase, time FROM phase_history WHERE workspace_id = ? ORDER BY id",
-            (ws["id"],)
-        ).fetchall()
-        history = [{"from": row["from_phase"], "to": row["to_phase"], "time": row["time"]} for row in history_rows]
+    all_ids = [e["id"] for e in research_service.list_research(db, ws["id"])]
+    research = research_service.get_research(db, ws["id"], all_ids)
 
-        session_rows = db.execute(
-            "SELECT session_id, started_at FROM session_history "
-            "WHERE workspace_id = ? ORDER BY id DESC",
-            (ws["id"],)
-        ).fetchall()
-        sessions = [{"session_id": r["session_id"], "started_at": r["started_at"]} for r in session_rows]
+    discussions = discussion_service.list_discussions(db, ws["id"])
 
-        all_ids = [e["id"] for e in research_service.list_research(db, ws["id"])]
-        research = research_service.get_research(db, ws["id"], all_ids)
+    progress = progress_service.get_progress(db, ws["id"])
 
-        discussions = discussion_service.list_discussions(db, ws["id"])
+    impact_analysis = None
+    if "impact_analysis_json" in ws.keys() and ws["impact_analysis_json"]:
+        try:
+            impact_analysis = json.loads(ws["impact_analysis_json"])
+        except json.JSONDecodeError:
+            pass
 
-        progress = progress_service.get_progress(db, ws["id"])
-
-        impact_analysis = None
-        if "impact_analysis_json" in ws.keys() and ws["impact_analysis_json"]:
-            try:
-                impact_analysis = json.loads(ws["impact_analysis_json"])
-            except json.JSONDecodeError:
-                pass
-
-        return jsonify({
-            "phase": ws["phase"],
-            "status": ws["status"],
-            "scope": scope,
-            "scope_status": ws["scope_status"],
-            "plan": plan,
-            "plan_status": ws["plan_status"],
-            "prev_plan_status": ws["prev_plan_status"],
-            "has_prev_plan": ws["prev_plan_json"] is not None and ws["prev_plan_json"] != "",
-            "phase_sequence": phase_sequence,
-            "locale": ws["locale"],
-            "session_id": ws["session_id"],
-            "working_dir": ws["working_dir"],
-            "branch": ws["branch"],
-            "claude_command": ws["claude_command"] or "claude",
-            "skip_permissions": bool(ws["skip_permissions"]),
-            "restrict_to_workspace": bool(ws["restrict_to_workspace"]) if "restrict_to_workspace" in ws.keys() else True,
-            "allowed_external_paths": ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/",
-            "comments": comments,
-            "research": research,
-            "discussions": discussions,
-            "phaseHistory": history,
-            "progress": progress,
-            "sessions": sessions,
-            "impact_analysis": impact_analysis,
-            "yolo_mode": bool(ws["yolo_mode"]) if "yolo_mode" in ws.keys() else False,
-        })
-    finally:
-        db.close()
+    return jsonify({
+        "phase": ws["phase"],
+        "status": ws["status"],
+        "scope": scope,
+        "scope_status": ws["scope_status"],
+        "plan": plan,
+        "plan_status": ws["plan_status"],
+        "prev_plan_status": ws["prev_plan_status"],
+        "has_prev_plan": ws["prev_plan_json"] is not None and ws["prev_plan_json"] != "",
+        "phase_sequence": phase_sequence,
+        "locale": ws["locale"],
+        "session_id": ws["session_id"],
+        "working_dir": ws["working_dir"],
+        "branch": ws["branch"],
+        "claude_command": ws["claude_command"] or "claude",
+        "skip_permissions": bool(ws["skip_permissions"]),
+        "restrict_to_workspace": bool(ws["restrict_to_workspace"]) if "restrict_to_workspace" in ws.keys() else True,
+        "allowed_external_paths": ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/",
+        "comments": comments,
+        "research": research,
+        "discussions": discussions,
+        "phaseHistory": history,
+        "progress": progress,
+        "sessions": sessions,
+        "impact_analysis": impact_analysis,
+        "yolo_mode": bool(ws["yolo_mode"]) if "yolo_mode" in ws.keys() else False,
+    })
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/locale", methods=["PUT"])
-def set_locale(project_id, branch):
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-        body = request.get_json(silent=True) or {}
-        locale = body.get("locale", "en").strip()
-        if locale not in ("en", "ru"):
-            return jsonify({"error": t("api.error.unsupportedLocale")}), 400
-        db.execute("UPDATE workspaces SET locale = ? WHERE id = ?", (locale, ws["id"]))
-        db.commit()
-        return jsonify({"ok": True, "locale": locale})
-    finally:
-        db.close()
+@with_workspace
+def set_locale(db, ws, project):
+    body = request.get_json(silent=True) or {}
+    locale = body.get("locale", "en").strip()
+    if locale not in ("en", "ru"):
+        return jsonify({"error": t("api.error.unsupportedLocale")}), 400
+    db.execute("UPDATE workspaces SET locale = ? WHERE id = ?", (locale, ws["id"]))
+    db.commit()
+    return jsonify({"ok": True, "locale": locale})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/yolo", methods=["PUT"])
-def set_yolo_mode(project_id, branch):
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-        body = request.get_json(silent=True) or {}
-        enabled = 1 if body.get("enabled") else 0
-        db.execute("UPDATE workspaces SET yolo_mode = ? WHERE id = ?", (enabled, ws["id"]))
-        db.commit()
-        return jsonify({"ok": True, "yolo_mode": bool(enabled)})
-    finally:
-        db.close()
+@with_workspace
+def set_yolo_mode(db, ws, project):
+    body = request.get_json(silent=True) or {}
+    enabled = 1 if body.get("enabled") else 0
+    db.execute("UPDATE workspaces SET yolo_mode = ? WHERE id = ?", (enabled, ws["id"]))
+    db.commit()
+    return jsonify({"ok": True, "yolo_mode": bool(enabled)})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/scope", methods=["PUT"])
-def set_scope(project_id, branch):
+@with_workspace
+def set_scope(db, ws, project):
     """Update workspace scope as a phase-keyed map."""
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    body = request.get_json(silent=True) or {}
+    scope = body.get("scope", {})
 
-        body = request.get_json(silent=True) or {}
-        scope = body.get("scope", {})
-
-        scope_service.set_scope(db, ws, scope)
-        db.commit()
-        return jsonify({"ok": True, "scope": scope})
-    finally:
-        db.close()
+    result = scope_service.set_scope(db, ws, scope, enforce_phase_guard=False)
+    if "error" in result:
+        return jsonify(result), 400
+    db.commit()
+    return jsonify({"ok": True, "scope": scope})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/scope-status", methods=["POST"])
-def set_scope_status(project_id, branch):
+@with_workspace
+def set_scope_status(db, ws, project):
     """Set scope status: pending, approved, or rejected."""
-    db = get_db()
-    try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
+    body = request.get_json(silent=True) or {}
+    status = body.get("status", "pending")
+    result = scope_service.set_scope_status(db, ws["id"], status)
+    if "error" in result:
+        return jsonify(result), 400
+    db.commit()
 
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    if status in ('approved', 'rejected'):
+        try:
+            tmux_name = session_name(ws["project_id"], ws["branch"])
+            if session_exists(tmux_name):
+                if status == 'approved':
+                    send_keys(tmux_name, 'Scope has been approved.')
+                else:
+                    send_keys(tmux_name, 'Scope has been rejected. Check comments for feedback.')
+        except Exception:
+            logger.warning("Failed to send tmux notification", exc_info=True)
 
-        body = request.get_json(silent=True) or {}
-        status = body.get("status", "pending")
-        result = scope_service.set_scope_status(db, ws["id"], status)
-        if "error" in result:
-            return jsonify(result), 400
-        db.commit()
-
-        if status in ('approved', 'rejected'):
-            try:
-                tmux_name = session_name(project_id, branch)
-                if session_exists(tmux_name):
-                    if status == 'approved':
-                        send_keys(tmux_name, 'Scope has been approved.')
-                    else:
-                        send_keys(tmux_name, 'Scope has been rejected. Check comments for feedback.')
-            except Exception:
-                logger.warning("Failed to send tmux notification", exc_info=True)
-
-        return jsonify({"ok": True, "scope_status": status})
-    finally:
-        db.close()
+    return jsonify({"ok": True, "scope_status": status})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/plan-status", methods=["POST"])
-def set_plan_status(project_id, branch):
+@with_workspace
+def set_plan_status(db, ws, project):
     """Set plan status: pending, approved, or rejected."""
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-        body = request.get_json(silent=True) or {}
-        status = body.get("status", "pending")
-        if status not in ("pending", "approved", "rejected"):
-            return jsonify({"error": t("api.error.invalidStatus")}), 400
-        db.execute("UPDATE workspaces SET plan_status = ? WHERE id = ?", (status, ws["id"]))
-        db.commit()
+    body = request.get_json(silent=True) or {}
+    status = body.get("status", "pending")
+    if status not in ("pending", "approved", "rejected"):
+        return jsonify({"error": t("api.error.invalidStatus")}), 400
+    db.execute("UPDATE workspaces SET plan_status = ? WHERE id = ?", (status, ws["id"]))
+    db.commit()
 
-        if status in ('approved', 'rejected'):
-            try:
-                tmux_name = session_name(project_id, branch)
-                if session_exists(tmux_name):
-                    if status == 'approved':
-                        send_keys(tmux_name, 'Plan has been approved.')
-                    else:
-                        send_keys(tmux_name, 'Plan has been rejected. Check comments for feedback.')
-            except Exception:
-                logger.warning("Failed to send tmux notification", exc_info=True)
+    if status in ('approved', 'rejected'):
+        try:
+            tmux_name = session_name(ws["project_id"], ws["branch"])
+            if session_exists(tmux_name):
+                if status == 'approved':
+                    send_keys(tmux_name, 'Plan has been approved.')
+                else:
+                    send_keys(tmux_name, 'Plan has been rejected. Check comments for feedback.')
+        except Exception:
+            logger.warning("Failed to send tmux notification", exc_info=True)
 
-        return jsonify({"ok": True, "plan_status": status})
-    finally:
-        db.close()
+    return jsonify({"ok": True, "plan_status": status})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/phase", methods=["PUT"])
-def set_phase(project_id, branch):
+@with_workspace
+def set_phase(db, ws, project):
     body = request.json or {}
     new_phase = body.get("phase", "").strip()
     if not new_phase:
@@ -246,48 +213,29 @@ def set_phase(project_id, branch):
     if new_phase is None:
         return jsonify({"error": t("api.error.invalidPhase")}), 400
 
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    old_phase = ws["phase"]
+    db.execute("UPDATE workspaces SET phase = ? WHERE id = ?", (new_phase, ws["id"]))
+    db.execute(
+        "INSERT INTO phase_history (workspace_id, from_phase, to_phase, time) VALUES (?, ?, ?, ?)",
+        (ws["id"], old_phase, new_phase, datetime.now().isoformat())
+    )
 
-        old_phase = ws["phase"]
-        db.execute("UPDATE workspaces SET phase = ? WHERE id = ?", (new_phase, ws["id"]))
-        db.execute(
-            "INSERT INTO phase_history (workspace_id, from_phase, to_phase, time) VALUES (?, ?, ?, ?)",
-            (ws["id"], old_phase, new_phase, datetime.now().isoformat())
-        )
+    from advance_service import is_user_gate
 
-        from advance_service import is_user_gate
+    if is_user_gate(new_phase):
+        import secrets
+        nonce = secrets.token_urlsafe(32)
+        db.execute("UPDATE workspaces SET gate_nonce = ? WHERE id = ?", (nonce, ws["id"]))
 
-        if is_user_gate(new_phase):
-            import secrets
-            nonce = secrets.token_urlsafe(32)
-            db.execute("UPDATE workspaces SET gate_nonce = ? WHERE id = ?", (nonce, ws["id"]))
-
-        db.commit()
-        return jsonify({"phase": new_phase, "previous_phase": old_phase})
-    finally:
-        db.close()
+    db.commit()
+    return jsonify({"phase": new_phase, "previous_phase": old_phase})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/gate-nonce", methods=["GET"])
-def get_gate_nonce(project_id, branch):
-    db = get_db()
-    try:
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
-
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
-
-        nonce = ws["gate_nonce"] if ws["gate_nonce"] else None
-        return jsonify({"nonce": nonce})
-    finally:
-        db.close()
+@with_workspace
+def get_gate_nonce(db, ws, project):
+    nonce = ws["gate_nonce"] if ws["gate_nonce"] else None
+    return jsonify({"nonce": nonce})
 
 
 @bp.route("/api/progress", methods=["GET"])
@@ -295,7 +243,7 @@ def query_progress():
     """Query progress entries by date range. For daily reflection.
 
     Query params:
-        date: single date (YYYY-MM-DD) — returns entries created/updated on that day
+        date: single date (YYYY-MM-DD) -- returns entries created/updated on that day
         from: start date (YYYY-MM-DD)
         to: end date (YYYY-MM-DD)
         project_id: optional filter by project
@@ -354,51 +302,38 @@ def query_progress():
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/restore-plan", methods=["POST"])
-def restore_plan(project_id, branch):
+@with_workspace
+def restore_plan(db, ws, project):
     """Restore previous plan version. User can always restore (no approval guard)."""
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    if not ws["prev_plan_json"]:
+        return jsonify({"error": t("api.error.noPreviousPlan")}), 404
 
-        if not ws["prev_plan_json"]:
-            return jsonify({"error": t("api.error.noPreviousPlan")}), 404
-
-        new_ws = plan_service.restore_plan(db, ws)
-        db.commit()
-        return jsonify({"ok": True, "phase": new_ws["phase"]})
-    finally:
-        db.close()
+    new_ws = plan_service.restore_plan(db, ws)
+    db.commit()
+    return jsonify({"ok": True, "phase": new_ws["phase"]})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/research/<int:research_id>/prove", methods=["POST"])
-def toggle_research_proven(project_id, branch, research_id):
+@with_workspace
+def toggle_research_proven(db, ws, project, research_id):
     """Toggle research entry proven status. Body: {"proven": true/false}"""
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+    body = request.get_json(silent=True) or {}
+    proven = body.get("proven", False)
 
-        body = request.get_json(silent=True) or {}
-        proven = body.get("proven", False)
+    result = research_service.set_proven(
+        db, research_id, ws["id"], proven,
+        notes="Manual override via admin panel",
+    )
+    if "error" in result:
+        return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
 
-        result = research_service.set_proven(
-            db, research_id, ws["id"], proven,
-            notes="Manual override via admin panel",
-        )
-        if "error" in result:
-            return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
-
-        db.commit()
-        return jsonify(result)
-    finally:
-        db.close()
+    db.commit()
+    return jsonify(result)
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/can-modify", methods=["POST"])
-def can_modify(project_id, branch):
+@with_workspace
+def can_modify(db, ws, project):
     """Check if a file can be modified in the current workspace state.
 
     Called by pre-tool hook to enforce scope and approval.
@@ -412,66 +347,51 @@ def can_modify(project_id, branch):
 
     Returns: {"allowed": true} or {"allowed": false, "reason": "..."}
     """
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"allowed": False, "reason": t("api.error.workspaceNotFound")}), 404
+    body = request.get_json(silent=True) or {}
+    file_path = body.get("file", "").strip()
+    if not file_path:
+        return jsonify({"error": t("api.error.fileParameterRequired")}), 400
 
-        body = request.get_json(silent=True) or {}
-        file_path = body.get("file", "").strip()
-        if not file_path:
-            return jsonify({"error": t("api.error.fileParameterRequired")}), 400
+    locale = ws["locale"] if ws["locale"] else "en"
 
-        locale = ws["locale"] if ws["locale"] else "en"
+    # .claude/ files are always writable (workspace metadata, memory, configs)
+    if file_path.startswith(".claude/") or file_path.startswith(".claude\\"):
+        return jsonify({"allowed": True, "reason": t("api.scope.workspaceMetadataAlwaysWritable", locale)})
 
-        # .claude/ files are always writable (workspace metadata, memory, configs)
-        if file_path.startswith(".claude/") or file_path.startswith(".claude\\"):
-            return jsonify({"allowed": True, "reason": t("api.scope.workspaceMetadataAlwaysWritable", locale)})
+    # Check plan approval (if plan exists with execution items)
+    plan = plan_service.get_plan(ws)
+    if plan.get("execution"):
+        plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+        if plan_status != "approved":
+            return jsonify({"allowed": False, "reason": t("api.scope.planNotApproved", locale)})
 
-        # Check plan approval (if plan exists with execution items)
-        plan = plan_service.get_plan(ws)
-        if plan.get("execution"):
-            plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
-            if plan_status != "approved":
-                return jsonify({"allowed": False, "reason": t("api.scope.planNotApproved", locale)})
+    # Check scope approval
+    scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
+    if scope_status != "approved":
+        return jsonify({"allowed": False, "reason": t("api.scope.scopeNotApproved", locale)})
 
-        # Check scope approval
-        scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
-        if scope_status != "approved":
-            return jsonify({"allowed": False, "reason": t("api.scope.scopeNotApproved", locale)})
+    # Check file matches scope patterns
+    scope_map = plan_service.get_scope(ws)
+    phase = ws["phase"]
 
-        # Check file matches scope patterns
-        scope_map = plan_service.get_scope(ws)
-        phase = ws["phase"]
+    must_patterns, may_patterns = scope_service.get_scope_patterns(scope_map, phase)
+    if not must_patterns and not may_patterns:
+        # No scope patterns defined -- allow (scope is approved but empty means no restrictions)
+        return jsonify({"allowed": True, "reason": t("api.scope.noScopePatternsDefinied", locale)})
 
-        must_patterns, may_patterns = scope_service.get_scope_patterns(scope_map, phase)
-        if not must_patterns and not may_patterns:
-            # No scope patterns defined — allow (scope is approved but empty means no restrictions)
-            return jsonify({"allowed": True, "reason": t("api.scope.noScopePatternsDefinied", locale)})
+    if scope_service.match_scope_patterns(file_path, scope_map, phase):
+        return jsonify({"allowed": True, "reason": t("api.scope.matchesScopePattern", locale, pattern=file_path)})
 
-        if scope_service.match_scope_patterns(file_path, scope_map, phase):
-            return jsonify({"allowed": True, "reason": t("api.scope.matchesScopePattern", locale, pattern=file_path)})
-
-        return jsonify({"allowed": False, "reason": t("api.scope.fileOutsideApprovedScope", locale, file_path=file_path)})
-    finally:
-        db.close()
+    return jsonify({"allowed": False, "reason": t("api.scope.fileOutsideApprovedScope", locale, file_path=file_path)})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/research/<int:research_id>", methods=["DELETE"])
-def delete_research(project_id, branch, research_id):
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+@with_workspace
+def delete_research(db, ws, project, research_id):
+    deleted = research_service.delete_research(db, research_id, ws["id"])
+    db.commit()
 
-        deleted = research_service.delete_research(db, research_id, ws["id"])
-        db.commit()
+    if not deleted:
+        return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
 
-        if not deleted:
-            return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
-
-        return jsonify({"ok": True})
-    finally:
-        db.close()
+    return jsonify({"ok": True})

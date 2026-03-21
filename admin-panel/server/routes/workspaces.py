@@ -8,7 +8,8 @@ from urllib.parse import urlparse
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from helpers import sanitize_branch, workspace_dir, run_git, find_workspace
+from decorators import with_workspace
+from helpers import sanitize_branch, workspace_dir, run_git
 from i18n import t
 from terminal import session_name
 
@@ -527,47 +528,36 @@ def create_workspace(project_id):
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/archive", methods=["PUT"])
-def archive_workspace(project_id, branch):
-    db = get_db()
-    try:
-        ws = find_workspace(db, project_id, branch)
-        if not ws:
-            return jsonify({"error": t("api.error.workspaceNotFound")}), 404
+@with_workspace
+def archive_workspace(db, ws, project):
+    if ws["status"] == "archived":
+        return jsonify({"error": t("api.error.alreadyArchived")}), 409
 
-        if ws["status"] == "archived":
-            return jsonify({"error": t("api.error.alreadyArchived")}), 409
+    project_path = project["path"]
+    working_dir = ws["working_dir"]
+    is_worktree = working_dir != project_path
 
-        project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
-        if not project:
-            return jsonify({"error": t("api.error.projectNotFound")}), 404
+    if is_worktree:
+        wt_path = Path(working_dir)
+        if wt_path.exists():
+            # Preserve workspace metadata before removing the worktree
+            sanitized = sanitize_branch(ws["branch"])
+            wt_ws_dir = wt_path / ".claude" / "workspaces" / sanitized
+            proj_ws_dir = Path(project_path) / ".claude" / "workspaces" / sanitized
+            if wt_ws_dir.exists():
+                if proj_ws_dir.exists():
+                    shutil.rmtree(proj_ws_dir)
+                shutil.copytree(wt_ws_dir, proj_ws_dir)
 
-        project_path = project["path"]
-        working_dir = ws["working_dir"]
-        is_worktree = working_dir != project_path
+            run_git(project_path, "worktree", "remove", str(wt_path), "--force")
+    else:
+        _restore_project_files(project_path)
 
-        if is_worktree:
-            wt_path = Path(working_dir)
-            if wt_path.exists():
-                # Preserve workspace metadata before removing the worktree
-                sanitized = sanitize_branch(ws["branch"])
-                wt_ws_dir = wt_path / ".claude" / "workspaces" / sanitized
-                proj_ws_dir = Path(project_path) / ".claude" / "workspaces" / sanitized
-                if wt_ws_dir.exists():
-                    if proj_ws_dir.exists():
-                        shutil.rmtree(proj_ws_dir)
-                    shutil.copytree(wt_ws_dir, proj_ws_dir)
+    archived_key = ws["sanitized_branch"] + "--" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    db.execute(
+        "UPDATE workspaces SET status = 'archived', sanitized_branch = ? WHERE id = ?",
+        (archived_key, ws["id"])
+    )
+    db.commit()
 
-                run_git(project_path, "worktree", "remove", str(wt_path), "--force")
-        else:
-            _restore_project_files(project_path)
-
-        archived_key = ws["sanitized_branch"] + "--" + datetime.now().strftime("%Y%m%d-%H%M%S")
-        db.execute(
-            "UPDATE workspaces SET status = 'archived', sanitized_branch = ? WHERE id = ?",
-            (archived_key, ws["id"])
-        )
-        db.commit()
-
-        return jsonify({"status": "archived", "branch": ws["branch"]})
-    finally:
-        db.close()
+    return jsonify({"status": "archived", "branch": ws["branch"]})

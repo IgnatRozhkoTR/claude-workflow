@@ -66,18 +66,19 @@ def get_comments(db, workspace_id, scope=None, unresolved_only=False):
 
 def post_comment(db, workspace_id, text, scope, author="user",
                  target=None, file_path=None, line_start=None, line_end=None,
-                 line_hash=None):
+                 line_hash=None, parent_id=None):
     """Insert a scoped comment into the discussions table.
 
+    When parent_id is set, the row is a reply to an existing scoped comment.
     Returns a result dict with ok/id keys.
     """
     resolution = "open" if scope == "review" else None
     cursor = db.execute(
         "INSERT INTO discussions "
-        "(workspace_id, scope, target, file_path, line_start, line_end, line_hash, "
+        "(workspace_id, parent_id, scope, target, file_path, line_start, line_end, line_hash, "
         "text, author, status, resolution, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)",
-        (workspace_id, scope, target, file_path, line_start, line_end, line_hash,
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)",
+        (workspace_id, parent_id, scope, target, file_path, line_start, line_end, line_hash,
          text, author, resolution, datetime.now().isoformat())
     )
     return {"ok": True, "id": cursor.lastrowid}

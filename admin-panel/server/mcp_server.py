@@ -1,4 +1,6 @@
 """MCP server for workspace state management (stdio transport)."""
+import functools
+import inspect
 import json
 import logging
 import os
@@ -66,8 +68,44 @@ def _detect_workspace():
         db.close()
 
 
+_INJECTED_PARAMS = ("ws", "project", "db", "locale")
+
+
+def with_mcp_workspace(fn):
+    """Decorator that injects workspace context into MCP tool functions.
+
+    Calls _detect_workspace(), opens a DB connection, and passes (ws, project, db, locale)
+    as the first positional arguments to the wrapped function.
+    Returns an error dict/list if no workspace is detected.
+    Closes the DB connection in a finally block. Does NOT auto-commit.
+    """
+    sig = inspect.signature(fn)
+    exposed_params = [p for name, p in sig.parameters.items() if name not in _INJECTED_PARAMS]
+    exposed_sig = sig.replace(parameters=exposed_params)
+
+    returns_list = sig.return_annotation is list
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        ws, project = _detect_workspace()
+        if not ws:
+            error = {"error": t("mcp.error.noWorkspace")}
+            return [error] if returns_list else error
+
+        locale = ws["locale"] or "en"
+        db = get_db()
+        try:
+            return fn(ws, project, db, locale, *args, **kwargs)
+        finally:
+            db.close()
+
+    wrapper.__signature__ = exposed_sig
+    return wrapper
+
+
 @mcp.tool()
-def workspace_get_state() -> dict:
+@with_mcp_workspace
+def workspace_get_state(ws, project, db, locale) -> dict:
     """Get compact workspace state overview. Returns core state (phase, scope, context, discussions) inline,
     with summaries and counts for large sections.
 
@@ -80,11 +118,6 @@ def workspace_get_state() -> dict:
     - Criteria: workspace_get_criteria
 
     Does NOT return gate_nonce (security: only available via admin panel UI)."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
     scope = plan_service.get_scope(ws)
     plan = plan_service.get_plan(ws)
     phase_sequence = compute_phase_sequence(plan)
@@ -111,39 +144,35 @@ def workspace_get_state() -> dict:
     if current_subphase:
         plan_summary["current_subphase"] = current_subphase
 
-    db = get_db()
-    try:
-        progress_summary = progress_service.get_progress_map(db, ws["id"])
+    progress_summary = progress_service.get_progress_map(db, ws["id"])
 
-        research_entries = research_service.list_research(db, ws["id"])
-        research_summary = [{"id": e["id"], "topic": e["topic"], "proven": e["proven"]} for e in research_entries]
+    research_entries = research_service.list_research(db, ws["id"])
+    research_summary = [{"id": e["id"], "topic": e["topic"], "proven": e["proven"]} for e in research_entries]
 
-        comment_count = db.execute(
-            "SELECT COUNT(*) as cnt FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND status = 'open'",
-            (ws["id"],)
-        ).fetchone()["cnt"]
+    comment_count = db.execute(
+        "SELECT COUNT(*) as cnt FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL AND status = 'open'",
+        (ws["id"],)
+    ).fetchone()["cnt"]
 
-        review_rows = db.execute(
-            "SELECT resolution, COUNT(*) as cnt FROM discussions "
-            "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL GROUP BY resolution",
-            (ws["id"],)
-        ).fetchall()
-        review_issues_summary = {row["resolution"]: row["cnt"] for row in review_rows}
+    review_rows = db.execute(
+        "SELECT resolution, COUNT(*) as cnt FROM discussions "
+        "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL GROUP BY resolution",
+        (ws["id"],)
+    ).fetchall()
+    review_issues_summary = {row["resolution"]: row["cnt"] for row in review_rows}
 
-        criteria_rows = db.execute(
-            "SELECT status, COUNT(*) as cnt FROM acceptance_criteria WHERE workspace_id = ? GROUP BY status",
-            (ws["id"],)
-        ).fetchall()
-        criteria_summary = {row["status"]: row["cnt"] for row in criteria_rows}
+    criteria_rows = db.execute(
+        "SELECT status, COUNT(*) as cnt FROM acceptance_criteria WHERE workspace_id = ? GROUP BY status",
+        (ws["id"],)
+    ).fetchall()
+    criteria_summary = {row["status"]: row["cnt"] for row in criteria_rows}
 
-        session_count = db.execute(
-            "SELECT COUNT(*) as cnt FROM session_history WHERE workspace_id = ?",
-            (ws["id"],)
-        ).fetchone()["cnt"]
+    session_count = db.execute(
+        "SELECT COUNT(*) as cnt FROM session_history WHERE workspace_id = ?",
+        (ws["id"],)
+    ).fetchone()["cnt"]
 
-        discussions = discussion_service.list_discussions(db, ws["id"], open_only=True)
-    finally:
-        db.close()
+    discussions = discussion_service.list_discussions(db, ws["id"], open_only=True)
 
     return {
         "phase": ws["phase"],
@@ -175,7 +204,8 @@ def workspace_get_state() -> dict:
 
 
 @mcp.tool()
-def workspace_advance(commit_hash: str = "", no_further_research_needed: bool = False) -> dict:
+@with_mcp_workspace
+def workspace_advance(ws, project, db, locale, commit_hash: str = "", no_further_research_needed: bool = False) -> dict:
     """Request phase advancement. Provide commit_hash when at commit phases (3.N.4).
 
     At phase 1.1 (research → proving), you MUST set no_further_research_needed=True to confirm
@@ -186,10 +216,6 @@ def workspace_advance(commit_hash: str = "", no_further_research_needed: bool = 
     When the user REJECTS at a gate, phase reverts to the previous step (e.g. 3.N.3 → 3.N.2).
     Read user comments via workspace_get_comments, fix the issues, then call workspace_advance
     to return to the gate for re-review. Do NOT ask the user to approve in order to fix — fix first, then re-submit."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
     from advance_service import perform_advance
     body = {}
     if commit_hash:
@@ -201,7 +227,8 @@ def workspace_advance(commit_hash: str = "", no_further_research_needed: bool = 
 
 
 @mcp.tool()
-def workspace_set_scope(scope: dict) -> dict:
+@with_mcp_workspace
+def workspace_set_scope(ws, project, db, locale, scope: dict) -> dict:
     """Set workspace scope as a phase-keyed map. Allowed from phase 1 onwards.
 
     Setting scope automatically revokes approval — the user must review and re-approve
@@ -210,22 +237,15 @@ def workspace_set_scope(scope: dict) -> dict:
     Format: {"3.1": {"must": ["src/models/"], "may": ["src/config/"]}, "3.2": {"must": [...], "may": [...]}}
     Each key is a sub-phase ID from the execution plan. 'must' directories MUST have changes for the phase to advance.
     'may' directories are permitted but not required."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    db = get_db()
-    try:
-        result = scope_service.set_scope(db, ws, scope)
-        if "error" not in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = scope_service.set_scope(db, ws, scope)
+    if "error" not in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_set_plan(plan: dict) -> dict:
+@with_mcp_workspace
+def workspace_set_plan(ws, project, db, locale, plan: dict) -> dict:
     """Set the execution plan. Editable during and after planning (phase >= 2.0).
 
     The plan can be updated freely during planning. Once the user approves the plan
@@ -258,35 +278,25 @@ def workspace_set_plan(plan: dict) -> dict:
     - Example: [{"title": "Class Diagram", "diagram": "classDiagram\n..."}, {"title": "Auth Flow", "diagram": "sequenceDiagram\n..."}]
 
     Scope is separate from the plan — use workspace_set_scope to define the phase-keyed scope map."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    db = get_db()
-    try:
-        result = plan_service.set_plan(db, ws, plan)
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = plan_service.set_plan(db, ws, plan)
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_get_plan() -> dict:
+@with_mcp_workspace
+def workspace_get_plan(ws, project, db, locale) -> dict:
     """Get the full execution plan including system diagram and all sub-phases with tasks.
 
     Returns the complete plan JSON: description, systemDiagram, and execution array with
     tasks per sub-phase. Use workspace_get_state to see the current scope map."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
     return plan_service.get_plan(ws)
 
 
 @mcp.tool()
-def workspace_extend_plan(subphase: dict, scope: dict, diagrams: list = None, replace_diagrams: bool = False) -> dict:
+@with_mcp_workspace
+def workspace_extend_plan(ws, project, db, locale, subphase: dict, scope: dict, diagrams: list = None, replace_diagrams: bool = False) -> dict:
     """Append a new sub-phase to the execution plan without rewriting existing sub-phases.
 
     - subphase: a single execution item with 'name' (string) and 'tasks' (list of task objects).
@@ -299,22 +309,15 @@ def workspace_extend_plan(subphase: dict, scope: dict, diagrams: list = None, re
 
     The plan_status and scope_status are set to 'pending' (approval revoked).
     Existing sub-phases and their data are not modified."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    db = get_db()
-    try:
-        result = plan_service.extend_plan(db, ws, subphase, scope, diagrams, replace_diagrams)
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = plan_service.extend_plan(db, ws, subphase, scope, diagrams, replace_diagrams)
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_restore_plan() -> dict:
+@with_mcp_workspace
+def workspace_restore_plan(ws, project, db, locale) -> dict:
     """Restore the previous plan version, swapping it with the current plan.
 
     Only works if current plan is NOT approved. If you need to revert an incorrectly
@@ -323,35 +326,26 @@ def workspace_restore_plan() -> dict:
     The previous plan's phase position is also restored — you'll return to wherever
     you were when that plan was active.
     """
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-
     if not ws["prev_plan_json"]:
         return {"error": t("mcp.error.noPreviousPlan", locale)}
 
     if ws["plan_status"] == "approved":
         return {"error": t("mcp.error.planApproved", locale)}
 
-    db = get_db()
-    try:
-        new_ws = plan_service.restore_plan(db, ws)
-        db.commit()
+    new_ws = plan_service.restore_plan(db, ws)
+    db.commit()
 
-        return {
-            "restored": True,
-            "phase": new_ws["phase"],
-            "plan_status": new_ws["plan_status"],
-            "message": t("mcp.restorePlan.message", locale, phase=new_ws["phase"]),
-        }
-    finally:
-        db.close()
+    return {
+        "restored": True,
+        "phase": new_ws["phase"],
+        "plan_status": new_ws["plan_status"],
+        "message": t("mcp.restorePlan.message", locale, phase=new_ws["phase"]),
+    }
 
 
 @mcp.tool()
-def workspace_post_discussion(topic: str, parent_id: int = 0, type: str = "general") -> dict:
+@with_mcp_workspace
+def workspace_post_discussion(ws, project, db, locale, topic: str, parent_id: int = 0, type: str = "general") -> dict:
     """Raise an open discussion point — architectural decisions, research questions, TBDs.
 
     These are NOT chat messages. They are important topics that need research, discussion,
@@ -365,27 +359,19 @@ def workspace_post_discussion(topic: str, parent_id: int = 0, type: str = "gener
     type: 'general' (default) or 'research'. Research discussions represent questions
     that need investigation — they are tracked and must have linked research findings
     before the workflow can advance past the research phase."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-    db = get_db()
-    try:
-        result = discussion_service.post_discussion(
-            db, ws["id"], topic, author="agent",
-            disc_type=type, parent_id=parent_id if parent_id else None,
-        )
-        if "error" in result:
-            return {"error": t("mcp.error.parentDiscussionNotFound", locale, id=result.get("parent_id", ""))}
-        db.commit()
-        return {"ok": True, "discussion_id": result["id"]}
-    finally:
-        db.close()
+    result = discussion_service.post_discussion(
+        db, ws["id"], topic, author="agent",
+        disc_type=type, parent_id=parent_id if parent_id else None,
+    )
+    if "error" in result:
+        return {"error": t("mcp.error.parentDiscussionNotFound", locale, id=result.get("parent_id", ""))}
+    db.commit()
+    return {"ok": True, "discussion_id": result["id"]}
 
 
 @mcp.tool()
-def workspace_save_research(topic: str, findings: list, discussion_id: int = 0, summary: str = "") -> dict:
+@with_mcp_workspace
+def workspace_save_research(ws, project, db, locale, topic: str, findings: list, discussion_id: int = 0, summary: str = "") -> dict:
     """Save research findings. Called by researcher sub-agents after investigation.
 
     summary: Optional 2-3 sentence human-readable overview of the overall research findings.
@@ -443,100 +429,65 @@ def workspace_save_research(topic: str, findings: list, discussion_id: int = 0, 
     - description: mandatory context explaining what the diff proves
 
     Returns the research entry ID for reference."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    db = get_db()
-    try:
-        result = research_service.save_research(
-            db, ws, topic, findings,
-            discussion_id=discussion_id if discussion_id else None,
-            summary=summary,
-        )
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = research_service.save_research(
+        db, ws, topic, findings,
+        discussion_id=discussion_id if discussion_id else None,
+        summary=summary,
+    )
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_list_research() -> list:
+@with_mcp_workspace
+def workspace_list_research(ws, project, db, locale) -> list:
     """List all research entries for the current workspace. Returns id, topic, findings count, and proven status.
 
     Does NOT return full findings content — use workspace_get_research to retrieve specific entries."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return [{"error": t("mcp.error.noWorkspace")}]
-
-    db = get_db()
-    try:
-        return research_service.list_research(db, ws["id"])
-    finally:
-        db.close()
+    return research_service.list_research(db, ws["id"])
 
 
 @mcp.tool()
-def workspace_get_research(ids: list) -> list:
+@with_mcp_workspace
+def workspace_get_research(ws, project, db, locale, ids: list) -> list:
     """Get full research entries by IDs. Use for detailed review or proving.
 
     Returns complete findings with proofs for each requested ID."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return [{"error": t("mcp.error.noWorkspace")}]
-
     if not ids:
         return []
 
-    db = get_db()
-    try:
-        return research_service.get_research(db, ws["id"], ids)
-    finally:
-        db.close()
+    return research_service.get_research(db, ws["id"], ids)
 
 
 @mcp.tool()
-def workspace_prove_research(id: int, proven: bool, notes: str = "") -> dict:
+@with_mcp_workspace
+def workspace_prove_research(ws, project, db, locale, id: int, proven: bool, notes: str = "") -> dict:
     """Mark a research entry as proven or rejected. Called by prover agent after verification.
 
     - id: research entry ID
     - proven: True if findings verified, False if rejected
     - notes: optional explanation of verification result"""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-    db = get_db()
-    try:
-        result = research_service.set_proven(db, id, ws["id"], proven, notes=notes)
-        if "error" in result:
-            return {"error": t("mcp.error.researchEntryNotFound", locale, id=id)}
-        db.commit()
-        return result
-    finally:
-        db.close()
+    result = research_service.set_proven(db, id, ws["id"], proven, notes=notes)
+    if "error" in result:
+        return {"error": t("mcp.error.researchEntryNotFound", locale, id=id)}
+    db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_get_comments(scope: str = "", unresolved_only: bool = True) -> list:
+@with_mcp_workspace
+def workspace_get_comments(ws, project, db, locale, scope: str = "", unresolved_only: bool = True) -> list:
     """Get review comments, optionally filtered by scope. Returns list of comment objects (empty list if none)."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return [{"error": t("mcp.error.noWorkspace")}]
-
-    db = get_db()
-    try:
-        return comment_service.get_comments(
-            db, ws["id"], scope=scope or None, unresolved_only=unresolved_only
-        )
-    finally:
-        db.close()
+    return comment_service.get_comments(
+        db, ws["id"], scope=scope or None, unresolved_only=unresolved_only
+    )
 
 
 @mcp.tool()
+@with_mcp_workspace
 def workspace_post_comment(
+    ws, project, db, locale,
     file_path: str,
     line_start: int,
     line_end: int,
@@ -549,62 +500,45 @@ def workspace_post_comment(
     - line_start/line_end: line range being commented on
     - text: the review comment
     - parent_id: reply to existing comment (0 = new root comment)"""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-
     if not file_path or not file_path.strip():
         return {"error": t("mcp.error.filePathRequired", locale)}
     if not text or not text.strip():
         return {"error": t("mcp.error.textRequired", locale)}
 
-    db = get_db()
-    try:
-        if parent_id > 0:
-            parent = db.execute(
-                "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
-                (parent_id, ws["id"])
-            ).fetchone()
-            if not parent:
-                return {"error": t("mcp.error.parentCommentNotFound", locale, id=parent_id)}
+    if parent_id > 0:
+        parent = db.execute(
+            "SELECT id FROM discussions WHERE id = ? AND workspace_id = ?",
+            (parent_id, ws["id"])
+        ).fetchone()
+        if not parent:
+            return {"error": t("mcp.error.parentCommentNotFound", locale, id=parent_id)}
 
-        result = comment_service.post_comment(
-            db, ws["id"], text=text.strip(), scope="review", author="agent",
-            target=file_path.strip(), file_path=file_path.strip(),
-            line_start=line_start, line_end=line_end,
-        )
-        db.commit()
-        return result
-    finally:
-        db.close()
+    result = comment_service.post_comment(
+        db, ws["id"], text=text.strip(), scope="review", author="agent",
+        target=file_path.strip(), file_path=file_path.strip(),
+        line_start=line_start, line_end=line_end,
+    )
+    db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_resolve_comment(comment_id: int) -> dict:
+@with_mcp_workspace
+def workspace_resolve_comment(ws, project, db, locale, comment_id: int) -> dict:
     """Mark a review comment as resolved. Call after addressing feedback from code review.
 
     - comment_id: the ID of the comment (from workspace_get_comments or workspace_get_state)
     - Only resolves comments belonging to the current workspace (security check)
     - Cannot resolve scope='review' items — use workspace_resolve_review_issue instead"""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-    db = get_db()
-    try:
-        result = comment_service.resolve_comment(db, comment_id, ws["id"], block_review_scope=True, locale=locale)
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = comment_service.resolve_comment(db, comment_id, ws["id"], block_review_scope=True, locale=locale)
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_submit_review_issue(file_path: str, line_start: int, line_end: int, severity: str, description: str) -> dict:
+@with_mcp_workspace
+def workspace_submit_review_issue(ws, project, db, locale, file_path: str, line_start: int, line_end: int, severity: str, description: str) -> dict:
     """Submit a code review finding. Only critical and major issues are saved — minor/style issues are dropped.
 
     - file_path: path relative to workspace root
@@ -612,11 +546,6 @@ def workspace_submit_review_issue(file_path: str, line_start: int, line_end: int
     - line_end: last line of the problematic code
     - severity: 'critical' or 'major' (others rejected)
     - description: what the issue is and why it matters"""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
     if severity not in ("critical", "major"):
         return {"error": t("mcp.error.invalidSeverity", locale)}
 
@@ -633,38 +562,28 @@ def workspace_submit_review_issue(file_path: str, line_start: int, line_end: int
     except Exception as e:
         return {"error": t("mcp.error.failedToReadFile", locale, error=str(e))}
 
-    db = get_db()
-    try:
-        result = comment_service.submit_review_issue(
-            db, ws["id"], file_path, line_start, line_end, description, author="reviewer"
-        )
-        db.commit()
-        return result
-    finally:
-        db.close()
+    result = comment_service.submit_review_issue(
+        db, ws["id"], file_path, line_start, line_end, description, author="reviewer"
+    )
+    db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_get_review_issues(status: str = "") -> list:
+@with_mcp_workspace
+def workspace_get_review_issues(ws, project, db, locale, status: str = "") -> list:
     """Get all review items for the current workspace.
 
     - status: filter by resolution ('open', 'fixed', 'false_positive', 'out_of_scope'). Empty = all.
     Returns list of review items with id, file_path, lines, description, resolution, author, resolved."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return [{"error": t("mcp.error.noWorkspace")}]
-
-    db = get_db()
-    try:
-        return comment_service.get_review_issues(
-            db, ws["id"], resolution=status or None
-        )
-    finally:
-        db.close()
+    return comment_service.get_review_issues(
+        db, ws["id"], resolution=status or None
+    )
 
 
 @mcp.tool()
-def workspace_resolve_review_issue(issue_id: int, resolution: str) -> dict:
+@with_mcp_workspace
+def workspace_resolve_review_issue(ws, project, db, locale, issue_id: int, resolution: str) -> dict:
     """Set the resolution on a review item. Called by agents after addressing feedback.
 
     - issue_id: the review item ID (from workspace_get_review_issues or workspace_get_comments)
@@ -673,28 +592,21 @@ def workspace_resolve_review_issue(issue_id: int, resolution: str) -> dict:
       - 'false_positive': issue is invalid, code is correct as-is
       - 'out_of_scope': legitimate issue but outside the allowed scope
       - 'open': reset — used by review-validator to reopen incorrectly resolved issues"""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
     if resolution not in ("fixed", "false_positive", "out_of_scope", "open"):
         return {"error": t("mcp.error.invalidResolution", locale)}
 
-    db = get_db()
-    try:
-        result = comment_service.resolve_review_issue(
-            db, issue_id, ws["id"], resolution, locale=locale
-        )
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = comment_service.resolve_review_issue(
+        db, issue_id, ws["id"], resolution, locale=locale
+    )
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
+@with_mcp_workspace
 def workspace_set_impact_analysis(
+    ws, project, db, locale,
     affected_flows: str = "",
     api_changes: str = "",
     data_flow_changes: str = "",
@@ -712,10 +624,6 @@ def workspace_set_impact_analysis(
     - ticket_gaps: What the ticket leaves ambiguous or underspecified
     - open_questions: Questions that need user input (can't be resolved from code/web)
     """
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
     analysis = {
         "affected_flows": affected_flows,
         "api_changes": api_changes,
@@ -725,17 +633,14 @@ def workspace_set_impact_analysis(
         "open_questions": open_questions,
     }
 
-    db = get_db()
-    try:
-        progress_service.set_impact_analysis(db, ws["id"], analysis)
-        db.commit()
-        return {"ok": True}
-    finally:
-        db.close()
+    progress_service.set_impact_analysis(db, ws["id"], analysis)
+    db.commit()
+    return {"ok": True}
 
 
 @mcp.tool()
-def workspace_update_progress(phase: str, summary: str, details: dict = None) -> dict:
+@with_mcp_workspace
+def workspace_update_progress(ws, project, db, locale, phase: str, summary: str, details: dict = None) -> dict:
     """Update progress for a phase. Called by orchestrator after completing phase work.
 
     - phase: the phase key (e.g. "1.0", "1", "2", "3.1", "4")
@@ -759,41 +664,27 @@ def workspace_update_progress(phase: str, summary: str, details: dict = None) ->
 
     Calling with the same phase key updates the existing entry (updated_at is refreshed).
     """
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
     details_json = json.dumps(details) if details else None
 
-    db = get_db()
-    try:
-        result = progress_service.update_progress(db, ws["id"], phase, summary, details_json)
-        db.commit()
-        return result
-    finally:
-        db.close()
+    result = progress_service.update_progress(db, ws["id"], phase, summary, details_json)
+    db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_get_progress(phase: str = "") -> dict:
+@with_mcp_workspace
+def workspace_get_progress(ws, project, db, locale, phase: str = "") -> dict:
     """Get progress entries with full details. Optionally filter by phase key.
 
     - phase: specific phase key (e.g. "1.0", "2.0"). Empty = all phases.
 
     Returns dict of phase → {summary, details, created_at, updated_at}."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    db = get_db()
-    try:
-        return progress_service.get_progress(db, ws["id"], phase_key=phase or None)
-    finally:
-        db.close()
+    return progress_service.get_progress(db, ws["id"], phase_key=phase or None)
 
 
 @mcp.tool()
-def workspace_propose_criteria(type: str, description: str, details_json: str = "") -> dict:
+@with_mcp_workspace
+def workspace_propose_criteria(ws, project, db, locale, type: str, description: str, details_json: str = "") -> dict:
     """Propose an acceptance criterion for the workspace. Called by the agent to suggest verifiable criteria.
 
     - type: one of 'unit_test', 'integration_test', 'bdd_scenario', 'custom'
@@ -804,49 +695,34 @@ def workspace_propose_criteria(type: str, description: str, details_json: str = 
       For custom: {"instruction": "description of what to verify"}
 
     Proposed criteria are visible in the admin panel where the user can accept or reject them."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
     if type not in VALID_CRITERIA_TYPES:
         return {"error": t("mcp.error.invalidCriteriaType", locale, type=type, valid_types=", ".join(VALID_CRITERIA_TYPES))}
 
-    db = get_db()
-    try:
-        result = criteria_service.propose_criterion(
-            db, ws["id"], type, description, details_json=details_json or None, source="agent"
-        )
-        if "ok" in result:
-            db.commit()
-        return result
-    finally:
-        db.close()
+    result = criteria_service.propose_criterion(
+        db, ws["id"], type, description, details_json=details_json or None, source="agent"
+    )
+    if "ok" in result:
+        db.commit()
+    return result
 
 
 @mcp.tool()
-def workspace_get_criteria(status: str = "", type: str = "") -> list:
+@with_mcp_workspace
+def workspace_get_criteria(ws, project, db, locale, status: str = "", type: str = "") -> list:
     """Get acceptance criteria for the current workspace, optionally filtered.
 
     - status: filter by status ('proposed', 'accepted', 'rejected'). Empty = all.
     - type: filter by type ('unit_test', 'integration_test', 'bdd_scenario', 'custom'). Empty = all.
 
     Returns list of criteria with id, type, description, details, source, status, validated, validation_message."""
-    ws, project = _detect_workspace()
-    if not ws:
-        return [{"error": t("mcp.error.noWorkspace")}]
-
-    db = get_db()
-    try:
-        return criteria_service.get_criteria(
-            db, ws["id"], status=status or None, criterion_type=type or None
-        )
-    finally:
-        db.close()
+    return criteria_service.get_criteria(
+        db, ws["id"], status=status or None, criterion_type=type or None
+    )
 
 
 @mcp.tool()
-def workspace_update_criteria(criterion_id: int, description: str = "", details_json: str = "") -> dict:
+@with_mcp_workspace
+def workspace_update_criteria(ws, project, db, locale, criterion_id: int, description: str = "", details_json: str = "") -> dict:
     """Update an existing acceptance criterion's description and/or details. Use this to fill in
     file paths, test names, and refined descriptions for criteria created by the user.
 
@@ -857,30 +733,21 @@ def workspace_update_criteria(criterion_id: int, description: str = "", details_
       For bdd_scenario: {"file": "features/file.feature", "scenario_names": ["scenario1"]}
       For custom: {"instruction": "description of what to verify"}
     """
-    ws, project = _detect_workspace()
-    if not ws:
-        return {"error": t("mcp.error.noWorkspace")}
-
-    locale = ws["locale"] or "en"
-    db = get_db()
-    try:
-        result = criteria_service.update_criterion(
-            db, criterion_id, ws["id"],
-            description=description or None, details_json=details_json or None
-        )
-        if "error" in result:
-            error_key = result["error"]
-            if error_key == "criterion_not_found":
-                return {"error": t("mcp.error.criterionNotFound", locale, criterion_id=criterion_id)}
-            if error_key == "cannot_update_accepted":
-                return {"error": t("mcp.error.cannotUpdateAcceptedCriteria", locale)}
-            if error_key == "nothing_to_update":
-                return {"error": t("mcp.error.nothingToUpdate", locale)}
-            return result
-        db.commit()
+    result = criteria_service.update_criterion(
+        db, criterion_id, ws["id"],
+        description=description or None, details_json=details_json or None
+    )
+    if "error" in result:
+        error_key = result["error"]
+        if error_key == "criterion_not_found":
+            return {"error": t("mcp.error.criterionNotFound", locale, criterion_id=criterion_id)}
+        if error_key == "cannot_update_accepted":
+            return {"error": t("mcp.error.cannotUpdateAcceptedCriteria", locale)}
+        if error_key == "nothing_to_update":
+            return {"error": t("mcp.error.nothingToUpdate", locale)}
         return result
-    finally:
-        db.close()
+    db.commit()
+    return result
 
 
 if __name__ == "__main__":

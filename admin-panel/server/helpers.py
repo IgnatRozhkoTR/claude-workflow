@@ -80,34 +80,3 @@ def find_workspace(db, project_id, branch):
         "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
         (project_id, sanitized)
     ).fetchone()
-
-
-def get_comments_for_workspace(db, workspace_id):
-    rows = db.execute(
-        "SELECT id, parent_id, scope, target, file_path, line_start, line_end, line_hash, "
-        "text, author, created_at, status, resolved_at, resolution "
-        "FROM discussions WHERE workspace_id = ? AND scope IS NOT NULL ORDER BY id",
-        (workspace_id,)
-    ).fetchall()
-    grouped = {}
-    for row in rows:
-        key = f"{row['scope']}:{row['target'] or ''}"
-        if key not in grouped:
-            grouped[key] = []
-        grouped[key].append({
-            "id": row["id"],
-            "parent_id": row["parent_id"],
-            "scope": row["scope"],
-            "target": row["target"],
-            "file_path": row["file_path"],
-            "line_start": row["line_start"],
-            "line_end": row["line_end"],
-            "line_hash": row["line_hash"],
-            "text": row["text"],
-            "author": row["author"],
-            "created_at": row["created_at"],
-            "resolved": row["status"] == "resolved",
-            "resolved_at": row["resolved_at"],
-            "resolution": row["resolution"],
-        })
-    return grouped

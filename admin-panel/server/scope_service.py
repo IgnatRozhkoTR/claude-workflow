@@ -15,16 +15,18 @@ _PHASE_3_SUB_RE = re.compile(r'^3\.\d+\.\d+$')
 VALID_SCOPE_STATUSES = ("pending", "approved", "rejected")
 
 
-def set_scope(db, ws, scope_data):
+def set_scope(db, ws, scope_data, enforce_phase_guard=True):
     """Update scope_json and reset scope_status to 'pending'.
 
-    Used by MCP: always resets approval so the user must re-approve.
+    When enforce_phase_guard=True (default, used by MCP), rejects updates at phase 0.
+    When enforce_phase_guard=False (used by admin UI), allows updates at any phase.
+    Always resets approval so the user must re-approve.
     Returns a result dict with ok/error keys.
     """
     locale = ws["locale"] or "en"
     phase = ws["phase"]
 
-    if Phase(phase) < "1.0":
+    if enforce_phase_guard and Phase(phase) < "1.0":
         return {"error": t("mcp.error.scopePhase0", locale)}
 
     scope_json = json.dumps(scope_data)

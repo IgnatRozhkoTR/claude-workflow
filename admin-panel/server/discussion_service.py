@@ -11,10 +11,12 @@ from datetime import datetime
 from comment_service import load_replies
 
 
-def post_discussion(db, workspace_id, text, author="user", disc_type="general", parent_id=None):
-    """Insert a general discussion (root or reply).
+def post_discussion(db, workspace_id, text, author="user", disc_type="general",
+                    parent_id=None, scope=None, target=None):
+    """Insert a discussion (root or reply, general or scoped).
 
     When parent_id is set, validates that the parent exists in the same workspace.
+    When scope is set, the discussion is scoped (e.g. attached to a phase/target).
     Returns a result dict with ok/id or error key.
     """
     resolved_parent_id = parent_id if parent_id else None
@@ -28,9 +30,10 @@ def post_discussion(db, workspace_id, text, author="user", disc_type="general", 
             return {"error": "parent_not_found", "parent_id": resolved_parent_id}
 
     cursor = db.execute(
-        "INSERT INTO discussions (workspace_id, parent_id, text, author, type, status, created_at) "
-        "VALUES (?, ?, ?, ?, ?, 'open', ?)",
-        (workspace_id, resolved_parent_id, text, author, disc_type, datetime.now().isoformat())
+        "INSERT INTO discussions (workspace_id, parent_id, text, author, type, scope, target, status, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)",
+        (workspace_id, resolved_parent_id, text, author, disc_type, scope, target,
+         datetime.now().isoformat())
     )
     return {"ok": True, "id": cursor.lastrowid}
 
@@ -46,6 +49,9 @@ def list_discussions(db, workspace_id, include_hidden=True, open_only=False):
         "FROM discussions WHERE workspace_id = ? AND scope IS NULL AND parent_id IS NULL"
     )
     params = [workspace_id]
+
+    if not include_hidden:
+        query += " AND (hidden IS NULL OR hidden = 0)"
 
     if open_only:
         query += " AND status = 'open'"
