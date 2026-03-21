@@ -202,8 +202,7 @@ async function showFilePreview(filePath, startLine, endLine) {
       var rawCode = lines.join('\n');
       var highlighted = null;
       if (typeof hljs !== 'undefined') {
-        var langMap = { js: 'javascript', ts: 'typescript', py: 'python', rb: 'ruby', yml: 'yaml', sh: 'bash', zsh: 'bash', htm: 'html', jsx: 'javascript', tsx: 'typescript', rs: 'rust', kt: 'kotlin', swift: 'swift', go: 'go', cs: 'csharp', cpp: 'cpp', c: 'c', h: 'c', hpp: 'cpp', vue: 'xml', svelte: 'xml' };
-        var lang = langMap[ext] || ext;
+        var lang = LANG_MAP[ext] || ext;
         try {
           highlighted = hljs.highlight(rawCode, { language: lang, ignoreIllegals: true }).value;
         } catch (e) {
@@ -341,8 +340,7 @@ async function toggleCodeSnippet(btn) {
 
     if (typeof hljs !== 'undefined') {
       var ext = file.split('.').pop().toLowerCase();
-      var langMap = { js: 'javascript', ts: 'typescript', py: 'python', rb: 'ruby', yml: 'yaml', sh: 'bash', htm: 'html', jsx: 'javascript', tsx: 'typescript', rs: 'rust', kt: 'kotlin', go: 'go', cs: 'csharp', cpp: 'cpp', c: 'c', java: 'java' };
-      var lang = langMap[ext] || ext;
+      var lang = LANG_MAP[ext] || ext;
       try {
         codeEl.innerHTML = hljs.highlight(rawCode, { language: lang, ignoreIllegals: true }).value;
       } catch (e) {

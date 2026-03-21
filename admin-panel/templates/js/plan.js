@@ -22,17 +22,26 @@ function zoomSystemDiagram(delta) {
   if (label) label.textContent = Math.round(systemDiagramScale * 100) + '%';
 }
 
-// Diagram pan (drag to scroll) — planDiagram
-(function() {
+// Diagram pan (drag to scroll)
+function makePannable(containerId, options) {
+  const ignoredSelectors = (options && options.ignoreSelectors) || [];
+  const useCursorStyle = (options && options.useCursorStyle) || false;
   let isDragging = false;
   let startX, startY, scrollLeft, scrollTop;
 
   document.addEventListener('mousedown', function(e) {
-    const container = document.getElementById('planDiagram');
+    const container = document.getElementById(containerId);
     if (!container || !container.contains(e.target)) return;
-    if (e.target.closest('button') || e.target.closest('.comment-icon')) return;
+    if (e.target.closest('button')) return;
+    for (let i = 0; i < ignoredSelectors.length; i++) {
+      if (e.target.closest(ignoredSelectors[i])) return;
+    }
     isDragging = true;
-    container.classList.add('dragging');
+    if (useCursorStyle) {
+      container.style.cursor = 'grabbing';
+    } else {
+      container.classList.add('dragging');
+    }
     startX = e.pageX - container.offsetLeft;
     startY = e.pageY - container.offsetTop;
     scrollLeft = container.scrollLeft;
@@ -42,7 +51,7 @@ function zoomSystemDiagram(delta) {
 
   document.addEventListener('mousemove', function(e) {
     if (!isDragging) return;
-    const container = document.getElementById('planDiagram');
+    const container = document.getElementById(containerId);
     if (!container) return;
     const x = e.pageX - container.offsetLeft;
     const y = e.pageY - container.offsetTop;
@@ -53,82 +62,19 @@ function zoomSystemDiagram(delta) {
   document.addEventListener('mouseup', function() {
     if (!isDragging) return;
     isDragging = false;
-    const container = document.getElementById('planDiagram');
-    if (container) container.classList.remove('dragging');
-  });
-})();
-
-// Diagram pan (drag to scroll) — systemDiagram
-(function() {
-  let isDragging = false;
-  let startX, startY, scrollLeft, scrollTop;
-
-  document.addEventListener('mousedown', function(e) {
-    const container = document.getElementById('systemDiagram');
-    if (!container || !container.contains(e.target)) return;
-    if (e.target.closest('button') || e.target.closest('.comment-icon') || e.target.closest('.comment-icon-header')) return;
-    isDragging = true;
-    container.classList.add('dragging');
-    startX = e.pageX - container.offsetLeft;
-    startY = e.pageY - container.offsetTop;
-    scrollLeft = container.scrollLeft;
-    scrollTop = container.scrollTop;
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    const container = document.getElementById('systemDiagram');
+    const container = document.getElementById(containerId);
     if (!container) return;
-    const x = e.pageX - container.offsetLeft;
-    const y = e.pageY - container.offsetTop;
-    container.scrollLeft = scrollLeft - (x - startX);
-    container.scrollTop = scrollTop - (y - startY);
+    if (useCursorStyle) {
+      container.style.cursor = 'grab';
+    } else {
+      container.classList.remove('dragging');
+    }
   });
+}
 
-  document.addEventListener('mouseup', function() {
-    if (!isDragging) return;
-    isDragging = false;
-    const container = document.getElementById('systemDiagram');
-    if (container) container.classList.remove('dragging');
-  });
-})();
-
-// Diagram pan (drag to scroll) — overlay
-(function() {
-  let isDragging = false;
-  let startX, startY, scrollLeft, scrollTop;
-
-  document.addEventListener('mousedown', function(e) {
-    const container = document.getElementById('diagramOverlayBody');
-    if (!container || !container.contains(e.target)) return;
-    if (e.target.closest('button') || e.target.closest('.diagram-overlay-controls')) return;
-    isDragging = true;
-    container.style.cursor = 'grabbing';
-    startX = e.pageX - container.offsetLeft;
-    startY = e.pageY - container.offsetTop;
-    scrollLeft = container.scrollLeft;
-    scrollTop = container.scrollTop;
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    const container = document.getElementById('diagramOverlayBody');
-    if (!container) return;
-    const x = e.pageX - container.offsetLeft;
-    const y = e.pageY - container.offsetTop;
-    container.scrollLeft = scrollLeft - (x - startX);
-    container.scrollTop = scrollTop - (y - startY);
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (!isDragging) return;
-    isDragging = false;
-    const container = document.getElementById('diagramOverlayBody');
-    if (container) container.style.cursor = 'grab';
-  });
-})();
+makePannable('planDiagram', { ignoreSelectors: ['.comment-icon'] });
+makePannable('systemDiagram', { ignoreSelectors: ['.comment-icon', '.comment-icon-header'] });
+makePannable('diagramOverlayBody', { ignoreSelectors: ['.diagram-overlay-controls'], useCursorStyle: true });
 
 // ═══════════════════════════════════════════════
 //  SYSTEM DIAGRAM RENDER

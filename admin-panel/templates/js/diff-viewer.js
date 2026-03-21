@@ -9,22 +9,6 @@ function filterDiffFiles(query) {
   renderFileList();
 }
 
-function buildFileTree(files) {
-  const tree = {};
-  files.forEach(f => {
-    const parts = f.path.split('/');
-    let node = tree;
-    parts.forEach((part, i) => {
-      if (i === parts.length - 1) {
-        node[part] = f;
-      } else {
-        if (!node[part] || typeof node[part] !== 'object' || node[part].path) node[part] = {};
-        node = node[part];
-      }
-    });
-  });
-  return tree;
-}
 
 function fileHasUnresolvedComments(filePath) {
   var key = 'review:' + filePath;
@@ -55,8 +39,16 @@ function renderFileList() {
       container.appendChild(div);
     });
   } else {
-    const tree = buildFileTree(files);
-    renderTreeNode(tree, container, '', 0);
+    const tree = buildFileTree(files, function(f) { return f.path; });
+    renderTreeNode(tree, container, 0, {
+      pathFn: function(item) { return item.path; },
+      isSelected: function(path) { return state.selectedFile === path; },
+      onClick: function(e, val) { if (!e.target.closest('.comment-icon')) selectFile(val.path); },
+      renderFileContent: function(val, key) {
+        var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
+        return '<span>' + escapeHtml(key) + '</span>' + unresolvedDot + renderCommentIcon('review', val.path) + '<div class="file-stat"><span class="file-stat-add">+' + val.additions + '</span><span class="file-stat-del">-' + val.deletions + '</span></div>';
+      }
+    });
   }
 
   var countEl = document.getElementById('fileCount');
@@ -65,54 +57,6 @@ function renderFileList() {
   if (badgeEl) badgeEl.textContent = t('badges.filesChanged', {count: DIFF_DATA.files.length});
 }
 
-function renderTreeNode(node, container, prefix, depth) {
-  depth = depth || 0;
-  var pad = 11 + depth * 11;
-  Object.keys(node).sort((a, b) => {
-    const aIsDir = !node[a].path;
-    const bIsDir = !node[b].path;
-    if (aIsDir && !bIsDir) return -1;
-    if (!aIsDir && bIsDir) return 1;
-    return a.localeCompare(b);
-  }).forEach(key => {
-    const val = node[key];
-    if (val.path) {
-      const div = document.createElement('div');
-      div.className = 'file-item' + (state.selectedFile === val.path ? ' active' : '');
-      div.style.paddingLeft = (pad + 11) + 'px';
-      div.dataset.path = val.path;
-      div.onclick = (e) => { if (!e.target.closest('.comment-icon')) selectFile(val.path); };
-      var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
-      div.innerHTML = `<span>${escapeHtml(key)}</span>${unresolvedDot}${renderCommentIcon('review', val.path)}<div class="file-stat"><span class="file-stat-add">+${val.additions}</span><span class="file-stat-del">-${val.deletions}</span></div>`;
-      container.appendChild(div);
-    } else {
-      var displayName = key;
-      var currentSubtree = val;
-      while (true) {
-        var subKeys = Object.keys(currentSubtree).filter(k => !currentSubtree[k].path);
-        var subFiles = Object.keys(currentSubtree).filter(k => currentSubtree[k].path);
-        if (subKeys.length === 1 && subFiles.length === 0) {
-          displayName += '/' + subKeys[0];
-          currentSubtree = currentSubtree[subKeys[0]];
-        } else {
-          break;
-        }
-      }
-
-      const dir = document.createElement('div');
-      dir.className = 'file-dir';
-      dir.style.paddingLeft = pad + 'px';
-      dir.innerHTML = `<span class="arrow">▼</span> ${escapeHtml(displayName)}/`;
-      dir.onclick = (e) => { e.stopPropagation(); dir.classList.toggle('collapsed'); };
-      container.appendChild(dir);
-
-      const children = document.createElement('div');
-      children.className = 'dir-children';
-      renderTreeNode(currentSubtree, children, prefix + displayName + '/', depth + 1);
-      container.appendChild(children);
-    }
-  });
-}
 
 function selectFile(path) {
   state.selectedFile = path;

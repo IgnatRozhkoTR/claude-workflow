@@ -48,10 +48,10 @@ async function handleRejectWithInput() {
   await handleReject(feedback);
 }
 
-function updateScopeStatusUI(status) {
-  var badge = document.getElementById('scopeStatusBadge');
-  var approveBtn = document.getElementById('scopeApproveBtn');
-  var rejectBtn = document.getElementById('scopeRejectBtn');
+function _updateApprovalUI(badgeId, approveBtnId, rejectBtnId, setStatus, status) {
+  var badge = document.getElementById(badgeId);
+  var approveBtn = document.getElementById(approveBtnId);
+  var rejectBtn = document.getElementById(rejectBtnId);
   if (!badge || !approveBtn || !rejectBtn) return;
 
   approveBtn.style.display = '';
@@ -62,29 +62,33 @@ function updateScopeStatusUI(status) {
     badge.className = 'badge badge-success';
     approveBtn.textContent = t('buttons.revokeApproval');
     approveBtn.className = 'btn btn-sm btn-outline';
-    approveBtn.onclick = function() { setScopeStatus('pending'); };
+    approveBtn.onclick = function() { setStatus('pending'); };
     rejectBtn.textContent = t('buttons.reject');
     rejectBtn.className = 'btn btn-sm btn-danger-outline';
-    rejectBtn.onclick = function() { setScopeStatus('rejected'); };
+    rejectBtn.onclick = function() { setStatus('rejected'); };
   } else if (status === 'rejected') {
     badge.textContent = t('badges.rejected');
     badge.className = 'badge badge-danger';
     approveBtn.textContent = t('buttons.approve');
     approveBtn.className = 'btn btn-sm btn-primary';
-    approveBtn.onclick = function() { setScopeStatus('approved'); };
+    approveBtn.onclick = function() { setStatus('approved'); };
     rejectBtn.textContent = t('buttons.revokeRejection');
     rejectBtn.className = 'btn btn-sm btn-outline';
-    rejectBtn.onclick = function() { setScopeStatus('pending'); };
+    rejectBtn.onclick = function() { setStatus('pending'); };
   } else {
     badge.textContent = t('badges.pending');
     badge.className = 'badge badge-warning';
     approveBtn.textContent = t('buttons.approve');
     approveBtn.className = 'btn btn-sm btn-primary';
-    approveBtn.onclick = function() { setScopeStatus('approved'); };
+    approveBtn.onclick = function() { setStatus('approved'); };
     rejectBtn.textContent = t('buttons.reject');
     rejectBtn.className = 'btn btn-sm btn-danger-outline';
-    rejectBtn.onclick = function() { setScopeStatus('rejected'); };
+    rejectBtn.onclick = function() { setStatus('rejected'); };
   }
+}
+
+function updateScopeStatusUI(status) {
+  _updateApprovalUI('scopeStatusBadge', 'scopeApproveBtn', 'scopeRejectBtn', setScopeStatus, status);
 }
 
 async function setScopeStatus(status) {
@@ -106,46 +110,11 @@ async function setScopeStatus(status) {
 }
 
 function updatePlanApprovalUI(status) {
-  var badge = document.getElementById('planStatusBadge');
-  var approveBtn = document.getElementById('planApproveBtn');
-  var rejectBtn = document.getElementById('planRejectBtn');
   var restoreBtn = document.getElementById('planRestoreBtn');
   if (restoreBtn) {
     restoreBtn.style.display = LOCK_DATA.has_prev_plan ? '' : 'none';
   }
-  if (!badge || !approveBtn || !rejectBtn) return;
-
-  approveBtn.style.display = '';
-  rejectBtn.style.display = '';
-
-  if (status === 'approved') {
-    badge.textContent = t('badges.approved');
-    badge.className = 'badge badge-success';
-    approveBtn.textContent = t('buttons.revokeApproval');
-    approveBtn.className = 'btn btn-sm btn-outline';
-    approveBtn.onclick = function() { setPlanStatus('pending'); };
-    rejectBtn.textContent = t('buttons.reject');
-    rejectBtn.className = 'btn btn-sm btn-danger-outline';
-    rejectBtn.onclick = function() { setPlanStatus('rejected'); };
-  } else if (status === 'rejected') {
-    badge.textContent = t('badges.rejected');
-    badge.className = 'badge badge-danger';
-    approveBtn.textContent = t('buttons.approve');
-    approveBtn.className = 'btn btn-sm btn-primary';
-    approveBtn.onclick = function() { setPlanStatus('approved'); };
-    rejectBtn.textContent = t('buttons.revokeRejection');
-    rejectBtn.className = 'btn btn-sm btn-outline';
-    rejectBtn.onclick = function() { setPlanStatus('pending'); };
-  } else {
-    badge.textContent = t('badges.pending');
-    badge.className = 'badge badge-warning';
-    approveBtn.textContent = t('buttons.approve');
-    approveBtn.className = 'btn btn-sm btn-primary';
-    approveBtn.onclick = function() { setPlanStatus('approved'); };
-    rejectBtn.textContent = t('buttons.reject');
-    rejectBtn.className = 'btn btn-sm btn-danger-outline';
-    rejectBtn.onclick = function() { setPlanStatus('rejected'); };
-  }
+  _updateApprovalUI('planStatusBadge', 'planApproveBtn', 'planRejectBtn', setPlanStatus, status);
 }
 
 async function setPlanStatus(status) {

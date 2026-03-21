@@ -211,9 +211,7 @@ function renderExplorerContent(path, lines) {
       content.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
     }
   } else {
-    var lang = ext;
-    var langMap = { kt: 'kotlin', py: 'python', js: 'javascript', ts: 'typescript', yml: 'yaml', sh: 'bash', rb: 'ruby', rs: 'rust' };
-    if (langMap[ext]) lang = langMap[ext];
+    var lang = LANG_MAP[ext] || ext;
 
     var numbered = lines.map(function(line, i) {
       return '<tr><td class="explorer-line-num">' + (i + 1) + '</td><td class="explorer-line-code">' + escapeHtml(line) + '</td></tr>';
