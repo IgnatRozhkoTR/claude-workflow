@@ -92,19 +92,13 @@ async function setScopeStatus(status) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/scope-status', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({status: status})
-    });
-    if (resp.ok) {
-      LOCK_DATA.scope_status = status;
-      if (status === 'approved') {
-        updateScopeStatusUI(status);
-        await tryAutoAdvanceGate();
-      } else {
-        updateScopeStatusUI(status);
-      }
+    await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/scope-status', {status: status});
+    LOCK_DATA.scope_status = status;
+    if (status === 'approved') {
+      updateScopeStatusUI(status);
+      await tryAutoAdvanceGate();
+    } else {
+      updateScopeStatusUI(status);
     }
   } catch (e) {
     console.error('Failed to set scope status:', e);
@@ -159,19 +153,13 @@ async function setPlanStatus(status) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/plan-status', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({status: status})
-    });
-    if (resp.ok) {
-      LOCK_DATA.plan_status = status;
-      if (status === 'approved') {
-        updatePlanApprovalUI(status);
-        await tryAutoAdvanceGate();
-      } else {
-        updatePlanApprovalUI(status);
-      }
+    await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/plan-status', {status: status});
+    LOCK_DATA.plan_status = status;
+    if (status === 'approved') {
+      updatePlanApprovalUI(status);
+      await tryAutoAdvanceGate();
+    } else {
+      updatePlanApprovalUI(status);
     }
   } catch (e) {
     console.error('Failed to set plan status:', e);
@@ -215,26 +203,19 @@ async function refreshState() {
     var yoloCheck = document.getElementById('yoloCheck');
     if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
 
-    renderPhaseBar('phaseBarControl', 'phaseLabelsControl');
-    renderPhaseActions();
-    renderPhaseHistory();
-    renderPlan();
-    renderScope();
     updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
     updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
-    renderResearch();
-    if (typeof renderPreplanning === 'function') renderPreplanning();
 
     try {
       var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
       if (diffData && diffData.files) {
         DIFF_DATA = diffData;
-        renderFileList();
-        if (state.selectedFile) renderDiff(state.selectedFile);
       }
     } catch (de) {
       console.warn('Failed to refresh diff:', de.message);
     }
+
+    EventBus.emit('state:refreshed', stateData);
   } catch (e) {
     console.warn('Failed to refresh state:', e.message);
   } finally {
@@ -247,15 +228,7 @@ async function restorePlan() {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/restore-plan', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'}
-    });
-    if (!resp.ok) {
-      var err = await resp.json();
-      showToast(t('messages.restoreFailed', {error: err.error || t('errors.unknownError')}));
-      return;
-    }
+    await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/restore-plan', {});
     showToast(t('messages.previousPlanRestored'));
     await refreshState();
   } catch (e) {

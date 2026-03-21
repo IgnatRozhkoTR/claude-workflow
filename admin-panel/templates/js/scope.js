@@ -190,3 +190,5 @@ function handleScopeInput(event, key) {
   event.target.value = '';
   apiSetScope(ctx.projectId, ctx.branch, LOCK_DATA.scope).then(function() { renderScope(); });
 }
+
+EventBus.on('state:refreshed', renderScope);

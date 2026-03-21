@@ -8,8 +8,7 @@ async function loadReviewComments() {
     var ctx = getWorkspaceContext();
     if (!ctx) return;
     try {
-        var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments?scope=review');
-        var data = await resp.json();
+        var data = await apiListComments(ctx.projectId, ctx.branch, 'review');
         REVIEW_COMMENTS = data.comments || [];
         renderReviewTab();
         updateReviewBadge();
@@ -51,11 +50,7 @@ async function resolveReviewTabComment(commentId) {
     try {
         var comment = REVIEW_COMMENTS.find(function(c) { return c.id === commentId; });
         var resolved = comment && comment.resolved;
-        await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/resolve', {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({resolved: !resolved})
-        });
+        await apiResolveComment(ctx.projectId, ctx.branch, commentId, !resolved);
         await loadReviewComments();
     } catch(e) {
         showToast(t('messages.failedToResolve', {error: e.message}));
@@ -66,11 +61,7 @@ async function replyToReviewTabComment(commentId, text) {
     var ctx = getWorkspaceContext();
     if (!ctx) return;
     try {
-        await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/reply', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({text: text})
-        });
+        await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/reply', {text: text});
         await loadReviewComments();
     } catch(e) {
         showToast(t('messages.failedToUpdate', {error: e.message}));

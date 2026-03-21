@@ -60,13 +60,11 @@ function getTerminalTheme() {
   return isDark ? TERMINAL_THEMES.dark : TERMINAL_THEMES.light;
 }
 
-function initTerminal() {
-  if (term) return;
+function _createTerminal(containerId, wsRef) {
+  var container = document.getElementById(containerId);
+  if (!container) return null;
 
-  var container = document.getElementById('terminalContainer');
-  if (!container) return;
-
-  term = new Terminal({
+  var terminal = new Terminal({
     cursorBlink: true,
     fontSize: 13,
     fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
@@ -75,17 +73,17 @@ function initTerminal() {
     scrollback: 5000
   });
 
-  fitAddon = new FitAddon.FitAddon();
-  term.loadAddon(fitAddon);
+  var addon = new FitAddon.FitAddon();
+  terminal.loadAddon(addon);
 
   var webLinksAddon = new WebLinksAddon.WebLinksAddon();
-  term.loadAddon(webLinksAddon);
+  terminal.loadAddon(webLinksAddon);
 
-  term.open(container);
-  fitAddon.fit();
+  terminal.open(container);
+  addon.fit();
 
-  if (term.parser) {
-    term.parser.registerOscHandler(52, function(data) {
+  if (terminal.parser) {
+    terminal.parser.registerOscHandler(52, function(data) {
       var parts = data.split(';');
       if (parts.length >= 2) {
         try {
@@ -103,17 +101,72 @@ function initTerminal() {
     e.stopPropagation();
   }, { passive: true });
 
-  term.onData(function(data) {
-    if (terminalWs && terminalWs.readyState === WebSocket.OPEN) {
-      terminalWs.send(data);
+  terminal.onData(function(data) {
+    var ws = wsRef();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
     }
   });
 
-  term.onResize(function(size) {
-    if (terminalWs && terminalWs.readyState === WebSocket.OPEN) {
-      terminalWs.send(JSON.stringify({ resize: [size.cols, size.rows] }));
+  terminal.onResize(function(size) {
+    var ws = wsRef();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ resize: [size.cols, size.rows] }));
     }
   });
+
+  return { terminal: terminal, fitAddon: addon };
+}
+
+function _connectTerminal(terminal, addon, wsUrl, options) {
+  var ws = new WebSocket(wsUrl);
+
+  ws.onopen = function() {
+    options.onConnected();
+    terminal.clear();
+    if (addon) {
+      addon.fit();
+      if (options.focusOnOpen) terminal.focus();
+      var dims = addon.proposeDimensions();
+      if (dims) {
+        ws.send(JSON.stringify({ resize: [dims.cols, dims.rows] }));
+      }
+    }
+  };
+
+  ws.onmessage = function(event) {
+    if (typeof event.data === 'string' && event.data.startsWith('{')) {
+      try {
+        var msg = JSON.parse(event.data);
+        if (msg.error) {
+          terminal.writeln('\r\n\x1b[31m' + msg.error + '\x1b[0m');
+          options.onError();
+          return;
+        }
+      } catch(e) {}
+    }
+    terminal.write(event.data);
+  };
+
+  ws.onclose = function() {
+    options.onDisconnected();
+  };
+
+  ws.onerror = function() {
+    options.onError();
+  };
+
+  return ws;
+}
+
+function initTerminal() {
+  if (term) return;
+
+  var result = _createTerminal('terminalContainer', function() { return terminalWs; });
+  if (!result) return;
+
+  term = result.terminal;
+  fitAddon = result.fitAddon;
 
   window.addEventListener('resize', function() {
     if (fitAddon && document.getElementById('panel-terminal').classList.contains('active')) {
@@ -150,50 +203,23 @@ function connectTerminal() {
   updateTerminalStatus('connecting');
   if (term) term.writeln('\r\nConnecting to tmux session...');
 
-  terminalWs = new WebSocket(wsUrl);
-
-  terminalWs.onopen = function() {
-    terminalConnected = true;
-    updateTerminalStatus('connected');
-    if (term) {
-      term.clear();
-      if (fitAddon) {
-        fitAddon.fit();
-        var dims = fitAddon.proposeDimensions();
-        if (dims) {
-          terminalWs.send(JSON.stringify({ resize: [dims.cols, dims.rows] }));
-        }
-      }
+  terminalWs = _connectTerminal(term, fitAddon, wsUrl, {
+    focusOnOpen: false,
+    onConnected: function() {
+      terminalConnected = true;
+      updateTerminalStatus('connected');
+    },
+    onDisconnected: function() {
+      terminalConnected = false;
+      updateTerminalStatus('disconnected');
+      if (term) term.writeln('\r\n\x1b[33mDisconnected from terminal.\x1b[0m');
+    },
+    onError: function() {
+      terminalConnected = false;
+      updateTerminalStatus('error');
+      if (term) term.writeln('\r\n\x1b[31mWebSocket error. Is the tmux session running?\x1b[0m');
     }
-  };
-
-  terminalWs.onmessage = function(event) {
-    if (term) {
-      if (typeof event.data === 'string' && event.data.startsWith('{')) {
-        try {
-          var msg = JSON.parse(event.data);
-          if (msg.error) {
-            term.writeln('\r\n\x1b[31m' + msg.error + '\x1b[0m');
-            updateTerminalStatus('error');
-            return;
-          }
-        } catch(e) {}
-      }
-      term.write(event.data);
-    }
-  };
-
-  terminalWs.onclose = function() {
-    terminalConnected = false;
-    updateTerminalStatus('disconnected');
-    if (term) term.writeln('\r\n\x1b[33mDisconnected from terminal.\x1b[0m');
-  };
-
-  terminalWs.onerror = function() {
-    terminalConnected = false;
-    updateTerminalStatus('error');
-    if (term) term.writeln('\r\n\x1b[31mWebSocket error. Is the tmux session running?\x1b[0m');
-  };
+  });
 }
 
 function disconnectTerminal() {
@@ -211,12 +237,8 @@ function killTerminalSession() {
 
   disconnectTerminal();
 
-  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/kill', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/kill', {})
+  .then(function() {
     if (term) term.writeln('\r\n\x1b[33mSession killed.\x1b[0m');
     loadTerminalSessions();
   })
@@ -281,8 +303,7 @@ function onTerminalTabActivated() {
 var _sessionListInterval = null;
 
 function loadTerminalSessions() {
-  fetch('/api/terminal/sessions')
-    .then(function(r) { return r.json(); })
+  apiGet('/api/terminal/sessions')
     .then(function(sessions) {
       renderSessionList(sessions);
     })
@@ -315,7 +336,7 @@ function renderSessionList(sessions) {
 }
 
 function killSessionByName(name) {
-  fetch('/api/terminal/sessions/' + encodeURIComponent(name) + '/kill', { method: 'POST' })
+  apiPost('/api/terminal/sessions/' + encodeURIComponent(name) + '/kill', {})
     .then(function() { loadTerminalSessions(); })
     .catch(function() {});
 }
@@ -372,57 +393,13 @@ function toggleSplitTerminal() {
 }
 
 function initSplitTerminal() {
-  var container = document.getElementById('splitTerminalContainer');
-  if (!container || splitTerm) return;
+  if (splitTerm) return;
 
-  splitTerm = new Terminal({
-    cursorBlink: true,
-    fontSize: 13,
-    fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
-    theme: getTerminalTheme(),
-    allowProposedApi: true,
-    scrollback: 5000
-  });
+  var result = _createTerminal('splitTerminalContainer', function() { return splitWs; });
+  if (!result) return;
 
-  splitFitAddon = new FitAddon.FitAddon();
-  splitTerm.loadAddon(splitFitAddon);
-
-  var webLinksAddon = new WebLinksAddon.WebLinksAddon();
-  splitTerm.loadAddon(webLinksAddon);
-
-  splitTerm.open(container);
-  splitFitAddon.fit();
-
-  if (splitTerm.parser) {
-    splitTerm.parser.registerOscHandler(52, function(data) {
-      var parts = data.split(';');
-      if (parts.length >= 2) {
-        try {
-          var decoded = atob(parts[parts.length - 1]);
-          if (typeof safeCopyToClipboard === 'function') {
-            safeCopyToClipboard(decoded);
-          }
-        } catch(e) {}
-      }
-      return true;
-    });
-  }
-
-  splitTerm.onData(function(data) {
-    if (splitWs && splitWs.readyState === WebSocket.OPEN) {
-      splitWs.send(data);
-    }
-  });
-
-  splitTerm.onResize(function(size) {
-    if (splitWs && splitWs.readyState === WebSocket.OPEN) {
-      splitWs.send(JSON.stringify({ resize: [size.cols, size.rows] }));
-    }
-  });
-
-  container.addEventListener('wheel', function(e) {
-    e.stopPropagation();
-  }, { passive: true });
+  splitTerm = result.terminal;
+  splitFitAddon = result.fitAddon;
 }
 
 function connectSplitTerminal() {
@@ -437,47 +414,21 @@ function connectSplitTerminal() {
 
   updateSplitTerminalStatus('connecting');
 
-  splitWs = new WebSocket(wsUrl);
-
-  splitWs.onopen = function() {
-    splitConnected = true;
-    updateSplitTerminalStatus('connected');
-    if (splitTerm) splitTerm.clear();
-    if (splitFitAddon) {
-      splitFitAddon.fit();
-      if (splitTerm) splitTerm.focus();
-      var dims = splitFitAddon.proposeDimensions();
-      if (dims) {
-        splitWs.send(JSON.stringify({ resize: [dims.cols, dims.rows] }));
-      }
+  splitWs = _connectTerminal(splitTerm, splitFitAddon, wsUrl, {
+    focusOnOpen: true,
+    onConnected: function() {
+      splitConnected = true;
+      updateSplitTerminalStatus('connected');
+    },
+    onDisconnected: function() {
+      splitConnected = false;
+      updateSplitTerminalStatus('disconnected');
+    },
+    onError: function() {
+      splitConnected = false;
+      updateSplitTerminalStatus('error');
     }
-  };
-
-  splitWs.onmessage = function(event) {
-    if (splitTerm) {
-      if (typeof event.data === 'string' && event.data.startsWith('{')) {
-        try {
-          var msg = JSON.parse(event.data);
-          if (msg.error) {
-            splitTerm.writeln('\r\n\x1b[31m' + msg.error + '\x1b[0m');
-            updateSplitTerminalStatus('error');
-            return;
-          }
-        } catch(e) {}
-      }
-      splitTerm.write(event.data);
-    }
-  };
-
-  splitWs.onclose = function() {
-    splitConnected = false;
-    updateSplitTerminalStatus('disconnected');
-  };
-
-  splitWs.onerror = function() {
-    splitConnected = false;
-    updateSplitTerminalStatus('error');
-  };
+  });
 }
 
 function disconnectSplitTerminal() {

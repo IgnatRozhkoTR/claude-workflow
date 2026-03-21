@@ -338,11 +338,7 @@ async function resolveReviewComment(commentId) {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
   try {
-    await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/resolve', {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({resolved: true})
-    });
+    await apiResolveComment(ctx.projectId, ctx.branch, commentId, true);
     await refreshComments();
   } catch(e) {
     showToast(t('messages.failedToResolve', {error: e.message}));
@@ -353,11 +349,7 @@ async function replyToReviewComment(commentId, text) {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
   try {
-    await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/reply', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text: text})
-    });
+    await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments/' + commentId + '/reply', {text: text});
     await refreshComments();
   } catch(e) {
     showToast(t('messages.failedToUpdate', {error: e.message}));
@@ -367,8 +359,7 @@ async function replyToReviewComment(commentId, text) {
 async function refreshComments() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
-  var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/comments?scope=review');
-  var data = await resp.json();
+  var data = await apiListComments(ctx.projectId, ctx.branch, 'review');
   Object.keys(COMMENTS).forEach(function(key) {
     if (key.startsWith('review:')) delete COMMENTS[key];
   });
@@ -420,3 +411,8 @@ async function setDiffSource(mode) {
 //  RESIZABLE FILE LIST PANEL
 // ═══════════════════════════════════════════════
 makeResizable('diffResizeHandle', 'diffFileList');
+
+EventBus.on('state:refreshed', function() {
+  renderFileList();
+  if (state.selectedFile) renderDiff(state.selectedFile);
+});

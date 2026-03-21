@@ -285,15 +285,8 @@ async function toggleResearchProven(entryId, proven, btn) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId + '/prove', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({proven: proven})
-    });
-    if (resp.ok) {
-      // Refresh the research data and re-render
-      await refreshState();
-    }
+    await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId + '/prove', {proven: proven});
+    await refreshState();
   } catch (e) {
     console.error('Failed to toggle research proven:', e);
   }
@@ -305,12 +298,8 @@ async function deleteResearch(entryId) {
   if (!ctx) return;
 
   try {
-    var resp = await fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId, {
-      method: 'DELETE'
-    });
-    if (resp.ok) {
-      await refreshState();
-    }
+    await apiDelete('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId);
+    await refreshState();
   } catch (e) {
     console.error('Failed to delete research:', e);
   }
@@ -366,3 +355,5 @@ async function toggleCodeSnippet(btn) {
     codeEl.textContent = t('errors.failedToLoadSnippet', {error: e.message});
   }
 }
+
+EventBus.on('state:refreshed', renderResearch);

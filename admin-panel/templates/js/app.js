@@ -226,13 +226,8 @@ function doNotify(type) {
   var btn = document.getElementById('notifyBtn');
   if (btn) btn.disabled = true;
 
-  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/notify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: message })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/notify', { message: message })
+  .then(function() {
     if (btn) {
       var original = btn.textContent;
       btn.textContent = t('actions.notified');

@@ -246,3 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+EventBus.on('state:refreshed', function() {
+  if (typeof loadCriteria === 'function') loadCriteria();
+});

@@ -274,8 +274,7 @@ function addPPDiscussion() {
       hidden: 0,
       created_at: new Date().toISOString()
     });
-    renderPPDiscussions();
-    renderDiscussions();
+    EventBus.emit('discussions:changed');
   }).catch(function(e) {
     showToast(t('messages.failedToAddDiscussion', { error: e.message }));
   });
@@ -400,8 +399,7 @@ function submitPPComment(inputEl, scope, targetId) {
       hidden: 0,
       created_at: new Date().toISOString()
     });
-    renderPPDiscussions();
-    renderDiscussions();
+    EventBus.emit('discussions:changed');
     inputEl.value = '';
     var form = inputEl.closest('.pp-inline-comment-form');
     if (form) form.remove();
@@ -431,9 +429,11 @@ function ppReplyToDiscussion(discussionId) {
         break;
       }
     }
-    renderPPDiscussions();
-    renderDiscussions();
+    EventBus.emit('discussions:changed');
   }).catch(function(e) {
     showToast(t('messages.failedToAddDiscussion', { error: e.message }));
   });
 }
+
+EventBus.on('state:refreshed', renderPreplanning);
+EventBus.on('discussions:changed', renderPPDiscussions);

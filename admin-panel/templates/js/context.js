@@ -168,7 +168,7 @@ function addNewDiscussion() {
       hidden: 0,
       created_at: new Date().toISOString()
     });
-    renderDiscussions();
+    EventBus.emit('discussions:changed');
     renderContextRaw();
   }).catch(function(e) {
     showToast(t('messages.failedToAddDiscussion', {error: e.message}));
@@ -182,7 +182,7 @@ function deleteDiscussion(discussionId) {
   apiDelete('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context/discussions/' + discussionId)
     .then(function() {
       CONTEXT_DATA.discussions = CONTEXT_DATA.discussions.filter(function(d) { return d.id !== discussionId; });
-      renderDiscussions();
+      EventBus.emit('discussions:changed');
       renderContextRaw();
     }).catch(function(e) {
       showToast(t('messages.failedToDelete', {error: e.message}));
@@ -198,9 +198,8 @@ function resolveDiscussion(discussionId, unresolve) {
   }).then(function() {
     var d = CONTEXT_DATA.discussions.find(function(d) { return d.id === discussionId; });
     if (d) d.status = unresolve ? 'open' : 'resolved';
-    renderDiscussions();
-    renderPPDiscussions();
     renderContextRaw();
+    EventBus.emit('discussions:changed');
     showToast(t('messages.discussionResolved'));
   }).catch(function(e) {
     showToast(t('messages.failedToResolve', {error: e.message}));
@@ -377,178 +376,4 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ═══════════════════════════════════════════════
-//  GIT CONFIG & RULES
-// ═══════════════════════════════════════════════
-
-function toggleGitLabFields() {
-  var provider = document.getElementById('gitProvider').value;
-  var fields = document.getElementById('gitLabFields');
-  if (fields) {
-    fields.style.display = provider === 'gitlab' ? '' : 'none';
-  }
-}
-
-function loadGitConfig() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  apiGet('/api/projects/' + encodeURIComponent(ctx.projectId) + '/git-config')
-    .then(function(config) {
-      var provider = document.getElementById('gitProvider');
-      var host = document.getElementById('gitHost');
-      var token = document.getElementById('gitToken');
-      var branch = document.getElementById('gitDefaultBranch');
-      if (provider) provider.value = config.provider || 'local';
-      if (host) host.value = config.host || '';
-      if (token) token.value = config.token || '';
-      if (branch) branch.value = config.default_branch || 'develop';
-      toggleGitLabFields();
-    }).catch(function() {});
-}
-
-function saveGitConfig() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  var config = {
-    provider: document.getElementById('gitProvider').value,
-    host: document.getElementById('gitHost').value,
-    token: document.getElementById('gitToken').value,
-    default_branch: document.getElementById('gitDefaultBranch').value || 'develop'
-  };
-
-  apiPut('/api/projects/' + encodeURIComponent(ctx.projectId) + '/git-config', config)
-    .then(function() { showToast(t('messages.gitConfigSaved')); })
-    .catch(function(e) { showToast(t('messages.gitSaveFailed', {error: e.message})); });
-}
-
-function loadGitRules() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  apiGet('/api/projects/' + encodeURIComponent(ctx.projectId) + '/git-rules')
-    .then(function(data) {
-      var textarea = document.getElementById('gitRulesContent');
-      var source = document.getElementById('gitRulesSource');
-      if (textarea) textarea.value = data.content || '';
-      if (source) {
-        var labels = { 'system-default': t('gitRules.sourceSystemDefault'), 'project': t('gitRules.sourceProject'), 'not-configured': t('gitRules.sourceNotConfigured') };
-        source.textContent = t('gitRules.source', {label: labels[data.source] || data.source});
-      }
-    }).catch(function() {});
-}
-
-function saveGitRules() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  var content = document.getElementById('gitRulesContent').value;
-
-  apiPut('/api/projects/' + encodeURIComponent(ctx.projectId) + '/git-rules', { content: content })
-    .then(function(data) {
-      showToast(t('messages.gitRulesSaved'));
-      var source = document.getElementById('gitRulesSource');
-      if (source) source.textContent = t('gitRules.source', {label: t('gitRules.sourceProject')});
-    })
-    .catch(function(e) { showToast(t('messages.gitSaveFailed', {error: e.message})); });
-}
-
-function loadClaudeCommand() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/command')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var input = document.getElementById('claudeCommandInput');
-      var checkbox = document.getElementById('skipPermissionsCheck');
-      if (input) input.value = data.claude_command || 'claude';
-      if (checkbox) checkbox.checked = data.skip_permissions !== false;
-      if (data.restrict_to_workspace !== undefined) {
-        var restrictCheckbox = document.getElementById('restrictToWorkspaceCheck');
-        if (restrictCheckbox) restrictCheckbox.checked = data.restrict_to_workspace;
-      }
-      var pathsInput = document.getElementById('allowedExternalPathsInput');
-      if (pathsInput) pathsInput.value = data.allowed_external_paths || '/tmp/';
-    })
-    .catch(function() {});
-}
-
-function saveClaudeCommand() {
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-
-  var input = document.getElementById('claudeCommandInput');
-  var checkbox = document.getElementById('skipPermissionsCheck');
-  var restrictCheck = document.getElementById('restrictToWorkspaceCheck');
-  var pathsInput = document.getElementById('allowedExternalPathsInput');
-
-  var cmd = input ? input.value.trim() : 'claude';
-  var skip = checkbox ? checkbox.checked : true;
-
-  fetch('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/command', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      claude_command: cmd,
-      skip_permissions: skip,
-      restrict_to_workspace: restrictCheck ? restrictCheck.checked : true,
-      allowed_external_paths: pathsInput ? pathsInput.value.trim() : '/tmp/'
-    })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.ok) {
-      var btn = document.querySelector('[onclick="saveClaudeCommand()"]');
-      if (btn) {
-        var original = btn.textContent;
-        btn.textContent = t('actions.copied') || 'Saved!';
-        setTimeout(function() { btn.textContent = original; }, 1500);
-      }
-    }
-  })
-  .catch(function(e) {
-    showToast('Save failed: ' + e.message);
-  });
-}
-
-function loadChannelsPreference() {
-  var defaultValue = 'plugin:telegram@claude-plugins-official';
-  var enabled = localStorage.getItem('channels_enabled') === 'true';
-  var value = localStorage.getItem('channels_value') || defaultValue;
-  var check = document.getElementById('channelsEnabledCheck');
-  var input = document.getElementById('channelsValueInput');
-  if (check) check.checked = enabled;
-  if (input) {
-    input.value = value;
-    input.style.display = enabled ? '' : 'none';
-  }
-}
-
-function saveChannelsPreference() {
-  var defaultValue = 'plugin:telegram@claude-plugins-official';
-  var check = document.getElementById('channelsEnabledCheck');
-  var input = document.getElementById('channelsValueInput');
-  if (!check || !input) return;
-  if (!input.value) input.value = defaultValue;
-  localStorage.setItem('channels_enabled', check.checked ? 'true' : 'false');
-  localStorage.setItem('channels_value', input.value);
-  input.style.display = check.checked ? '' : 'none';
-}
-
-function showToast(message) {
-  var existing = document.getElementById('toast');
-  if (existing) existing.remove();
-
-  var toast = document.createElement('div');
-  toast.id = 'toast';
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(function() { toast.classList.add('show'); }, 10);
-  setTimeout(function() {
-    toast.classList.remove('show');
-    setTimeout(function() { toast.remove(); }, 300);
-  }, 2000);
-}
+EventBus.on('discussions:changed', renderDiscussions);

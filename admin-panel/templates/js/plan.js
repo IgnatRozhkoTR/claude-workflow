@@ -643,3 +643,5 @@ function renderPlan() {
     container.appendChild(groupDiv);
   });
 }
+
+EventBus.on('state:refreshed', renderPlan);

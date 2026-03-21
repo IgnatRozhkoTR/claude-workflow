@@ -232,3 +232,9 @@ function renderPhaseActions() {
 
   container.appendChild(div);
 }
+
+EventBus.on('state:refreshed', function() {
+  renderPhaseBar('phaseBarControl', 'phaseLabelsControl');
+  renderPhaseActions();
+  renderPhaseHistory();
+});
