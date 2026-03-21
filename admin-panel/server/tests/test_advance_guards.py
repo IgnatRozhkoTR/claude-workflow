@@ -244,12 +244,7 @@ def test_review_guard_rejected_at_code_review_gate(workspace, project):
 def test_review_guard_approved_all_resolved_at_gate(workspace, project):
     """All review items resolved — guard approves at 4.2."""
     guard = ReviewGuard()
-    from db import get_db
-    comment_id = add_comment(workspace["id"], scope="review", text="Fixed finding", resolution="fixed")
-    db = get_db()
-    db.execute("UPDATE discussions SET status = 'resolved' WHERE id = ?", (comment_id,))
-    db.commit()
-    db.close()
+    add_comment(workspace["id"], scope="review", text="Fixed finding", resolution="fixed")
     set_phase(workspace["id"], "4.2")
     ws = _get_ws_row(workspace["id"])
     result = guard.evaluate("4.2", ws, {})

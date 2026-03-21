@@ -481,6 +481,7 @@ class ExecutionAdvancer(PhaseAdvancer):
             db = get_db()
             try:
                 all_passed, results = validate_all(db, ws["id"], ws["working_dir"])
+                db.commit()
             finally:
                 db.close()
 

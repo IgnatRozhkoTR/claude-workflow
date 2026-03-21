@@ -160,7 +160,7 @@ class ReviewGuard(AdvanceGuard):
         try:
             row = db.execute(
                 "SELECT COUNT(*) as cnt FROM discussions "
-                "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL AND status != 'resolved'",
+                "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL AND resolution = 'open'",
                 (ws["id"],)
             ).fetchone()
         finally:

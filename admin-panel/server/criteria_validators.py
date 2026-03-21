@@ -49,8 +49,6 @@ def validate_all(db, workspace_id, working_dir):
         
         if not passed:
             all_passed = False
-    
-    db.commit()
 
     custom_unvalidated = db.execute(
         "SELECT id, type, description FROM acceptance_criteria "

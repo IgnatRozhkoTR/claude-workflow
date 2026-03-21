@@ -7,6 +7,7 @@ import fcntl
 import termios
 import threading
 import json
+import re
 import signal
 
 from flask import Blueprint, request, jsonify
@@ -14,6 +15,9 @@ from flask_sock import Sock
 
 from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command
 from db import get_db
+
+_SAFE_NOTIFY_RE = re.compile(r'[^a-zA-Z0-9 .,!?\-_\'\"():;/]')
+_MAX_NOTIFY_LENGTH = 300
 
 bp = Blueprint('terminal', __name__)
 
@@ -272,7 +276,11 @@ def terminal_notify(project, branch):
         return jsonify({'error': 'No active tmux session'}), 404
 
     data = request.get_json() or {}
-    message = data.get('message', 'New review comments have been left. Please check workspace_get_comments.')
+    raw_message = data.get('message', 'New review comments have been left. Please check workspace_get_comments.')
+    message = _SAFE_NOTIFY_RE.sub('', raw_message)[:_MAX_NOTIFY_LENGTH].strip()
+
+    if not message:
+        return jsonify({'error': 'Message is empty after sanitization'}), 400
 
     send_keys(name, message)
     return jsonify({'ok': True, 'status': 'notified'})
