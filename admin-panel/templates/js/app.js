@@ -30,7 +30,8 @@ async function initApp() {
   try {
     const contextData = await apiGet('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context');
     if (contextData) {
-      CONTEXT_DATA = contextData;
+      AppState.context = contextData;
+      CONTEXT_DATA = AppState.context;
     }
   } catch (e) {
     console.warn('Context API unavailable:', e.message);
@@ -39,7 +40,8 @@ async function initApp() {
   try {
     const diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
     if (diffData && diffData.files) {
-      DIFF_DATA = diffData;
+      AppState.diff = diffData;
+      DIFF_DATA = AppState.diff;
     }
   } catch (e) {
     console.warn('Diff API unavailable, using static data:', e.message);

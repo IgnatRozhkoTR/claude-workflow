@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════
 //  INLINE COMMENT SYSTEM
 // ═══════════════════════════════════════════════
-let COMMENTS = {};
-let SHOW_RESOLVED = false;
+var COMMENTS = AppState.comments;
+var SHOW_RESOLVED = false;
 
 function commentKey(scope, target) {
   return scope + ':' + (target || '');

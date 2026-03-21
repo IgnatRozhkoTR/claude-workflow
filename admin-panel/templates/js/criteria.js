@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════
 //  ACCEPTANCE CRITERIA
 // ═══════════════════════════════════════════════
-var CRITERIA_DATA = [];
+var CRITERIA_DATA = AppState.criteria;
 
 function loadCriteria() {
   var ctx = getWorkspaceContext();
@@ -9,7 +9,8 @@ function loadCriteria() {
   apiGet('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/criteria')
     .then(function(data) {
       if (data && data.criteria) {
-        CRITERIA_DATA = data.criteria;
+        AppState.criteria = data.criteria;
+        CRITERIA_DATA = AppState.criteria;
         renderCriteria();
       }
     });

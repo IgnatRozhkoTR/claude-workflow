@@ -17,11 +17,11 @@ async function refreshTabData() {
   } catch(e) { console.warn('Refresh state failed:', e.message); }
   try {
     var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
-    if (diffData && diffData.files) DIFF_DATA = diffData;
+    if (diffData && diffData.files) { AppState.diff = diffData; DIFF_DATA = AppState.diff; }
   } catch(e) { console.warn('Refresh diff failed:', e.message); }
   try {
     var contextData = await apiGet('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context');
-    if (contextData) CONTEXT_DATA = contextData;
+    if (contextData) { AppState.context = contextData; CONTEXT_DATA = AppState.context; }
   } catch(e) { console.warn('Refresh context failed:', e.message); }
 }
 

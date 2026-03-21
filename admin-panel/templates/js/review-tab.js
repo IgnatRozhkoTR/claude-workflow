@@ -2,14 +2,15 @@
 //  REVIEW TAB
 // ═══════════════════════════════════════════════
 
-var REVIEW_COMMENTS = [];
+var REVIEW_COMMENTS = AppState.reviewComments;
 
 async function loadReviewComments() {
     var ctx = getWorkspaceContext();
     if (!ctx) return;
     try {
         var data = await apiListComments(ctx.projectId, ctx.branch, 'review');
-        REVIEW_COMMENTS = data.comments || [];
+        AppState.reviewComments = data.comments || [];
+        REVIEW_COMMENTS = AppState.reviewComments;
         renderReviewTab();
         updateReviewBadge();
     } catch(e) {

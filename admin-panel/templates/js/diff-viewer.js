@@ -399,7 +399,8 @@ async function setDiffSource(mode) {
   try {
     const diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode);
     if (diffData && diffData.files) {
-      DIFF_DATA = diffData;
+      AppState.diff = diffData;
+      DIFF_DATA = AppState.diff;
     }
   } catch (e) {
     console.warn('Diff API unavailable:', e.message);

@@ -5,7 +5,7 @@ function renderPhaseHistory() {
   var container = document.getElementById('phaseHistoryLog');
   if (!container) return;
 
-  var history = window.PHASE_HISTORY || [];
+  var history = AppState.phaseHistory || [];
   if (history.length === 0) {
     container.innerHTML = '<div class="phase-history-empty">' + t('phase.noChangesRecorded') + '</div>';
     return;

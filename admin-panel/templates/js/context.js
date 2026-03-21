@@ -1,13 +1,7 @@
 // ═══════════════════════════════════════════════
 //  CONTEXT TAB
 // ═══════════════════════════════════════════════
-let CONTEXT_DATA = {
-  ticket_id: '',
-  ticket_name: '',
-  context: '',
-  discussions: [],
-  refs: []
-};
+var CONTEXT_DATA = AppState.context;
 
 function renderContext() {
   var idInput = document.getElementById('contextTicketId');
@@ -271,7 +265,8 @@ function refreshContext() {
   apiGet('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context')
     .then(function(data) {
       if (data) {
-        CONTEXT_DATA = data;
+        AppState.context = data;
+        CONTEXT_DATA = AppState.context;
         renderContext();
       }
     });

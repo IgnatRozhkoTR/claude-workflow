@@ -209,7 +209,8 @@ async function refreshState() {
     try {
       var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
       if (diffData && diffData.files) {
-        DIFF_DATA = diffData;
+        AppState.diff = diffData;
+        DIFF_DATA = AppState.diff;
       }
     } catch (de) {
       console.warn('Failed to refresh diff:', de.message);

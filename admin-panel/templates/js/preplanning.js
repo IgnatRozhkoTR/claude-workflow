@@ -80,7 +80,7 @@ function renderPPImpactAnalysis() {
   if (!container) return;
   container.innerHTML = '';
 
-  var data = window.IMPACT_DATA;
+  var data = AppState.impactAnalysis;
   if (!data) {
     container.innerHTML = '<div class="pp-impact-empty">' + t('preplanning.noImpactAnalysis') + '</div>';
     return;

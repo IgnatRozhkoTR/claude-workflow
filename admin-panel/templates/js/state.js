@@ -1,43 +1,64 @@
 // ═══════════════════════════════════════════════
-//  WORKSPACE DATA
+//  CENTRALIZED APPLICATION STATE
 // ═══════════════════════════════════════════════
-let LOCK_DATA = {
-  branch: "",
-  phase: "0",
-  status: "active",
-  scope: {},
-  scope_status: "pending",
-  plan_status: "pending",
-  plan: null,
-  session_id: null,
-  working_dir: null,
-  locale: null
+var AppState = {
+  // Server state (populated by applyStateData)
+  lock: {
+    branch: "",
+    phase: "0",
+    status: "active",
+    scope: {},
+    scope_status: "pending",
+    plan_status: "pending",
+    has_prev_plan: false,
+    prev_plan_status: "pending",
+    plan: null,
+    session_id: null,
+    working_dir: null,
+    sessions: [],
+    locale: null,
+    yolo_mode: false
+  },
+  plan: {
+    description: "",
+    systemDiagram: "",
+    groups: [],
+    execution: []
+  },
+  research: [],
+  comments: {},
+  context: {
+    ticket_id: "",
+    ticket_name: "",
+    context: "",
+    discussions: [],
+    refs: []
+  },
+  diff: {
+    files: []
+  },
+  criteria: [],
+  reviewComments: [],
+  impactAnalysis: null,
+  phaseHistory: [],
+
+  // UI state
+  ui: {
+    phase: "0",
+    diffMode: localStorage.getItem('diff_diffMode') || 'side-by-side',
+    fileView: localStorage.getItem('diff_fileView') || 'tree',
+    diffSource: localStorage.getItem('diff_diffSource') || 'branch',
+    selectedFile: null,
+    theme: 'dark'
+  }
 };
 
-let PLAN_DATA = {
-  description: "",
-  systemDiagram: "",
-  groups: [],
-  execution: []
-};
-
-let RESEARCH_DATA = [];
-
-let DIFF_DATA = {
-  files: []
-};
-
-// ═══════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════
-let state = {
-  phase: "0",
-  diffMode: localStorage.getItem('diff_diffMode') || 'side-by-side',
-  fileView: localStorage.getItem('diff_fileView') || 'tree',
-  diffSource: localStorage.getItem('diff_diffSource') || 'branch',
-  selectedFile: null,
-  theme: 'dark'
-};
+// Backward-compatible aliases so existing consumer code does not need changes
+var LOCK_DATA = AppState.lock;
+var PLAN_DATA = AppState.plan;
+var RESEARCH_DATA = AppState.research;
+var DIFF_DATA = AppState.diff;
+var state = AppState.ui;
 
 const PHASE_NAMES = {
   "0": "phase.init",
@@ -84,6 +105,7 @@ function isUserGate(phase) {
 // ═══════════════════════════════════════════════
 
 function applyStateData(stateData) {
+  // Lock / session state
   LOCK_DATA.phase = stateData.phase || "0";
   LOCK_DATA.status = stateData.status || "active";
   LOCK_DATA.scope = stateData.scope || {};
@@ -94,22 +116,33 @@ function applyStateData(stateData) {
   LOCK_DATA.locale = stateData.locale || null;
   LOCK_DATA.yolo_mode = !!stateData.yolo_mode;
 
+  // Plan — single source is AppState.plan; keep LOCK_DATA.plan as alias
   if (stateData.plan) {
-    PLAN_DATA = stateData.plan;
-    LOCK_DATA.plan = stateData.plan;
+    AppState.plan = stateData.plan;
+    PLAN_DATA = AppState.plan;
+    LOCK_DATA.plan = AppState.plan;
   } else {
     LOCK_DATA.plan = null;
   }
-  if (stateData.research) RESEARCH_DATA = stateData.research;
-  window.PROVEN_DATA = stateData.proven || {};
 
-  COMMENTS = stateData.comments || {};
-  window.IMPACT_DATA = stateData.impact_analysis || null;
+  // Research
+  if (stateData.research) {
+    AppState.research = stateData.research;
+    RESEARCH_DATA = AppState.research;
+  }
 
-  state.phase = LOCK_DATA.phase;
-  window.PHASE_HISTORY = (stateData.phaseHistory || []).map(function(h) {
+  // Comments — write to AppState, update alias
+  AppState.comments = stateData.comments || {};
+  COMMENTS = AppState.comments;
+
+  // Impact analysis and phase history — centralized on AppState
+  AppState.impactAnalysis = stateData.impact_analysis || null;
+  AppState.phaseHistory = (stateData.phaseHistory || []).map(function(h) {
     return { from: h.from, to: h.to, time: h.time };
   });
+
+  // UI state
+  state.phase = LOCK_DATA.phase;
 }
 
 function copyToClipboard(text, successMessage) {
