@@ -89,6 +89,43 @@ def read_file(project_id, branch):
     })
 
 
+def _collapse_single_dirs(entries, all_files):
+    """Collapse chains of directories that contain only a single subdirectory."""
+    result = []
+    for entry in entries:
+        if entry["type"] != "dir":
+            result.append(entry)
+            continue
+
+        dir_path = entry["path"]
+        display_name = entry["name"]
+
+        while True:
+            prefix = dir_path + "/"
+            children = {}
+            for f in all_files:
+                if not f.startswith(prefix):
+                    continue
+                relative = f[len(prefix):]
+                first_part = relative.split("/")[0]
+                is_dir = "/" in relative
+                if first_part not in children:
+                    children[first_part] = is_dir
+
+            dir_children = {k: v for k, v in children.items() if v}
+            file_children = {k: v for k, v in children.items() if not v}
+
+            if len(dir_children) == 1 and len(file_children) == 0:
+                only_child = list(dir_children.keys())[0]
+                display_name += "/" + only_child
+                dir_path = dir_path + "/" + only_child
+            else:
+                break
+
+        result.append({"name": display_name, "type": "dir", "path": dir_path})
+    return result
+
+
 @bp.route("/api/ws/<project_id>/<path:branch>/files", methods=["GET"])
 def list_files(project_id, branch):
     """List directory entries lazily. Returns one level of entries at a time."""
@@ -130,6 +167,7 @@ def list_files(project_id, branch):
             entries[first_part] = {"name": first_part, "type": "dir" if is_dir else "file", "path": (prefix + first_part) if is_dir else f}
 
     sorted_entries = sorted(entries.values(), key=lambda e: (0 if e["type"] == "dir" else 1, e["name"].lower()))
+    sorted_entries = _collapse_single_dirs(sorted_entries, all_files)
 
     result = {"entries": sorted_entries}
     if not dir_path:

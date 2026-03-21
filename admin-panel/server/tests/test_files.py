@@ -173,6 +173,23 @@ def test_list_files_subdirectory_no_total(client, workspace):
     assert "total" not in r.json
 
 
+def test_list_files_collapses_single_child_dirs(client, workspace):
+    """Single-child directory chains are collapsed into one entry."""
+    wd = Path(workspace["working_dir"])
+    (wd / "src" / "main" / "java").mkdir(parents=True)
+    (wd / "src" / "main" / "java" / "App.java").write_text("class App {}")
+    _git(workspace["working_dir"], "add", "-A")
+    _git(workspace["working_dir"], "commit", "-m", "deep structure")
+    r = client.get("/api/ws/test-project/feature/test/files")
+    assert r.status_code == 200
+    dir_entries = [e for e in r.json["entries"] if e["type"] == "dir"]
+    # src/main/java should be collapsed into one entry
+    assert any("src/main/java" in e["name"] for e in dir_entries)
+    # path should point to the deepest collapsed dir
+    collapsed = [e for e in dir_entries if "src/main/java" in e["name"]][0]
+    assert collapsed["path"] == "src/main/java"
+
+
 def test_list_files_workspace_not_found(client, project):
     r = client.get("/api/ws/test-project/nonexistent/branch/files")
     assert r.status_code == 404
