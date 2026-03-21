@@ -98,6 +98,7 @@ async function setScopeStatus(status) {
   try {
     await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/scope-status', {status: status});
     LOCK_DATA.scope_status = status;
+    EventBus.emit('approval:changed');
     if (status === 'approved') {
       updateScopeStatusUI(status);
       await tryAutoAdvanceGate();
@@ -124,6 +125,7 @@ async function setPlanStatus(status) {
   try {
     await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/plan-status', {status: status});
     LOCK_DATA.plan_status = status;
+    EventBus.emit('approval:changed');
     if (status === 'approved') {
       updatePlanApprovalUI(status);
       await tryAutoAdvanceGate();

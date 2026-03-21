@@ -186,6 +186,8 @@ function onResolveClick(scope, target, commentId, currentResolved, event) {
   if (thread) {
     thread.innerHTML = renderCommentThread(scope, target);
   }
+
+  EventBus.emit('comments:changed');
 }
 
 function handleCommentInput(event, scope, target) {
@@ -215,6 +217,8 @@ function submitComment(scope, target, el) {
 
   var newInput = thread.querySelector('.comment-thread-input');
   if (newInput) newInput.focus();
+
+  EventBus.emit('comments:changed');
 }
 
 
@@ -281,6 +285,8 @@ function submitLineComment(scope, target, filePath, lineNum, lHash, btn) {
   addComment(scope, target, text, filePath, lineNum, lineNum, lHash);
   form.remove();
   renderLineCommentIndicators(scope, target);
+
+  EventBus.emit('comments:changed');
 }
 
 function renderLineCommentThread(scope, target, lineNum, currentHash) {

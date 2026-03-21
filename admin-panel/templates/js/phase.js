@@ -238,3 +238,5 @@ EventBus.on('state:refreshed', function() {
   renderPhaseActions();
   renderPhaseHistory();
 });
+
+EventBus.on('approval:changed', renderApprovalStatus);

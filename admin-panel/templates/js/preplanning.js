@@ -437,3 +437,8 @@ function ppReplyToDiscussion(discussionId) {
 
 EventBus.on('state:refreshed', renderPreplanning);
 EventBus.on('discussions:changed', renderPPDiscussions);
+
+EventBus.on('research:changed', function() {
+  renderPPResearchSummaries();
+  renderPPDiscussions();
+});

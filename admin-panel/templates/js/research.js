@@ -283,6 +283,14 @@ async function toggleResearchProven(entryId, proven, btn) {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
 
+  for (var i = 0; i < RESEARCH_DATA.length; i++) {
+    if (RESEARCH_DATA[i].id === entryId) {
+      RESEARCH_DATA[i].proven = proven ? 1 : -1;
+      break;
+    }
+  }
+  EventBus.emit('research:changed');
+
   try {
     await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId + '/prove', {proven: proven});
     await refreshState();
@@ -295,6 +303,9 @@ async function deleteResearch(entryId) {
   if (!confirm(t('dialog.deleteResearch'))) return;
   var ctx = getWorkspaceContext();
   if (!ctx) return;
+
+  RESEARCH_DATA = RESEARCH_DATA.filter(function(r) { return r.id !== entryId; });
+  EventBus.emit('research:changed');
 
   try {
     await apiDelete('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/research/' + entryId);

@@ -108,3 +108,8 @@ function toggleReviewResolved() {
     btn.textContent = showing ? t('review.showResolved') : t('review.hideResolved');
     renderReviewTab();
 }
+
+EventBus.on('comments:changed', function() {
+  renderReviewTab();
+  updateReviewBadge();
+});

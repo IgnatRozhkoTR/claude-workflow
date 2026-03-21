@@ -366,3 +366,7 @@ EventBus.on('state:refreshed', function() {
   renderFileList();
   if (state.selectedFile) renderDiff(state.selectedFile);
 });
+
+EventBus.on('comments:changed', function() {
+  renderFileList();
+});

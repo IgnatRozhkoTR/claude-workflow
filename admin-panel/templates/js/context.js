@@ -212,7 +212,10 @@ function replyToDiscussion(discussionId) {
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/context/discussions/' + discussionId + '/reply', {text: text})
     .then(function() {
       input.value = '';
-      refreshContext();
+      return refreshContext();
+    })
+    .then(function() {
+      EventBus.emit('discussions:changed');
     });
 }
 
@@ -225,7 +228,7 @@ function hideDiscussion(discussionId, hide) {
   }).then(function() {
     var d = CONTEXT_DATA.discussions.find(function(d) { return d.id === discussionId; });
     if (d) d.hidden = hide ? 1 : 0;
-    renderDiscussions();
+    EventBus.emit('discussions:changed');
   }).catch(function(e) {
     showToast(t('messages.failedToUpdate', {error: e.message}));
   });
