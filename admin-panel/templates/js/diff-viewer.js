@@ -282,7 +282,10 @@ async function resolveReviewComment(commentId) {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
   try {
-    await apiResolveComment(ctx.projectId, ctx.branch, commentId, true);
+    var allReview = getReviewComments();
+    var comment = allReview.find(function(c) { return c.id === commentId; });
+    var resolved = comment && comment.resolved;
+    await apiResolveComment(ctx.projectId, ctx.branch, commentId, !resolved);
     await refreshComments();
   } catch(e) {
     showToast(t('messages.failedToResolve', {error: e.message}));

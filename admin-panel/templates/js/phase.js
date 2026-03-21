@@ -15,7 +15,7 @@ function renderPhaseHistory() {
     .slice()
     .reverse()
     .map(function(entry) {
-      return '<div class="phase-history-entry">' + entry.from + ' → ' + entry.to + ' — ' + entry.time + '</div>';
+      return '<div class="phase-history-entry">' + escapeHtml(entry.from) + ' → ' + escapeHtml(entry.to) + ' — ' + escapeHtml(entry.time) + '</div>';
     })
     .join('');
 }

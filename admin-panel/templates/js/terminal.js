@@ -329,7 +329,7 @@ function renderSessionList(sessions) {
       '<span class="session-status-dot ' + statusClass + '"></span>' +
       '<span class="session-name">' + escapeHtml(s.name) + '</span>' +
       '<span class="session-status-label">' + statusText + '</span>' +
-      '<button class="session-kill-btn" onclick="killSessionByName(\'' + escapeHtml(s.name) + '\')" title="' + t('terminal.killSession') + '">&times;</button>' +
+      '<button class="session-kill-btn" onclick="killSessionByName(\'' + escapeAttr(s.name) + '\')" title="' + t('terminal.killSession') + '">&times;</button>' +
       '</div>';
   });
   container.innerHTML = html;

@@ -31,14 +31,6 @@ import scope_service
 init_db()
 
 
-def _safe_parse_json(raw):
-    if not raw:
-        return None
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return None
-
 
 mcp = FastMCP("workspace", instructions="Workspace state management for orchestrator workflow.")
 
@@ -517,6 +509,7 @@ def workspace_post_comment(
         db, ws["id"], text=text.strip(), scope="review", author="agent",
         target=file_path.strip(), file_path=file_path.strip(),
         line_start=line_start, line_end=line_end,
+        parent_id=parent_id if parent_id > 0 else None,
     )
     db.commit()
     return result

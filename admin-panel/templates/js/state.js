@@ -122,6 +122,8 @@ function applyStateData(stateData) {
     PLAN_DATA = AppState.plan;
     LOCK_DATA.plan = AppState.plan;
   } else {
+    AppState.plan = { description: "", systemDiagram: "", groups: [], execution: [] };
+    PLAN_DATA = AppState.plan;
     LOCK_DATA.plan = null;
   }
 

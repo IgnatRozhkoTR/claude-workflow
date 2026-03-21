@@ -219,7 +219,7 @@ function submitComment(scope, target, el) {
 
 
 function escapeAttr(str) {
-  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
 function escapeHtml(str) {

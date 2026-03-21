@@ -113,7 +113,7 @@ function renderScope() {
       li.className = `scope-item scope-${cls}`;
       li.innerHTML = `
         <span class="scope-icon">${cls === 'may' ? '◇' : '◆'}</span>
-        <span class="scope-path">${path}</span>
+        <span class="scope-path">${escapeHtml(path)}</span>
         ${renderCommentIcon('scope', commentTarget)}
         ${readOnly ? '' : '<button class="scope-remove" onclick="removeScopeEntry(\'' + scopeKey + '\', ' + index + ')" title="Remove">✕</button>'}
       `;

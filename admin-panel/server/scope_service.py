@@ -37,13 +37,13 @@ def set_scope(db, ws, scope_data, enforce_phase_guard=True):
             "note": t("mcp.error.scopeNoteRevoked", locale)}
 
 
-def set_scope_status(db, ws_id, status):
+def set_scope_status(db, ws_id, status, locale="en"):
     """Validate and UPDATE scope_status for the given workspace.
 
     Returns a result dict with ok/error keys.
     """
     if status not in VALID_SCOPE_STATUSES:
-        return {"error": t("api.error.invalidStatus")}
+        return {"error": t("api.error.invalidStatus", locale)}
 
     db.execute("UPDATE workspaces SET scope_status = ? WHERE id = ?", (status, ws_id))
     return {"ok": True, "scope_status": status}

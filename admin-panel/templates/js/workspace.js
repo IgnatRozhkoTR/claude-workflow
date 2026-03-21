@@ -47,23 +47,7 @@ function _wsCopyCommand(codeId, btn) {
 function _wsEscape(str) {
   const el = document.createElement('span');
   el.textContent = str;
-  return el.innerHTML;
-}
-
-function _wsRelativeDate(isoString) {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
-  if (diffMin < 1) return t('time.justNow');
-  if (diffMin < 60) return t('time.minAgo', {n: diffMin});
-  if (diffHour < 24) return diffHour === 1 ? t('time.hourAgo', {n: diffHour}) : t('time.hoursAgo', {n: diffHour});
-  if (diffDay < 7) return diffDay === 1 ? t('time.dayAgo', {n: diffDay}) : t('time.daysAgo', {n: diffDay});
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return el.innerHTML.replace(/'/g, '&#39;');
 }
 
 function _wsToggleSessions(id, event) {

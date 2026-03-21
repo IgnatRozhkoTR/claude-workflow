@@ -155,9 +155,9 @@ def search_paths(db, ws, project):
 @with_workspace
 def delete_discussion(db, ws, project, discussion_id):
     deleted = discussion_service.delete_discussion(db, discussion_id, ws["id"])
-    db.commit()
 
     if not deleted:
         return jsonify({"error": t("api.error.discussionNotFound")}), 404
 
+    db.commit()
     return jsonify({"ok": True})

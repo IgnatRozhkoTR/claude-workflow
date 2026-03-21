@@ -157,7 +157,7 @@ def set_scope_status(db, ws, project):
     """Set scope status: pending, approved, or rejected."""
     body = request.get_json(silent=True) or {}
     status = body.get("status", "pending")
-    result = scope_service.set_scope_status(db, ws["id"], status)
+    result = scope_service.set_scope_status(db, ws["id"], status, locale=ws["locale"])
     if "error" in result:
         return jsonify(result), 400
     db.commit()
@@ -389,9 +389,9 @@ def can_modify(db, ws, project):
 @with_workspace
 def delete_research(db, ws, project, research_id):
     deleted = research_service.delete_research(db, research_id, ws["id"])
-    db.commit()
 
     if not deleted:
         return jsonify({"error": t("api.error.researchEntryNotFound")}), 404
 
+    db.commit()
     return jsonify({"ok": True})
