@@ -4,6 +4,10 @@
 var _explorerLoaded = false;
 var _initialLoad = true;
 
+document.addEventListener('workspace-reset', function() {
+  _explorerLoaded = false;
+});
+
 async function refreshTabData() {
   if (_initialLoad) return;
   var ctx = getWorkspaceContext();

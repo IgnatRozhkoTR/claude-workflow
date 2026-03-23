@@ -170,6 +170,10 @@
     display: none;
   }
 
+  .btn-dropdown-item[onclick*="'split'"] {
+    display: none;
+  }
+
   .header-right .locale-select {
     display: none;
   }

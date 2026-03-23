@@ -95,8 +95,10 @@ function renderExplorerEntries(entries, container, parentPath) {
 function renderExplorerLazy() {
   var container = document.getElementById('explorerFileList');
   var header = container.querySelector('.diff-file-list-header');
+  var wasMobileOpen = container.classList.contains('mobile-open');
   container.innerHTML = '';
   container.appendChild(header);
+  if (wasMobileOpen) container.classList.add('mobile-open');
 
   var countEl = document.getElementById('explorerCount');
   if (countEl) countEl.textContent = explorerState.totalFiles;
@@ -242,3 +244,10 @@ function setExplorerMdMode(mode) {
 
 // Resize handle for explorer panel
 makeResizable('explorerResizeHandle', 'explorerFileList');
+
+document.addEventListener('workspace-reset', function() {
+  explorerState.dirCache = {};
+  explorerState.selectedFile = null;
+  explorerState.totalFiles = 0;
+  _explorerFileLines = [];
+});

@@ -4,6 +4,12 @@
 var _diffFilter = '';
 var _showResolved = false;
 
+document.addEventListener('workspace-reset', function() {
+  _diffFilter = '';
+  var searchInput = document.getElementById('diffFileSearch');
+  if (searchInput) searchInput.value = '';
+});
+
 function filterDiffFiles(query) {
   _diffFilter = query.toLowerCase();
   renderFileList();
@@ -19,8 +25,10 @@ function fileHasUnresolvedComments(filePath) {
 function renderFileList() {
   const container = document.getElementById('diffFileList');
   const header = container.querySelector('.diff-file-list-header');
+  var wasMobileOpen = container.classList.contains('mobile-open');
   container.innerHTML = '';
   container.appendChild(header);
+  if (wasMobileOpen) container.classList.add('mobile-open');
 
   var files = DIFF_DATA.files;
   if (_diffFilter) {

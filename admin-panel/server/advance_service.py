@@ -591,11 +591,13 @@ def approve_gate(ws, token, commit_message=None):
     if token != ws["gate_nonce"]:
         return {"error": t("gate.error.invalidNonce", locale), "status_code": 403}
 
-    from advance_guards import GUARD_ORCHESTRATOR
-    guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase, ws, {})
-    rejected = [r for r in guard_results if r["status"] == "rejected"]
-    if rejected:
-        return {"error": rejected[0]["message"], "guard_errors": rejected, "status_code": 422}
+    yolo_mode = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+    if not yolo_mode:
+        from advance_guards import GUARD_ORCHESTRATOR
+        guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase, ws, {})
+        rejected = [r for r in guard_results if r["status"] == "rejected"]
+        if rejected:
+            return {"error": rejected[0]["message"], "guard_errors": rejected, "status_code": 422}
 
     db = get_db()
     try:
@@ -607,16 +609,18 @@ def approve_gate(ws, token, commit_message=None):
             if not execution:
                 return {"error": t("gate.error.noExecutionPlan", locale), "status_code": 400}
 
-            pending = db.execute(
-                "SELECT COUNT(*) as cnt FROM acceptance_criteria "
-                "WHERE workspace_id = ? AND status IN ('proposed', 'rejected')",
-                (ws["id"],)
-            ).fetchone()
-            if pending and pending["cnt"] > 0:
-                return {
-                    "error": t("gate.error.pendingCriteria", locale, count=pending["cnt"]),
-                    "status_code": 400,
-                }
+            yolo_skip = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+            if not yolo_skip:
+                pending = db.execute(
+                    "SELECT COUNT(*) as cnt FROM acceptance_criteria "
+                    "WHERE workspace_id = ? AND status IN ('proposed', 'rejected')",
+                    (ws["id"],)
+                ).fetchone()
+                if pending and pending["cnt"] > 0:
+                    return {
+                        "error": t("gate.error.pendingCriteria", locale, count=pending["cnt"]),
+                        "status_code": 400,
+                    }
 
             new_phase = execution[0]["id"] + ".0"
         elif re.match(r'^3\.\d+\.3$', phase):
@@ -733,11 +737,13 @@ def perform_advance(ws, project_path, body=None):
             "message": t("advance.error.noProgress", locale, phase=required_key, next=advancer.next_phase(ws)),
         }, 422
 
-    from advance_guards import GUARD_ORCHESTRATOR
-    guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase, ws, body)
-    rejected = [r for r in guard_results if r["status"] == "rejected"]
-    if rejected:
-        return {"phase": phase, "status": "blocked", "guard_errors": rejected}, 422
+    yolo_mode = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+    if not yolo_mode:
+        from advance_guards import GUARD_ORCHESTRATOR
+        guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase, ws, body)
+        rejected = [r for r in guard_results if r["status"] == "rejected"]
+        if rejected:
+            return {"phase": phase, "status": "blocked", "guard_errors": rejected}, 422
 
     new_phase = advancer.next_phase(ws)
 

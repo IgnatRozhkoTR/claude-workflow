@@ -705,10 +705,11 @@ function closeMobileSidebar() {
   document.getElementById('sidebarOverlay').classList.remove('visible');
 }
 if (window.matchMedia('(max-width: 768px)').matches) {
-  document.querySelectorAll('.diff-file-list-header').forEach(function(hdr) {
-    hdr.addEventListener('click', function() {
-      this.closest('.diff-file-list').classList.toggle('mobile-open');
-    });
+  document.addEventListener('click', function(e) {
+    var hdr = e.target.closest('.diff-file-list-header');
+    if (hdr) {
+      hdr.closest('.diff-file-list').classList.toggle('mobile-open');
+    }
   });
 }
 function toggleMobileMenu() {

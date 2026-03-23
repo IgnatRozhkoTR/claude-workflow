@@ -204,7 +204,7 @@ function connectTerminal() {
   if (term) term.writeln('\r\nConnecting to tmux session...');
 
   terminalWs = _connectTerminal(term, fitAddon, wsUrl, {
-    focusOnOpen: false,
+    focusOnOpen: true,
     onConnected: function() {
       terminalConnected = true;
       updateTerminalStatus('connected');
@@ -292,7 +292,7 @@ function onTerminalTabActivated() {
     initTerminal();
   }
   if (fitAddon) {
-    setTimeout(function() { fitAddon.fit(); }, 50);
+    setTimeout(function() { fitAddon.fit(); if (term) term.focus(); }, 50);
   }
   startSessionListPolling();
 }
@@ -506,3 +506,11 @@ function updateSplitTerminalStatus(status) {
     }
   });
 })();
+
+document.addEventListener('workspace-reset', function() {
+  if (typeof disconnectTerminal === 'function') disconnectTerminal();
+  if (typeof disconnectSplitTerminal === 'function') disconnectSplitTerminal();
+  if (term) { term.clear(); term.dispose(); term = null; fitAddon = null; }
+  if (typeof splitTerm !== 'undefined' && splitTerm) { splitTerm.clear(); splitTerm.dispose(); splitTerm = null; splitFitAddon = null; }
+  terminalConnected = false;
+});

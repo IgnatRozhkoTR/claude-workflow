@@ -10,6 +10,8 @@ async function initApp() {
     return;
   }
 
+  resetAppState();
+
   try {
     const stateData = await apiGetState(ctx.projectId, ctx.branch);
 

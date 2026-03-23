@@ -147,6 +147,51 @@ function applyStateData(stateData) {
   state.phase = LOCK_DATA.phase;
 }
 
+function resetAppState() {
+  // Reset server state
+  LOCK_DATA.branch = "";
+  LOCK_DATA.phase = "0";
+  LOCK_DATA.status = "active";
+  LOCK_DATA.scope = {};
+  LOCK_DATA.scope_status = "pending";
+  LOCK_DATA.plan_status = "pending";
+  LOCK_DATA.has_prev_plan = false;
+  LOCK_DATA.prev_plan_status = null;
+  LOCK_DATA.plan = null;
+  LOCK_DATA.session_id = null;
+  LOCK_DATA.working_dir = null;
+  LOCK_DATA.sessions = [];
+  LOCK_DATA.locale = null;
+  LOCK_DATA.yolo_mode = false;
+
+  // Reset plan
+  PLAN_DATA.description = "";
+  PLAN_DATA.systemDiagram = "";
+  PLAN_DATA.groups = [];
+  PLAN_DATA.execution = [];
+
+  // Reset collections — must mutate in place (aliases point here)
+  RESEARCH_DATA.length = 0;
+  DIFF_DATA.files = [];
+  AppState.comments = {};
+  COMMENTS = AppState.comments;
+  AppState.context = { ticket_id: "", ticket_name: "", context: "", discussions: [], refs: [] };
+  CONTEXT_DATA = AppState.context;
+  AppState.criteria = [];
+  AppState.impactAnalysis = null;
+  AppState.phaseHistory = [];
+  window.PHASE_HISTORY = [];
+  window.PROVEN_DATA = {};
+  window.IMPACT_DATA = null;
+
+  // Reset UI state
+  state.phase = "0";
+  state.diffSource = localStorage.getItem('diff_diffSource') || 'branch';
+
+  // Dispatch event so components can reset themselves
+  document.dispatchEvent(new CustomEvent('workspace-reset'));
+}
+
 function copyToClipboard(text, successMessage) {
   navigator.clipboard.writeText(text).then(function() {
     showToast(successMessage);
