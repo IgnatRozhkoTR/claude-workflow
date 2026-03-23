@@ -477,7 +477,8 @@ class ExecutionAdvancer(PhaseAdvancer):
             if m:
                 max_n = max(max_n, int(m.group(1)))
 
-        if self._n >= max_n:
+        yolo_mode = ws["yolo_mode"] if "yolo_mode" in ws.keys() else 0
+        if self._n >= max_n and not yolo_mode:
             db = get_db()
             try:
                 all_passed, results = validate_all(db, ws["id"], ws["working_dir"])
