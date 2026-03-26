@@ -11,76 +11,57 @@ Multi-phase implementation workflow with backend-enforced transitions. Every pha
 
 ---
 
-## Agent Roles: Persistent Teammate vs Resumable Sub-agents
+## Agent Roles: All Agents Are Resumable Sub-agents
 
-There are two distinct agent patterns. Only plan-advisor is a persistent teammate; all others are resumable sub-agents.
-
-### Persistent teammate (plan-advisor only)
-
-Created via `TeamCreate` at session start, then spawned with the `team_name` parameter:
+All agents — including plan-advisor — are resumable sub-agents. Spawn with `Agent(name: "...", ...)` and continue via `SendMessage(to: "name", ...)`.
 
 ```
-TeamCreate(team_name: "<branch-name>")
-
 Agent(
   name: "plan-advisor",
-  team_name: "<branch-name>",
   subagent_type: "plan-advisor",
-  ...
+  run_in_background: true,
+  prompt: "..."
 )
 ```
-
-This makes it a real persistent teammate:
-- Visible in the UI teammate list
-- Stays alive between turns (goes idle, never terminates)
-- Can reach out to the orchestrator proactively
-- Has an inspectable chat history
-- Always reachable via `SendMessage(to: "plan-advisor", ...)`
-
-### Resumable sub-agents (all other roles)
-
-Spawned with `Agent(name: "<role>", subagent_type: "<type>", ...)` — NO `team_name` parameter:
 
 ```
 Agent(
   name: "researcher-auth",
   subagent_type: "code-researcher",
-  ...
+  prompt: "..."
 )
 ```
 
-They execute their task and return. They are NOT persistent — they complete, go dormant, and wake up only when messaged. The orchestrator can continue them for follow-up via `SendMessage(to: "<name>")`.
+Agents execute their task and return. The orchestrator continues them for follow-up via `SendMessage(to: "<name>")`.
+
+**Plan-advisor** is spawned once in Phase 0 with `run_in_background: true` and continued throughout the session via `SendMessage(to: "plan-advisor", ...)`. All other agents are spawned per-task and may be continued if needed.
 
 ### Spawn rules per role
 
-| Role | Pattern | When |
-|------|---------|------|
-| **plan-advisor** | **Persistent teammate** (always) | Phase 0, messaged in phases 1, 3, 3.N.0 |
-| senior-backend-engineer | Resumable sub-agent | Complex sub-phases spanning 3.N.0 → 3.N.2 fix cycles. Continue via SendMessage. Production code ONLY — never tests. |
-| senior-backend-test-engineer | Resumable sub-agent | Complex test scenarios spanning write + fix cycles. Continue via SendMessage. Tests ONLY — always deployed AFTER engineer completes. |
-| senior-code-validator | Resumable sub-agent | Continue via SendMessage when re-validation after fixes is expected |
-| senior-code-researcher | Resumable sub-agent | Deep research spanning multiple rounds. Continue via SendMessage. |
-| researcher (middle) | Resumable sub-agent | Phase 2.0 (parallel, one per topic) |
-| research-prover | Resumable sub-agent | Phase 2.1 |
-| engineer (middle) | Resumable sub-agent | Phases 3.N.0 (stage 1), 3.N.2, 3.N.4, 4.1. Production code ONLY — never tests. |
-| test engineer (middle) | Resumable sub-agent | Phase 3.N.0 (stage 2, after engineer). Tests ONLY. |
-| validator (middle) | Resumable sub-agent | Phase 3.N.1 |
-| reviewer | Resumable sub-agent | Phase 4.0 |
-
-**The plan-advisor is ALWAYS a persistent teammate — NEVER a sub-agent.** It is created with `TeamCreate` + `Agent(team_name: ...)` once in Phase 0 and messaged via `SendMessage(to: "plan-advisor", ...)` in every subsequent phase that needs it.
-
-**All other agents are resumable sub-agents.** They run their task and return. For multi-phase work (e.g., senior engineer across 3.N.0 → 3.N.2 fix cycles), reuse the same agent by sending follow-up messages via `SendMessage(to: "<name>")`. They are not teammates — they do not appear in the UI teammate list and cannot proactively reach out.
+| Role | When |
+|------|------|
+| **plan-advisor** | Phase 0 (background), messaged in phases 1, 3, 3.N.0 |
+| senior-backend-engineer | Complex sub-phases spanning 3.N.0 → 3.N.2 fix cycles. Continue via SendMessage. Production code ONLY — never tests. |
+| senior-backend-test-engineer | Complex test scenarios spanning write + fix cycles. Continue via SendMessage. Tests ONLY — always deployed AFTER engineer completes. |
+| senior-code-validator | Continue via SendMessage when re-validation after fixes is expected |
+| senior-code-researcher | Deep research spanning multiple rounds. Continue via SendMessage. |
+| researcher (middle) | Phase 2.0 (parallel, one per topic) |
+| research-prover | Phase 2.1 |
+| engineer (middle) | Phases 3.N.0 (stage 1), 3.N.2, 3.N.4, 4.1. Production code ONLY — never tests. |
+| test engineer (middle) | Phase 3.N.0 (stage 2, after engineer). Tests ONLY. |
+| validator (middle) | Phase 3.N.1 |
+| reviewer | Phase 4.0 |
 
 ---
 
 ## Phase Map
 
 ```
-0         Init — spawn team
-1         Assessment (plan-advisor teammate)
+0         Init — spawn plan-advisor
+1         Assessment (plan-advisor sub-agent)
 2.0       Research (researcher sub-agents, parallel)
 2.1       Research Proving (prover sub-agent)
-3.0       Planning (orchestrator + plan-advisor teammate)
+3.0       Planning (orchestrator + plan-advisor sub-agent)
 3.1       Plan Review                          USER GATE
 3.N.0     Implementation                       code edits ON (in scope)
 3.N.1     Validation                           code edits OFF
@@ -131,18 +112,16 @@ Phases stored as strings: `"0"`, `"2.1"`, `"3.2.3"`. N = 1, 2, 3... from the app
 
 **Fresh start** (`phase == "0"` and `previous_sessions` is empty): proceed to Phase 0.
 
-**Recovery** (`phase > "0"` or `previous_sessions` is non-empty): the previous session ended (compaction, restart, or manual resume). **The plan-advisor teammate from the previous session is gone — you MUST re-create it.**
+**Recovery** (`phase > "0"` or `previous_sessions` is non-empty): the previous session ended (compaction, restart, or manual resume). **The plan-advisor from the previous session is gone — you MUST re-spawn it.**
 
 1. Read `progress` entries to reconstruct what happened
-2. **IMMEDIATELY re-create the plan-advisor persistent teammate** (phase >= 1):
+2. **IMMEDIATELY re-spawn plan-advisor as a background sub-agent** (phase >= 1):
    ```
-   TeamCreate(team_name: "<branch-name>")
-
    Agent(
      name: "plan-advisor",
-     team_name: "<branch-name>",
      subagent_type: "plan-advisor",
-     prompt: "You are the plan-advisor teammate in this governed workflow session.
+     run_in_background: true,
+     prompt: "You are the plan-advisor in this governed workflow session.
               Workspace: {working_dir}
               Wait for instructions from the orchestrator."
    )
@@ -151,24 +130,22 @@ Phases stored as strings: `"0"`, `"2.1"`, `"3.2.3"`. N = 1, 2, 3... from the app
 
 ---
 
-## Phase 0: Init — Create Team and Spawn Plan-Advisor
+## Phase 0: Init — Spawn Plan-Advisor
 
 **Actors**: Orchestrator
 
-The workspace already exists (created via admin panel). This phase creates the persistent team and spawns the plan-advisor as a real teammate.
+The workspace already exists (created via admin panel). This phase spawns the plan-advisor as a background sub-agent.
 
 ### Steps
 
-1. Create the team and spawn `plan-advisor` as a **persistent teammate**:
+1. Spawn `plan-advisor` as a background sub-agent:
 
 ```
-TeamCreate(team_name: "<branch-name>")
-
 Agent(
   name: "plan-advisor",
-  team_name: "<branch-name>",
   subagent_type: "plan-advisor",
-  prompt: "You are the plan-advisor teammate in this governed workflow session.
+  run_in_background: true,
+  prompt: "You are the plan-advisor in this governed workflow session.
            Read and follow: ~/.claude-assistant/agents/plan-advisor.md
            Workspace: {working_dir}
            Your role: assess the codebase, advise on planning, review the execution plan.
@@ -178,15 +155,15 @@ Agent(
 
 2. Call `workspace_advance` to move to phase 1.
 
-**The plan-advisor is a persistent teammate — it stays alive between turns, visible in the UI teammate list, and always reachable via `SendMessage(to: "plan-advisor", ...)`.**
+**The plan-advisor is always reachable via `SendMessage(to: "plan-advisor", ...)`.**
 
 ---
 
 ## Phase 1: Assessment
 
-**Actor**: plan-advisor **persistent teammate** (messaged — NOT a new sub-agent)
+**Actor**: plan-advisor (messaged — NOT a new sub-agent)
 
-If the plan-advisor is not yet created (skipped Phase 0 or session recovery), create the team and spawn it first (see Phase 0 steps).
+If the plan-advisor is not yet spawned (skipped Phase 0 or session recovery), spawn it first (see Phase 0 steps).
 
 Message the plan-advisor teammate:
 
@@ -267,7 +244,7 @@ When all research is proven (prover confirms):
 
 ## Phase 3.0: Planning
 
-**Actors**: Orchestrator + plan-advisor teammate
+**Actors**: Orchestrator + plan-advisor
 
 Message the plan-advisor teammate to collaborate on the execution plan:
 
@@ -363,7 +340,7 @@ Deploy in two stages:
 
 **Stage 2 — Tests**: After engineers complete, deploy test engineer sub-agent(s) to write tests for the new/changed code. Test engineers read the implementation but write tests independently — they are NOT briefed on "how the code works", only on "what it should do" (from the task description and scope).
 
-If during implementation an issue arises that requires changing the approach or scope, message the plan-advisor teammate to discuss:
+If during implementation an issue arises that requires changing the approach or scope, message the plan-advisor to discuss:
 
 ```
 SendMessage(
