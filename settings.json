@@ -24,15 +24,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/allow-claude-dir.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash",
-        "hooks": [
-          {
-            "type": "command",
             "command": "python3 ~/.claude/hooks/block-orchestrator-writes.py"
           }
         ]
