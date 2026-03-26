@@ -6,10 +6,28 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "default"
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "Read",
+      "Bash",
+      "WebFetch",
+      "WebSearch"
+    ]
   },
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/allow-claude-dir.py"
+          }
+        ]
+      },
       {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash",
         "hooks": [
