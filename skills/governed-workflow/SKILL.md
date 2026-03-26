@@ -11,34 +11,65 @@ Multi-phase implementation workflow with backend-enforced transitions. Every pha
 
 ---
 
-## Agent Roles: Teammates vs Sub-agents
+## Agent Roles: Persistent Teammate vs Resumable Sub-agents
 
-| Kind | Spawned via | Persists | Resumed via |
-|------|-------------|----------|-------------|
-| **Teammate** | `Agent` tool with `run_in_background: true` | Yes — lives for the full session | `resume` parameter with stored agent ID |
-| **Sub-agent** | `Agent` tool without background flag | No — returns result, then terminates | N/A |
+There are two distinct agent patterns. Only plan-advisor is a persistent teammate; all others are resumable sub-agents.
+
+### Persistent teammate (plan-advisor only)
+
+Created via `TeamCreate` at session start, then spawned with the `team_name` parameter:
+
+```
+TeamCreate(team_name: "<branch-name>")
+
+Agent(
+  name: "plan-advisor",
+  team_name: "<branch-name>",
+  subagent_type: "plan-advisor",
+  ...
+)
+```
+
+This makes it a real persistent teammate:
+- Visible in the UI teammate list
+- Stays alive between turns (goes idle, never terminates)
+- Can reach out to the orchestrator proactively
+- Has an inspectable chat history
+- Always reachable via `SendMessage(to: "plan-advisor", ...)`
+
+### Resumable sub-agents (all other roles)
+
+Spawned with `Agent(name: "<role>", subagent_type: "<type>", ...)` — NO `team_name` parameter:
+
+```
+Agent(
+  name: "researcher-auth",
+  subagent_type: "code-researcher",
+  ...
+)
+```
+
+They execute their task and return. They are NOT persistent — they complete, go dormant, and wake up only when messaged. The orchestrator can continue them for follow-up via `SendMessage(to: "<name>")`.
 
 ### Spawn rules per role
 
-| Role | Spawn as | When |
-|------|----------|------|
-| **plan-advisor** | **TEAMMATE** (always) | Phase 0, resumed in phases 1, 3, 3.N.0 |
-| senior-backend-engineer | teammate or sub-agent | Use teammate for complex sub-phases that span 3.N.0 → 3.N.2 fix cycles. Production code ONLY — never tests. |
-| senior-backend-test-engineer | teammate or sub-agent | Use teammate for complex test scenarios spanning write + fix cycles. Tests ONLY — always deployed AFTER engineer completes. |
-| senior-code-validator | teammate or sub-agent | Use teammate when re-validation after fixes is expected |
-| senior-code-researcher | teammate or sub-agent | Use teammate for deep research spanning multiple rounds |
-| researcher (middle) | sub-agent | Phase 2.0 (parallel, one per topic) |
-| research-prover | sub-agent | Phase 2.1 |
-| engineer (middle) | sub-agent | Phases 3.N.0 (stage 1), 3.N.2, 3.N.4, 4.1. Production code ONLY — never tests. |
-| test engineer (middle) | sub-agent | Phase 3.N.0 (stage 2, after engineer). Tests ONLY. |
-| validator (middle) | sub-agent | Phase 3.N.1 |
-| reviewer | sub-agent | Phase 4.0 |
+| Role | Pattern | When |
+|------|---------|------|
+| **plan-advisor** | **Persistent teammate** (always) | Phase 0, messaged in phases 1, 3, 3.N.0 |
+| senior-backend-engineer | Resumable sub-agent | Complex sub-phases spanning 3.N.0 → 3.N.2 fix cycles. Continue via SendMessage. Production code ONLY — never tests. |
+| senior-backend-test-engineer | Resumable sub-agent | Complex test scenarios spanning write + fix cycles. Continue via SendMessage. Tests ONLY — always deployed AFTER engineer completes. |
+| senior-code-validator | Resumable sub-agent | Continue via SendMessage when re-validation after fixes is expected |
+| senior-code-researcher | Resumable sub-agent | Deep research spanning multiple rounds. Continue via SendMessage. |
+| researcher (middle) | Resumable sub-agent | Phase 2.0 (parallel, one per topic) |
+| research-prover | Resumable sub-agent | Phase 2.1 |
+| engineer (middle) | Resumable sub-agent | Phases 3.N.0 (stage 1), 3.N.2, 3.N.4, 4.1. Production code ONLY — never tests. |
+| test engineer (middle) | Resumable sub-agent | Phase 3.N.0 (stage 2, after engineer). Tests ONLY. |
+| validator (middle) | Resumable sub-agent | Phase 3.N.1 |
+| reviewer | Resumable sub-agent | Phase 4.0 |
 
-**The plan-advisor is ALWAYS a teammate — NEVER a sub-agent.** It is spawned once in Phase 0 with `run_in_background: true` and resumed via `resume: {plan_advisor_id}` in every subsequent phase that needs it.
+**The plan-advisor is ALWAYS a persistent teammate — NEVER a sub-agent.** It is created with `TeamCreate` + `Agent(team_name: ...)` once in Phase 0 and messaged via `SendMessage(to: "plan-advisor", ...)` in every subsequent phase that needs it.
 
-**Senior agents**: decide based on task complexity. If the task is complex enough that the agent will need persistent context across multiple phases or fix cycles, spawn as a teammate. For one-shot work, a sub-agent is fine. Middle-level agents are always sub-agents.
-
-All teammates are spawned with `run_in_background: true` and resumed via `resume: {agent_id}`. Store every teammate's agent ID when spawned.
+**All other agents are resumable sub-agents.** They run their task and return. For multi-phase work (e.g., senior engineer across 3.N.0 → 3.N.2 fix cycles), reuse the same agent by sending follow-up messages via `SendMessage(to: "<name>")`. They are not teammates — they do not appear in the UI teammate list and cannot proactively reach out.
 
 ---
 
@@ -100,40 +131,43 @@ Phases stored as strings: `"0"`, `"2.1"`, `"3.2.3"`. N = 1, 2, 3... from the app
 
 **Fresh start** (`phase == "0"` and `previous_sessions` is empty): proceed to Phase 0.
 
-**Recovery** (`phase > "0"` or `previous_sessions` is non-empty): the previous session ended (compaction, restart, or manual resume). **All teammates from the previous session are gone — you MUST re-spawn them.**
+**Recovery** (`phase > "0"` or `previous_sessions` is non-empty): the previous session ended (compaction, restart, or manual resume). **The plan-advisor teammate from the previous session is gone — you MUST re-create it.**
 
 1. Read `progress` entries to reconstruct what happened
-2. **IMMEDIATELY re-spawn the plan-advisor teammate** (phase >= 1):
+2. **IMMEDIATELY re-create the plan-advisor persistent teammate** (phase >= 1):
    ```
+   TeamCreate(team_name: "<branch-name>")
+
    Agent(
-     subagent_type: "co-pilot",
-     model: "opus",
-     run_in_background: true,
+     name: "plan-advisor",
+     team_name: "<branch-name>",
+     subagent_type: "plan-advisor",
      prompt: "You are the plan-advisor teammate in this governed workflow session.
               Workspace: {working_dir}
               Wait for instructions from the orchestrator."
    )
    ```
-3. Store the new agent ID as `plan_advisor_id` for all future resume calls
-4. Continue from the current phase
+3. Continue from the current phase — message the plan-advisor via `SendMessage(to: "plan-advisor", ...)`
 
 ---
 
-## Phase 0: Init — Spawn the Team
+## Phase 0: Init — Create Team and Spawn Plan-Advisor
 
 **Actors**: Orchestrator
 
-The workspace already exists (created via admin panel). This phase sets up the persistent team.
+The workspace already exists (created via admin panel). This phase creates the persistent team and spawns the plan-advisor as a real teammate.
 
 ### Steps
 
-1. Spawn `plan-advisor` as a **background teammate**:
+1. Create the team and spawn `plan-advisor` as a **persistent teammate**:
 
 ```
+TeamCreate(team_name: "<branch-name>")
+
 Agent(
-  subagent_type: "general-purpose",
-  model: "opus",
-  run_in_background: true,
+  name: "plan-advisor",
+  team_name: "<branch-name>",
+  subagent_type: "plan-advisor",
   prompt: "You are the plan-advisor teammate in this governed workflow session.
            Read and follow: ~/.claude-assistant/agents/plan-advisor.md
            Workspace: {working_dir}
@@ -142,28 +176,26 @@ Agent(
 )
 ```
 
-2. Store the returned agent ID as `plan_advisor_id`. You will use it for every future `resume` call to this teammate.
+2. Call `workspace_advance` to move to phase 1.
 
-3. Call `workspace_advance` to move to phase 1.
-
-**The plan-advisor teammate is NOT terminated between phases. It persists until the session ends.**
+**The plan-advisor is a persistent teammate — it stays alive between turns, visible in the UI teammate list, and always reachable via `SendMessage(to: "plan-advisor", ...)`.**
 
 ---
 
 ## Phase 1: Assessment
 
-**Actor**: plan-advisor **teammate** (resumed — NOT a new sub-agent)
+**Actor**: plan-advisor **persistent teammate** (messaged — NOT a new sub-agent)
 
-If you don't have `plan_advisor_id` yet (skipped Phase 0 or session recovery), spawn the teammate first (see Phase 0 steps), then resume it.
+If the plan-advisor is not yet created (skipped Phase 0 or session recovery), create the team and spawn it first (see Phase 0 steps).
 
-Resume the plan-advisor teammate:
+Message the plan-advisor teammate:
 
 ```
-Agent(
-  resume: {plan_advisor_id},
-  prompt: "Begin assessment. Read workspace_get_state for context (ticket, working_dir, context notes).
-           Identify affected areas of the codebase. Raise any open questions via workspace_post_discussion.
-           Report your findings in a structured summary."
+SendMessage(
+  to: "plan-advisor",
+  content: "Begin assessment. Read workspace_get_state for context (ticket, working_dir, context notes).
+            Identify affected areas of the codebase. Raise any open questions via workspace_post_discussion.
+            Report your findings in a structured summary."
 )
 ```
 
@@ -237,15 +269,15 @@ When all research is proven (prover confirms):
 
 **Actors**: Orchestrator + plan-advisor teammate
 
-Resume the plan-advisor teammate and collaborate on the execution plan:
+Message the plan-advisor teammate to collaborate on the execution plan:
 
 ```
-Agent(
-  resume: {plan_advisor_id},
-  prompt: "We are in the planning phase. Review the research findings via workspace_get_state.
-           Help me design the execution plan. Consider whether this task needs multiple
-           sub-phases or a single one. Each sub-phase needs: id (3.1, 3.2, ...),
-           name, scope (must/may globs), and tasks."
+SendMessage(
+  to: "plan-advisor",
+  content: "We are in the planning phase. Review the research findings via workspace_get_state.
+            Help me design the execution plan. Consider whether this task needs multiple
+            sub-phases or a single one. Each sub-phase needs: id (3.1, 3.2, ...),
+            name, scope (must/may globs), and tasks."
 )
 ```
 
@@ -292,7 +324,7 @@ Poll `workspace_get_state` once per minute. After 10 polls, ask user in chat.
 **After rejection**: the backend sets the phase to `3.0`. Do NOT call `workspace_advance` immediately. Instead:
 1. Call `workspace_get_state` to confirm you're at `3.0`
 2. Call `workspace_get_comments` to read the rejection feedback
-3. Resume plan-advisor with the feedback to revise the plan
+3. Message plan-advisor via `SendMessage(to: "plan-advisor", ...)` with the feedback to revise the plan
 4. Call `workspace_set_plan` and `workspace_set_scope` with the revised plan
 5. Call `workspace_advance` only after the plan is updated
 
@@ -331,13 +363,13 @@ Deploy in two stages:
 
 **Stage 2 — Tests**: After engineers complete, deploy test engineer sub-agent(s) to write tests for the new/changed code. Test engineers read the implementation but write tests independently — they are NOT briefed on "how the code works", only on "what it should do" (from the task description and scope).
 
-If during implementation an issue arises that requires changing the approach or scope, resume the plan-advisor teammate to discuss:
+If during implementation an issue arises that requires changing the approach or scope, message the plan-advisor teammate to discuss:
 
 ```
-Agent(
-  resume: {plan_advisor_id},
-  prompt: "Implementation issue in sub-phase {N}: {describe the problem}.
-           The original plan assumed {X} but we found {Y}. What's the best path forward?"
+SendMessage(
+  to: "plan-advisor",
+  content: "Implementation issue in sub-phase {N}: {describe the problem}.
+            The original plan assumed {X} but we found {Y}. What's the best path forward?"
 )
 ```
 
