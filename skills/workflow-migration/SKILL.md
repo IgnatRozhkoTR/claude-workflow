@@ -280,6 +280,9 @@ Check `~/.claude/settings.json` contains:
 
 ```json
 {
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -298,7 +301,7 @@ Check `~/.claude/settings.json` contains:
     ]
   },
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "0"
   }
 }
 ```
