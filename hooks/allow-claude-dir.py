@@ -12,8 +12,10 @@ tool_input = data.get("tool_input", {})
 file_path = tool_input.get("file_path", "")
 command = tool_input.get("command", "")
 
-# Check if this involves .claude/ paths
 is_claude_dir = "/.claude/" in file_path or file_path.endswith("/.claude")
+
+if tool_name == "Bash" and "/.claude/" in command:
+    is_claude_dir = True
 
 if is_claude_dir:
     json.dump({
@@ -24,5 +26,4 @@ if is_claude_dir:
     }, sys.stdout)
     sys.exit(0)
 
-# For non-.claude/ paths, pass through (no decision)
 sys.exit(0)
