@@ -686,6 +686,7 @@ def workspace_propose_criteria(ws, project, db, locale, type: str, description: 
       For unit_test/integration_test: {"file": "path/to/TestFile.java", "test_names": ["testMethod1", "testMethod2"]}
       For bdd_scenario: {"file": "features/file.feature", "scenario_names": ["scenario1"]}
       For custom: {"instruction": "description of what to verify"}
+      All types support an optional "verification_command" field — a shell command the server runs at commit time. Exit 0 = pass, non-zero = fail.
 
     Proposed criteria are visible in the admin panel where the user can accept or reject them."""
     if type not in VALID_CRITERIA_TYPES:

@@ -3,7 +3,7 @@
 Each validator checks if a specific type of acceptance criterion is fulfilled
 by examining files in the working directory.
 """
-import json, os, re
+import json, os, re, subprocess
 from pathlib import Path
 
 
@@ -51,21 +51,53 @@ def validate_all(db, workspace_id, working_dir):
             all_passed = False
 
     custom_unvalidated = db.execute(
-        "SELECT id, type, description FROM acceptance_criteria "
+        "SELECT id, type, description, details_json FROM acceptance_criteria "
         "WHERE workspace_id = ? AND status = 'accepted' AND type = 'custom' AND validated != 1",
         (workspace_id,)
     ).fetchall()
     for row in custom_unvalidated:
+        details = json.loads(row["details_json"]) if row["details_json"] else {}
+        cmd = details.get("verification_command")
+        if cmd:
+            passed, message = _run_verification_command(working_dir, cmd)
+            validated = 1 if passed else -1
+            db.execute(
+                "UPDATE acceptance_criteria SET validated = ?, validation_message = ? WHERE id = ?",
+                (validated, message, row["id"])
+            )
+        else:
+            passed = False
+            message = "Awaiting manual user approval via admin panel"
         results.append({
             "id": row["id"],
             "type": "custom",
             "description": row["description"],
-            "passed": False,
-            "message": "Awaiting manual user approval via admin panel",
+            "passed": passed,
+            "message": message,
         })
-        all_passed = False
+        if not passed:
+            all_passed = False
 
     return all_passed, results
+
+
+def _run_verification_command(working_dir, command):
+    """Run a verification command and return (success, message)."""
+    try:
+        result = subprocess.run(
+            command, shell=True, cwd=working_dir,
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return True, f"Command passed (exit 0): {output[:200]}" if output else "Command passed (exit 0)"
+        else:
+            stderr = result.stderr.strip() or result.stdout.strip()
+            return False, f"Command failed (exit {result.returncode}): {stderr[:200]}"
+    except subprocess.TimeoutExpired:
+        return False, "Command timed out after 30s"
+    except Exception as e:
+        return False, f"Command error: {str(e)}"
 
 
 def _validate_file_contains(details, working_dir, file_key, names_key, file_label, names_label):
@@ -92,14 +124,23 @@ def _validate_file_contains(details, working_dir, file_key, names_key, file_labe
 
 
 def _validate_unit_test(details, working_dir):
+    cmd = details.get("verification_command")
+    if cmd:
+        return _run_verification_command(working_dir, cmd)
     return _validate_file_contains(details, working_dir, "file", "test_names", "Test file", "Tests")
 
 
 def _validate_integration_test(details, working_dir):
-    return _validate_unit_test(details, working_dir)
+    cmd = details.get("verification_command")
+    if cmd:
+        return _run_verification_command(working_dir, cmd)
+    return _validate_file_contains(details, working_dir, "file", "test_names", "Test file", "Tests")
 
 
 def _validate_bdd_scenario(details, working_dir):
+    cmd = details.get("verification_command")
+    if cmd:
+        return _run_verification_command(working_dir, cmd)
     return _validate_file_contains(details, working_dir, "file", "scenario_names", "Feature file", "Scenarios")
 
 
