@@ -101,6 +101,15 @@ function _createTerminal(containerId, wsRef) {
     e.stopPropagation();
   }, { passive: true });
 
+  container.addEventListener('paste', function(e) {
+    var ws = wsRef();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      var text = (e.clipboardData || window.clipboardData).getData('text');
+      if (text) ws.send(text);
+    }
+    e.preventDefault();
+  });
+
   terminal.onData(function(data) {
     var ws = wsRef();
     if (ws && ws.readyState === WebSocket.OPEN) {

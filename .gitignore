@@ -39,3 +39,4 @@ skills/postman-collection/
 *.zip
 admin-panel/server/projects.json
 admin-panel/.reviews/
+admin-panel/server/sdkman*/
