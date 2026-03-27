@@ -177,12 +177,12 @@ def init_db():
                 created_at TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS workspace_verification_profiles (
+            CREATE TABLE IF NOT EXISTS project_verification_profiles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 profile_id INTEGER NOT NULL REFERENCES verification_profiles(id) ON DELETE CASCADE,
                 subpath TEXT NOT NULL DEFAULT '.',
-                UNIQUE(workspace_id, profile_id, subpath)
+                UNIQUE(project_id, profile_id, subpath)
             );
 
             CREATE TABLE IF NOT EXISTS verification_runs (
@@ -441,3 +441,23 @@ def _migrate_db(db):
 
     # Normalize review comment scopes
     db.execute("UPDATE discussions SET scope = 'review' WHERE scope IN ('diff', 'file')")
+
+    # Migrate workspace_verification_profiles → project_verification_profiles
+    tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "workspace_verification_profiles" in tables and "project_verification_profiles" not in tables:
+        db.execute("""
+            CREATE TABLE project_verification_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                profile_id INTEGER NOT NULL REFERENCES verification_profiles(id) ON DELETE CASCADE,
+                subpath TEXT NOT NULL DEFAULT '.',
+                UNIQUE(project_id, profile_id, subpath)
+            )
+        """)
+        db.execute("""
+            INSERT OR IGNORE INTO project_verification_profiles (project_id, profile_id, subpath)
+            SELECT w.project_id, wvp.profile_id, wvp.subpath
+            FROM workspace_verification_profiles wvp
+            JOIN workspaces w ON wvp.workspace_id = w.id
+        """)
+        db.execute("DROP TABLE workspace_verification_profiles")

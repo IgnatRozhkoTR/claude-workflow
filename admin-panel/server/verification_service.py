@@ -90,13 +90,13 @@ def delete_step(db, step_id):
     return {"ok": True}
 
 
-def get_workspace_profiles(db, workspace_id):
-    """Get profiles assigned to a workspace."""
+def get_project_profiles(db, project_id):
+    """Get profiles assigned to a project."""
     rows = db.execute(
-        "SELECT wp.id as assignment_id, wp.subpath, vp.* FROM workspace_verification_profiles wp "
-        "JOIN verification_profiles vp ON wp.profile_id = vp.id "
-        "WHERE wp.workspace_id = ? ORDER BY vp.name",
-        (workspace_id,)
+        "SELECT pp.id as assignment_id, pp.subpath, vp.* FROM project_verification_profiles pp "
+        "JOIN verification_profiles vp ON pp.profile_id = vp.id "
+        "WHERE pp.project_id = ? ORDER BY vp.name",
+        (project_id,)
     ).fetchall()
     result = []
     for r in rows:
@@ -109,45 +109,52 @@ def get_workspace_profiles(db, workspace_id):
     return result
 
 
-def assign_profile(db, workspace_id, profile_id, subpath="."):
-    """Assign a profile to a workspace."""
+def assign_profile(db, project_id, profile_id, subpath="."):
+    """Assign a profile to a project."""
     profile = db.execute("SELECT id FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()
     if not profile:
         return {"error": "profile_not_found"}
     existing = db.execute(
-        "SELECT id FROM workspace_verification_profiles WHERE workspace_id = ? AND profile_id = ? AND subpath = ?",
-        (workspace_id, profile_id, subpath)
+        "SELECT id FROM project_verification_profiles WHERE project_id = ? AND profile_id = ? AND subpath = ?",
+        (project_id, profile_id, subpath)
     ).fetchone()
     if existing:
         return {"error": "already_assigned"}
     cursor = db.execute(
-        "INSERT INTO workspace_verification_profiles (workspace_id, profile_id, subpath) VALUES (?, ?, ?)",
-        (workspace_id, profile_id, subpath)
+        "INSERT INTO project_verification_profiles (project_id, profile_id, subpath) VALUES (?, ?, ?)",
+        (project_id, profile_id, subpath)
     )
     return {"ok": True, "id": cursor.lastrowid}
 
 
-def unassign_profile(db, assignment_id, workspace_id):
-    """Remove a profile assignment from a workspace."""
+def unassign_profile(db, assignment_id, project_id):
+    """Remove a profile assignment from a project."""
     row = db.execute(
-        "SELECT id FROM workspace_verification_profiles WHERE id = ? AND workspace_id = ?",
-        (assignment_id, workspace_id)
+        "SELECT id FROM project_verification_profiles WHERE id = ? AND project_id = ?",
+        (assignment_id, project_id)
     ).fetchone()
     if not row:
         return {"error": "assignment_not_found"}
-    db.execute("DELETE FROM workspace_verification_profiles WHERE id = ?", (assignment_id,))
+    db.execute("DELETE FROM project_verification_profiles WHERE id = ?", (assignment_id,))
     return {"ok": True}
+
+
+def _get_project_id_for_workspace(db, workspace_id):
+    """Look up the project_id for a given workspace."""
+    row = db.execute("SELECT project_id FROM workspaces WHERE id = ?", (workspace_id,)).fetchone()
+    return row["project_id"] if row else None
 
 
 def run_verification(db, workspace_id, phase, working_dir):
     """Run all assigned verification profiles for a workspace. Returns (passed, run_id)."""
+    project_id = _get_project_id_for_workspace(db, workspace_id)
     assignments = db.execute(
-        "SELECT wp.subpath, vp.id as profile_id, vp.name as profile_name "
-        "FROM workspace_verification_profiles wp "
-        "JOIN verification_profiles vp ON wp.profile_id = vp.id "
-        "WHERE wp.workspace_id = ?",
-        (workspace_id,)
-    ).fetchall()
+        "SELECT pp.subpath, vp.id as profile_id, vp.name as profile_name "
+        "FROM project_verification_profiles pp "
+        "JOIN verification_profiles vp ON pp.profile_id = vp.id "
+        "WHERE pp.project_id = ?",
+        (project_id,)
+    ).fetchall() if project_id else []
 
     if not assignments:
         return True, None

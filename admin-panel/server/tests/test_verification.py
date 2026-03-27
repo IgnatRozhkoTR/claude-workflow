@@ -330,3 +330,42 @@ def test_run_verification_with_failing_step(client, workspace):
 
     assert result["status"] == "failed"
     assert result["steps"][0]["status"] == "failed"
+
+
+def test_profile_assigned_in_one_workspace_visible_from_another(client, workspace, second_workspace):
+    """Assigning a profile via one workspace branch makes it visible from any other branch in the same project."""
+    all_profiles = client.get("/api/verification/profiles").get_json()["profiles"]
+    python_profile = next(p for p in all_profiles if p["name"] == "Python")
+    profile_id = python_profile["id"]
+
+    assign_response = client.post(_ws_url(workspace, "/assign"), json={"profile_id": profile_id})
+    assert assign_response.status_code == 200
+
+    profiles_from_second = client.get(_ws_url(second_workspace, "/profiles")).get_json()["profiles"]
+    assert len(profiles_from_second) == 1
+    assert profiles_from_second[0]["id"] == profile_id
+
+
+def test_unassign_in_one_workspace_removes_from_all(client, workspace, second_workspace):
+    """Unassigning a profile via one workspace branch removes it for the entire project."""
+    all_profiles = client.get("/api/verification/profiles").get_json()["profiles"]
+    profile_id = all_profiles[0]["id"]
+
+    assign_data = client.post(_ws_url(workspace, "/assign"), json={"profile_id": profile_id}).get_json()
+    assignment_id = assign_data["id"]
+
+    client.delete(_ws_url(second_workspace, f"/unassign/{assignment_id}"))
+
+    profiles_from_first = client.get(_ws_url(workspace, "/profiles")).get_json()["profiles"]
+    assert profiles_from_first == []
+
+
+def test_duplicate_assignment_blocked_across_workspaces(client, workspace, second_workspace):
+    """Assigning the same profile via a different workspace branch in the same project returns 409."""
+    all_profiles = client.get("/api/verification/profiles").get_json()["profiles"]
+    profile_id = all_profiles[0]["id"]
+
+    client.post(_ws_url(workspace, "/assign"), json={"profile_id": profile_id})
+    response = client.post(_ws_url(second_workspace, "/assign"), json={"profile_id": profile_id})
+    assert response.status_code == 409
+    assert "error" in response.get_json()

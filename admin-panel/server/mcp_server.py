@@ -817,7 +817,7 @@ def workspace_get_verification_results(ws, project, db, locale, phase: str = "",
 def workspace_get_verification_profiles(ws, project, db, locale) -> list:
     """Get all available verification profiles in the system.
 
-    Returns profiles with their steps. Use workspace_assign_verification_profile to assign one to the current workspace."""
+    Returns profiles with their steps. Use workspace_assign_verification_profile to assign one to the current project."""
     return verification_service.get_all_profiles(db)
 
 
@@ -874,11 +874,11 @@ def workspace_add_verification_step(ws, project, db, locale, profile_id: int, na
 @mcp.tool()
 @with_mcp_workspace
 def workspace_assign_verification_profile(ws, project, db, locale, profile_id: int, subpath: str = ".") -> dict:
-    """Assign a verification profile to the current workspace.
+    """Assign a verification profile to the current project (applies to all workspaces in the project).
 
     - profile_id: ID of the profile to assign (from workspace_get_verification_profiles)
     - subpath: subdirectory to run in (default "." = workspace root). Use for multi-language projects."""
-    result = verification_service.assign_profile(db, ws["id"], profile_id, subpath=subpath)
+    result = verification_service.assign_profile(db, ws["project_id"], profile_id, subpath=subpath)
     if "ok" in result:
         db.commit()
     return result

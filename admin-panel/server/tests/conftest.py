@@ -42,7 +42,7 @@ def clean_db(setup_db):
         "phase_history", "workspaces", "projects", "modules_enabled",
         "improvements",
         "verification_step_results", "verification_runs",
-        "workspace_verification_profiles",
+        "project_verification_profiles",
     ]
 
     def _do_clean(db):
@@ -155,6 +155,33 @@ def workspace(project, git_repo):
         "project_id": project["id"],
         "branch": "feature/test",
         "sanitized_branch": "feature-test",
+        "working_dir": git_repo,
+        "phase": "0",
+    }
+
+
+@pytest.fixture
+def second_workspace(project, git_repo):
+    """Create a second workspace in the same project, simulating a different branch."""
+    from db import get_db
+    db = get_db()
+    now = datetime.now().isoformat()
+    cursor = db.execute(
+        "INSERT INTO workspaces (project_id, branch, sanitized_branch, working_dir, "
+        "created, status, phase, scope_json, plan_json, source_branch) "
+        "VALUES (?, ?, ?, ?, ?, 'active', '0', ?, ?, ?)",
+        (project["id"], "feature/other", "feature-other", git_repo,
+         now, '{"must":[],"may":[]}',
+         '{"description":"","systemDiagram":"","execution":[]}', "develop")
+    )
+    ws_id = cursor.lastrowid
+    db.commit()
+    db.close()
+    return {
+        "id": ws_id,
+        "project_id": project["id"],
+        "branch": "feature/other",
+        "sanitized_branch": "feature-other",
         "working_dir": git_repo,
         "phase": "0",
     }

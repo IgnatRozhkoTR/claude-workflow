@@ -98,21 +98,21 @@ def delete_step(step_id):
 @bp.route("/api/ws/<project_id>/<path:branch>/verification/profiles", methods=["GET"])
 @with_workspace
 def get_workspace_profiles(db, ws, project):
-    """Get profiles assigned to this workspace."""
-    profiles = verification_service.get_workspace_profiles(db, ws["id"])
+    """Get profiles assigned to this workspace's project."""
+    profiles = verification_service.get_project_profiles(db, project["id"])
     return jsonify({"profiles": profiles})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/verification/assign", methods=["POST"])
 @with_workspace
 def assign_profile(db, ws, project):
-    """Assign a profile to this workspace."""
+    """Assign a profile to this workspace's project."""
     body = request.get_json(silent=True) or {}
     profile_id = body.get("profile_id")
     subpath = body.get("subpath", ".")
     if not profile_id:
         return jsonify({"error": "profile_id is required"}), 400
-    result = verification_service.assign_profile(db, ws["id"], profile_id, subpath=subpath)
+    result = verification_service.assign_profile(db, project["id"], profile_id, subpath=subpath)
     if "error" in result:
         code = 409 if result["error"] == "already_assigned" else 404
         return jsonify(result), code
@@ -123,8 +123,8 @@ def assign_profile(db, ws, project):
 @bp.route("/api/ws/<project_id>/<path:branch>/verification/unassign/<int:assignment_id>", methods=["DELETE"])
 @with_workspace
 def unassign_profile(db, ws, project, assignment_id):
-    """Remove a profile assignment from this workspace."""
-    result = verification_service.unassign_profile(db, assignment_id, ws["id"])
+    """Remove a profile assignment from this workspace's project."""
+    result = verification_service.unassign_profile(db, assignment_id, project["id"])
     if "error" in result:
         return jsonify(result), 404
     db.commit()
