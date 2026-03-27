@@ -82,6 +82,8 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 **Acceptance criteria.** During assessment and planning, the agent proposes acceptance criteria (unit tests, integration tests, BDD scenarios, custom checks) via MCP. Users accept or reject them in the admin panel. On the last execution commit, the server programmatically validates test-type criteria — it checks that named test methods actually exist in the specified test files. Plan approval is blocked if any criteria remain unresolved.
 
+**Verification profiles.** Automated code quality checks that run at phase validation (3.N.1). Each profile targets a language or toolchain (Java Gradle, Python, TypeScript, etc.) and contains ordered steps: compilation, formatting, linting, static analysis. Each step has an install check command, an auto-install command, and a fail severity (blocking or warning). Profiles are global — not workspace-specific — but assigned per-workspace. The system ships with 4 preset profiles; users can create custom ones via the admin panel or setup wizard.
+
 **Plan structure.** The execution plan includes system diagrams (class diagram and sequence diagrams in Mermaid) and tasks organized into sub-phases. Tasks can declare parallel groups for fork/join execution. Each sub-phase has its own scope (must/may file patterns), so different sub-phases can touch completely different parts of the codebase.
 
 **Execution sub-phases.** The plan defines N sub-phases (3.1, 3.2, ...), each cycling through Implementation, Validation, Fixes, Code Review, and Commit. Production code and tests are always written by separate agents to maintain objectivity.
@@ -92,7 +94,11 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 **Session recovery.** When a session ends (context compaction or restart), all teammates are lost. The orchestrator re-spawns them using progress entries that document what happened at each phase — actions taken, obstacles hit, decisions made, files changed.
 
-**Telegram integration.** Sessions can be controlled remotely via a Telegram bot. A custom multi-session server replaces the default plugin, allowing multiple Claude Code sessions to share one bot — each session prefixes replies with its workspace name (e.g., `[mp-72]`). Telegram users can list active sessions with `/sessions` and switch between them with `/switch <name>`. Orphan detection ensures that if the polling session dies, another session auto-recovers within seconds. Setup: `/telegram-multi-session install`. See [skills/telegram-multi-session/](skills/telegram-multi-session/) for details.
+**Telegram integration.** Sessions can be controlled remotely via a Telegram bot. The Telegram module replaces the default plugin with a custom multi-session server, allowing multiple Claude Code sessions to share one bot — each session prefixes replies with its workspace name (e.g., `[mp-72]`). Telegram users can list active sessions with `/sessions` and switch between them with `/switch <name>`. Orphan detection ensures that if the polling session dies, another session auto-recovers within seconds. Setup: `/telegram-multi-session install`. See [modules/telegram/](modules/telegram/) for details.
+
+**Modules.** Self-contained feature packages that live at `~/.claude/modules/`. Each module is a directory containing a `SKILL.md` and any supporting files the module needs. Modules are discoverable — the admin panel scans the directory for available modules. Users enable or disable modules via the Setup page or the Modules card on the dashboard. The system currently ships with the Telegram module for remote session control.
+
+**Setup wizard.** Accessible from the project selector page in the admin panel. Configures modules and verification profiles in one go. Launches Claude Code in an embedded terminal and follows the setup skill to install selected modules, verify required tools, and create or assign verification profiles.
 
 ## Repository Structure
 
@@ -106,13 +112,15 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 │   ├── session-start.py  #   Session registration + context banner via Flask API
 │   ├── block-orchestrator-writes.py  # Prevents orchestrator from direct file edits
 │   └── user-prompt-submit.sh  # Orchestrator role enforcement
+├── modules/              # Self-contained feature packages
+│   └── telegram/         #   Remote session control via Telegram bot
 ├── skills/               # Claude Code slash-command skills
 │   ├── governed-workflow/ #   Full orchestrated workflow (/governed-workflow)
 │   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
 │   ├── planning/         #   Planning phase 2.0 (/planning)
+│   ├── setup/            #   Setup wizard for modules and profiles
 │   ├── stride/           #   Lightweight version without backend (/stride)
-│   ├── workflow-migration/ # Setup on new devices including Windows/WSL
-│   └── telegram-multi-session/ # Remote session control via Telegram bot
+│   └── workflow-migration/ # Setup on new devices including Windows/WSL
 ├── rules/                # Coding standards, test standards, validation pipeline
 └── defaults/             # Git hook templates, MCP config template
 ```

@@ -6,10 +6,10 @@ The admin panel and MCP server for the [governed workflow](../README.md). Flask 
 
 | Layer | Details |
 |-------|---------|
-| Backend | Flask with Blueprints (13 route modules) |
-| Frontend | Vanilla HTML/CSS/JS (19 JS modules, 12 CSS modules) |
+| Backend | Flask with Blueprints (15 route modules) |
+| Frontend | Vanilla HTML/CSS/JS (21 JS modules, 14 CSS modules) |
 | Storage | SQLite (`server/admin-panel.db`) |
-| Agent Interface | MCP server over stdio (`server/mcp_server.py`) |
+| Agent Interface | MCP server over stdio (`server/mcp_server.py`, 31 tools) |
 | i18n | JSON message bundles (`server/messages/`) |
 | Tests | pytest suite (`server/tests/`, 15 test modules) |
 
@@ -78,7 +78,8 @@ admin-panel/
     advance_service.py    # Phase advancers, transition logic, approve/reject gates
     advance_guards.py     # Guard chain for advance validation
     criteria_validators.py # Acceptance criteria validation at execution boundaries
-    mcp_server.py         # MCP server (stdio transport, 22 tools)
+    verification_service.py # Verification profiles, step execution, result tracking
+    mcp_server.py         # MCP server (stdio transport, 31 tools)
     i18n.py               # Internationalization loader
     messages/             # i18n JSON message bundles
     routes/
@@ -95,12 +96,14 @@ admin-panel/
       hook_api.py         # Pre-tool hook API (check-permission, session-context)
       static.py           # Serves templates/ (HTML, CSS, JS, i18n)
       terminal_routes.py  # WebSocket terminal + tmux management
+      improvements.py     # Global improvement tracking (not workspace-scoped)
+      verification.py     # Verification profiles, steps, assignment, results
     terminal.py        # tmux session helpers (create, attach, send-keys)
     tests/                # pytest test suite (15 modules)
   templates/
     admin.html            # Single-page admin UI
-    css/                  # 12 modular stylesheets
-    js/                   # 19 vanilla JS modules
+    css/                  # 13 modular stylesheets
+    js/                   # 20 vanilla JS modules
   scripts/
     update-proof-snippets.py  # Maintenance utility
 ```
@@ -117,7 +120,9 @@ admin-panel/
 | Code Changes | Sidebar | Git diff viewer |
 | Configuration | Sidebar | Workspace settings, Claude command, git config |
 | Review | Sidebar | Code review issues |
+| Improvements | Sidebar | Reported process improvements with scope filtering and resolve |
 | Terminal | Sidebar | Built-in terminal (tmux + xterm.js) |
+| Setup | Project selector | Module selection, verification profile configuration, embedded terminal to run setup skill |
 
 ## API Overview
 
@@ -144,6 +149,10 @@ All workspace endpoints are scoped under `/api/ws/<project_id>/<branch>/`.
 | Command | `GET/PUT .../command` |
 | Progress | `GET /api/progress` |
 | Modify Check | `POST .../can-modify` |
+| Improvements | `GET /api/improvements`, `PUT /api/improvements/<id>/resolve`, `PUT /api/improvements/<id>/reopen` |
+| Verification | `GET /api/verification/profiles`, `POST /api/verification/profiles`, `POST .../profiles/<id>/steps`, `PUT/DELETE /api/verification/steps/<id>`, `GET/POST .../verification/assign`, `DELETE .../verification/unassign/<id>`, `GET .../verification/results` |
+| Modules | `GET /api/modules`, `GET /api/modules/enabled`, `POST /api/modules/enabled` |
+| Setup | `POST /api/setup/start`, `GET /api/setup/status`, `WS /ws/setup-terminal` |
 
 ## MCP Tools
 
@@ -173,3 +182,11 @@ All workspace endpoints are scoped under `/api/ws/<project_id>/<branch>/`.
 | `workspace_get_criteria` | Get acceptance criteria, optionally filtered by status or type |
 | `workspace_update_criteria` | Update an existing criterion's description or details |
 | `workspace_set_impact_analysis` | Save structured impact analysis (6 fields: affected flows, API changes, data flow, dependencies, ticket gaps, questions) |
+| `workspace_report_improvement` | Report a process improvement (global — not workspace-bound) |
+| `workspace_get_improvements` | Get reported improvements, optionally filtered by scope/status (global) |
+| `workspace_get_verification_results` | Get verification run results for current/specific phase |
+| `workspace_get_verification_profiles` | List all available verification profiles |
+| `workspace_create_verification_profile` | Create a new verification profile |
+| `workspace_add_verification_step` | Add a step to a verification profile |
+| `workspace_assign_verification_profile` | Assign a profile to the current workspace |
+| `workspace_submit_validation` | Submit validation results from validator agent (replaces file-based JSON) |
