@@ -39,25 +39,30 @@ def clean_db(setup_db):
     tables = [
         "acceptance_criteria", "review_issues", "discussions",
         "research_entries", "progress_entries", "session_history",
-        "phase_history", "workspaces", "projects",
+        "phase_history", "workspaces", "projects", "modules_enabled",
+        "improvements",
+        "verification_step_results", "verification_runs",
+        "workspace_verification_profiles",
     ]
-    try:
-        db = get_db()
+
+    def _do_clean(db):
         db.execute("PRAGMA busy_timeout = 5000")
         for table in tables:
             db.execute(f"DELETE FROM {table}")
+        # Remove only user-created profiles so seeded system profiles persist
+        db.execute("DELETE FROM verification_steps WHERE profile_id IN "
+                   "(SELECT id FROM verification_profiles WHERE origin = 'user')")
+        db.execute("DELETE FROM verification_profiles WHERE origin = 'user'")
         db.commit()
         db.close()
+
+    try:
+        _do_clean(get_db())
     except sqlite3.OperationalError:
         # If DB is locked, force close all connections and retry
         import gc
         gc.collect()
-        db = get_db()
-        db.execute("PRAGMA busy_timeout = 5000")
-        for table in tables:
-            db.execute(f"DELETE FROM {table}")
-        db.commit()
-        db.close()
+        _do_clean(get_db())
 
 
 @pytest.fixture(scope="session")
