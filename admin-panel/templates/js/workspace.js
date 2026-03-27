@@ -339,6 +339,17 @@ function _wsInitSelector() {
           </div>
           <div id="ws-register-error"></div>
         </div>
+
+        <div class="ws-section" style="border-top: 1px solid var(--border); padding-top: 16px;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-outline" onclick="showSetupPage()" style="flex: 1; justify-content: center;">
+              ${t('setup.openSetupBtn')}
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="showImprovementsPage()" style="flex: 1; justify-content: center;">
+              ${t('improvements.openBtn')}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div id="ws-workspace-view" style="display: none;">
@@ -377,6 +388,34 @@ function _wsInitSelector() {
       </div>
     </div>
   `;
+
+  if (!document.getElementById('selector-toolbar')) {
+    var toolbar = document.createElement('div');
+    toolbar.id = 'selector-toolbar';
+    toolbar.style.cssText = 'position: absolute; top: 16px; right: 24px; display: flex; gap: 8px; align-items: center; z-index: 10;';
+    toolbar.innerHTML = '<select class="locale-select" id="selectorLocaleSelect" onchange="onSelectorLocaleChange(this.value)"><option value="en">EN</option><option value="ru">RU</option></select>'
+      + '<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="selectorThemeBtn">&#9788;</button>';
+    selector.appendChild(toolbar);
+  }
+
+  var localeSelect = document.getElementById('selectorLocaleSelect');
+  if (localeSelect && typeof I18N_LOCALE !== 'undefined') {
+    localeSelect.value = I18N_LOCALE;
+  }
+  if (typeof _updateThemeButtons === 'function' && typeof state !== 'undefined') {
+    _updateThemeButtons(state.theme);
+  }
+}
+
+function onSelectorLocaleChange(value) {
+  localStorage.setItem('admin-panel-locale', value);
+  I18N_LOCALE = value;
+  loadI18n(value).then(function() {
+    _wsInitSelector();
+    loadProjects();
+    var workspaceLocaleSelect = document.getElementById('localeSelect');
+    if (workspaceLocaleSelect) workspaceLocaleSelect.value = value;
+  });
 }
 
 function _wsBackToProjects() {
@@ -388,15 +427,25 @@ function _wsBackToProjects() {
 
 (function () {
   const ctx = getWorkspaceContext();
-  _wsInitSelector();
+  const savedLocale = localStorage.getItem('admin-panel-locale');
+  const needsLocaleLoad = savedLocale && savedLocale !== 'en' && typeof loadI18n === 'function';
 
-  if (ctx) {
-    hideProjectSelector();
-    if (typeof initApp === 'function') {
-      initApp();
+  function _wsBoot() {
+    _wsInitSelector();
+    if (ctx) {
+      hideProjectSelector();
+      if (typeof initApp === 'function') {
+        initApp();
+      }
+    } else {
+      showProjectSelector();
+      loadProjects();
     }
+  }
+
+  if (needsLocaleLoad) {
+    loadI18n(savedLocale).then(_wsBoot);
   } else {
-    showProjectSelector();
-    loadProjects();
+    _wsBoot();
   }
 })();

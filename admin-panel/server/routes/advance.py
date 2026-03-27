@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 from advance_service import approve_gate, reject_gate
 from decorators import with_workspace
 from i18n import t
-from terminal import session_name, session_exists, send_keys
+from terminal import session_name, session_exists, send_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def approve(db, ws, project):
                     msg = 'Code review approved for sub-phase ' + phase.replace('.3', '') + '. Proceed to commit.'
                 if not msg:
                     msg = 'Phase ' + phase + ' approved. Check workspace_get_state.'
-                send_keys(tmux_name, msg)
+                send_prompt(tmux_name, msg)
         except Exception:
             logger.warning("Failed to send tmux approval notification", exc_info=True)
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)
@@ -60,7 +60,7 @@ def reject(db, ws, project):
                     msg = 'Code review rejected for sub-phase ' + phase.replace('.3', '') + '. Fix issues per comments.'
                 if not msg:
                     msg = 'Phase ' + phase + ' rejected. Check workspace_get_comments.'
-                send_keys(tmux_name, msg)
+                send_prompt(tmux_name, msg)
         except Exception:
             logger.warning("Failed to send tmux rejection notification", exc_info=True)
     return jsonify({k: v for k, v in result.items() if k != "status_code"}), result.get("status_code", 200)

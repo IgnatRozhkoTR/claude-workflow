@@ -61,6 +61,7 @@ async function switchTab(tabId) {
 
   if (tabId === 'dashboard') {
     if (typeof renderContext === 'function') renderContext();
+    if (typeof loadVerificationData === 'function') loadVerificationData();
   } else if (tabId === 'plan') {
     if (typeof renderPlan === 'function') renderPlan();
     if (typeof renderScope === 'function') renderScope();
@@ -77,10 +78,13 @@ async function switchTab(tabId) {
     if (typeof renderPhaseHistory === 'function') renderPhaseHistory();
     if (typeof renderPhaseActions === 'function') renderPhaseActions();
     if (typeof renderApprovalStatus === 'function') renderApprovalStatus();
+    if (typeof loadVerificationResults === 'function') loadVerificationResults();
   } else if (tabId === 'changes') {
     if (typeof renderFileList === 'function') renderFileList();
   } else if (tabId === 'review') {
     if (typeof loadReviewComments === 'function') loadReviewComments();
+  } else if (tabId === 'improvements') {
+    if (typeof loadImprovements === 'function') loadImprovements();
   } else if (tabId === 'files') {
     if (!_explorerLoaded && typeof loadExplorerFiles === 'function') {
       _explorerLoaded = true;

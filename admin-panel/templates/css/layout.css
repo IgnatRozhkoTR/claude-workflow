@@ -281,12 +281,12 @@
   letter-spacing: -0.01em;
 }
 
-/* Center card titles absolutely in plan tab — independent of button widths */
-#panel-plan .card-header {
+/* Center card titles absolutely — independent of button widths */
+.card-header {
   position: relative;
 }
 
-#panel-plan .card-header .card-title {
+.card-header .card-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);

@@ -13,7 +13,7 @@ import signal
 from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
-from terminal import session_name, session_exists, create_session, send_keys, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command
+from terminal import session_name, session_exists, create_session, send_keys, send_prompt, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command
 from db import get_db
 
 _SAFE_NOTIFY_RE = re.compile(r'[^a-zA-Z0-9 .,!?\-_\'\"():;/]')
@@ -282,7 +282,7 @@ def terminal_notify(project, branch):
     if not message:
         return jsonify({'error': 'Message is empty after sanitization'}), 400
 
-    send_keys(name, message)
+    send_prompt(name, message)
     return jsonify({'ok': True, 'status': 'notified'})
 
 

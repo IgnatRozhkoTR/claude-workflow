@@ -210,5 +210,30 @@
   "api.scope.fileOutsideApprovedScope": "Файл '{file_path}' находится вне одобренной области.",
 
   "criteria.validation.manuallyApproved": "Вручную одобрено пользователем",
-  "criteria.validation.rejectedByUser": "Отклонено пользователем"
+  "criteria.validation.rejectedByUser": "Отклонено пользователем",
+
+  "improvements.noItems": "Улучшения пока не зафиксированы",
+  "improvements.resolve": "Закрыть",
+  "improvements.reopen": "Открыть",
+  "improvements.resolvePrompt": "Добавьте заметку о том, что было сделано (необязательно):",
+  "improvements.resolvedNote": "Решение",
+  "improvements.allScopes": "Все области",
+  "improvements.allStatuses": "Все",
+  "improvements.open": "Открытые",
+  "improvements.resolved": "Закрытые",
+  "tabs.improvements": "Улучшения",
+
+  "cards.verificationProfiles": "Профили верификации",
+  "cards.verificationResults": "Результаты верификации",
+  "verification.noProfiles": "Профили верификации не назначены. Выберите один ниже для начала.",
+  "verification.noRuns": "Верификация ещё не запускалась",
+  "verification.selectProfile": "Выберите профиль...",
+  "verification.assign": "Назначить",
+  "verification.remove": "Удалить",
+  "verification.lastResults": "Результаты верификации",
+  "verification.run": "Запустить",
+  "verification.running": "Выполняется...",
+  "verification.runPassed": "Верификация пройдена",
+  "verification.runFailed": "Верификация не пройдена",
+  "verification.runError": "Ошибка верификации"
 }

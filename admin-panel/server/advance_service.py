@@ -16,6 +16,7 @@ from criteria_validators import validate_all
 from db import get_db
 from helpers import workspace_dir, run_git, match_scope_pattern, DEFAULT_SOURCE_BRANCH
 import scope_service
+import verification_service
 from i18n import t
 
 
@@ -362,7 +363,9 @@ class ExecutionAdvancer(PhaseAdvancer):
         self._project_path = project_path
         if self._k == 0:
             return self._validate_implementation(ws, project_path)
-        if self._k in (1, 2):
+        if self._k == 1:
+            return self._validate_verification(ws)
+        if self._k == 2:
             return True, {}
         if self._k == 4:
             return self._validate_commit(ws, body, project_path)
@@ -433,8 +436,38 @@ class ExecutionAdvancer(PhaseAdvancer):
 
         return True, {}
 
+    def _validate_verification(self, ws):
+        """Run verification profiles at validation phase. Blocks advance if any blocking step fails."""
+        phase = f"3.{self._n}.1"
+        db = get_db()
+        try:
+            passed, run_id = verification_service.run_verification(
+                db, ws["id"], phase, ws["working_dir"]
+            )
+            db.commit()
+            if not passed:
+                return False, {
+                    "message": f"Verification failed (run_id={run_id}). Check verification results in the admin panel and fix the issues before advancing."
+                }
+            return True, {}
+        finally:
+            db.close()
+
     def _route_after_validation(self, ws):
+        """Route after validation based on agent results and legacy file."""
         n = self._n
+        phase = f"3.{n}.1"
+
+        # Check agent validation results (submitted via workspace_submit_validation)
+        db = get_db()
+        try:
+            agent_result = verification_service.get_verification_results(db, ws["id"], phase=phase)
+            if agent_result and agent_result.get("status") == "failed":
+                return f"3.{n}.2"
+        finally:
+            db.close()
+
+        # Fallback: check legacy file-based validation
         ws_dir = workspace_dir(self._project_path, ws["branch"])
         validation_path = ws_dir / "validation" / f"3.{n}.json"
         if validation_path.exists():
@@ -444,7 +477,10 @@ class ExecutionAdvancer(PhaseAdvancer):
                     return f"3.{n}.3"
             except (json.JSONDecodeError, OSError):
                 pass
-        return f"3.{n}.2"
+            return f"3.{n}.2"
+
+        # No validation data — default to clean
+        return f"3.{n}.3"
 
     def _validate_commit(self, ws, body, project_path):
         locale = ws["locale"]
@@ -691,10 +727,10 @@ def reject_gate(ws, token, comments=""):
 def _notify_yolo_approve(ws, phase):
     """Send a YOLO auto-approval notification to the tmux session."""
     try:
-        from terminal import send_keys, session_name, session_exists
+        from terminal import send_prompt, session_name, session_exists
         name = session_name(ws["project_id"], ws["sanitized_branch"])
         if session_exists(name):
-            send_keys(name, f"[YOLO] Auto-approved phase {phase}. Proceeding.")
+            send_prompt(name, f"[YOLO] Auto-approved phase {phase}. Proceeding.")
     except Exception:
         logger.warning("Failed to send YOLO auto-approve notification", exc_info=True)
 

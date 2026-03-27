@@ -20,6 +20,8 @@
 !rules/**
 !defaults/
 !defaults/**
+!modules/
+!modules/**
 !skills/
 !skills/**
 skills/code-review/

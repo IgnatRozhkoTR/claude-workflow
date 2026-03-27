@@ -1,11 +1,19 @@
 // ═══════════════════════════════════════════════
 //  THEME
 // ═══════════════════════════════════════════════
+function _updateThemeButtons(theme) {
+  var icon = theme === 'dark' ? '☀' : '☾';
+  var headerBtn = document.getElementById('themeBtn');
+  if (headerBtn) headerBtn.textContent = icon;
+  var selectorBtn = document.getElementById('selectorThemeBtn');
+  if (selectorBtn) selectorBtn.textContent = icon;
+}
+
 function toggleTheme() {
   state.theme = state.theme === 'dark' ? 'light' : 'dark';
   localStorage.setItem('admin-panel-theme', state.theme);
   document.documentElement.setAttribute('data-theme', state.theme);
-  document.getElementById('themeBtn').textContent = state.theme === 'dark' ? '☀' : '☾';
+  _updateThemeButtons(state.theme);
   var hljsLink = document.getElementById('hljs-theme');
   if (hljsLink) {
     hljsLink.href = state.theme === 'dark'
@@ -27,7 +35,7 @@ function toggleTheme() {
   if (saved && (saved === 'dark' || saved === 'light')) {
     state.theme = saved;
     document.documentElement.setAttribute('data-theme', saved);
-    document.getElementById('themeBtn').textContent = saved === 'dark' ? '☀' : '☾';
+    _updateThemeButtons(saved);
     var hljsLink = document.getElementById('hljs-theme');
     if (hljsLink) {
       hljsLink.href = saved === 'dark'

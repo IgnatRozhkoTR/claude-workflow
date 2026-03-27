@@ -1,0 +1,241 @@
+/* ═══════════════════════════════════════════════ */
+/*  SETUP PAGE                                     */
+/* ═══════════════════════════════════════════════ */
+
+#ws-setup-view,
+#ws-improvements-view {
+  width: 100vw;
+  max-width: 960px;
+  margin-left: calc(50% - min(50vw, 480px));
+}
+
+.setup-container {
+  position: relative;
+  width: 100%;
+  padding: 40px 32px;
+}
+
+/* ─── Header ──────────────────────────────────── */
+
+.setup-header {
+  margin-bottom: 28px;
+}
+
+.setup-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.setup-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+/* ─── Section cards ───────────────────────────── */
+
+.setup-section {
+  margin-bottom: 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.setup-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ─── Module list ─────────────────────────────── */
+
+.setup-module-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.setup-module-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.setup-module-item:last-child {
+  border-bottom: none;
+}
+
+.setup-module-item:hover {
+  background: var(--bg-hover);
+}
+
+.setup-module-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.setup-module-item label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.setup-module-desc {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ─── Language profiles ───────────────────────── */
+
+.setup-lang-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.setup-lang-item {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-lang-item:last-child {
+  border-bottom: none;
+}
+
+.setup-lang-item > .ws-checkbox-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.setup-lang-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  margin-left: 23px;
+}
+
+.setup-lang-tool-tag {
+  padding: 2px 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Custom language form ────────────────────── */
+
+.setup-custom-form {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setup-custom-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.setup-custom-row .ws-form-row {
+  flex: 1;
+}
+
+.setup-custom-row .btn {
+  flex-shrink: 0;
+}
+
+/* ─── Start button ────────────────────────────── */
+
+.setup-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 20px;
+  margin-top: 8px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--accent-text);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.setup-start-btn:hover {
+  background: var(--accent-hover);
+}
+
+.setup-start-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── Embedded terminal ───────────────────────── */
+
+.setup-terminal-section {
+  margin-top: 20px;
+}
+
+.setup-terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+#setup-terminal-container {
+  height: 400px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+
+#setup-terminal-container .xterm {
+  height: 100%;
+}
+
+#setup-terminal-container .xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* ─── Empty state ─────────────────────────────── */
+
+.setup-empty-msg {
+  padding: 20px 18px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+}

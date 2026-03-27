@@ -210,5 +210,30 @@
   "api.scope.fileOutsideApprovedScope": "File '{file_path}' is outside the approved scope.",
 
   "criteria.validation.manuallyApproved": "Manually approved by user",
-  "criteria.validation.rejectedByUser": "Rejected by user"
+  "criteria.validation.rejectedByUser": "Rejected by user",
+
+  "improvements.noItems": "No improvements reported yet",
+  "improvements.resolve": "Resolve",
+  "improvements.reopen": "Reopen",
+  "improvements.resolvePrompt": "Add a note about what was done (optional):",
+  "improvements.resolvedNote": "Resolution",
+  "improvements.allScopes": "All scopes",
+  "improvements.allStatuses": "All",
+  "improvements.open": "Open",
+  "improvements.resolved": "Resolved",
+  "tabs.improvements": "Improvements",
+
+  "cards.verificationProfiles": "Verification Profiles",
+  "cards.verificationResults": "Verification Results",
+  "verification.noProfiles": "No verification profiles assigned. Select one below to get started.",
+  "verification.noRuns": "No verification runs yet",
+  "verification.selectProfile": "Select a profile...",
+  "verification.assign": "Assign",
+  "verification.remove": "Remove",
+  "verification.lastResults": "Verification Results",
+  "verification.run": "Run",
+  "verification.running": "Running...",
+  "verification.runPassed": "Verification passed",
+  "verification.runFailed": "Verification failed",
+  "verification.runError": "Verification error"
 }

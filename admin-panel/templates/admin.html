@@ -53,6 +53,9 @@
 <link rel="stylesheet" href="css/diff-viewer.css">
 <link rel="stylesheet" href="css/preplanning.css">
 <link rel="stylesheet" href="css/terminal.css">
+<link rel="stylesheet" href="css/improvements.css">
+<link rel="stylesheet" href="css/verification.css">
+<link rel="stylesheet" href="css/setup.css">
 <link rel="stylesheet" href="css/mobile.css">
 <link rel="stylesheet" href="css/workspace.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
@@ -135,6 +138,10 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     <span class="review-badge" id="reviewBadge" style="display:none"></span>
   </button>
+  <button class="sidebar-btn" data-tab="improvements" title="Improvements" data-i18n-title="tabs.improvements">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+    <span class="review-badge" id="improvementBadge" style="display:none"></span>
+  </button>
   <button class="sidebar-btn" data-tab="terminal" title="Terminal" data-i18n-title="tabs.terminal">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="4 17 10 11 4 5"></polyline>
@@ -184,18 +191,14 @@
     </div>
     <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>
 
-    <!-- Device Settings -->
-    <div class="card collapsed">
+    <!-- Modules -->
+    <div class="card collapsed" id="modulesCard" style="display: none;">
       <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
-        <span class="card-title" data-i18n="config.deviceSettings">Device Settings</span>
+        <span class="card-title" data-i18n="config.modules">Modules</span>
         <span class="card-collapse-chevron">&#9660;</span>
       </div>
-      <div class="card-body">
-        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-          <input type="checkbox" id="channelsEnabledCheck" onchange="saveChannelsPreference()">
-          <label for="channelsEnabledCheck" style="font-size: 0.82rem; color: var(--text-primary); cursor: pointer;" data-i18n="config.channels">Channels</label>
-        </div>
-        <input type="text" class="context-input" id="channelsValueInput" placeholder="plugin:telegram@claude-plugins-official" style="margin-top: 6px; width: 100%; display: none;" onchange="saveChannelsPreference()">
+      <div class="card-body" id="modulesCardBody">
+        <div style="color: var(--text-muted); font-size: 0.82rem;" data-i18n="config.noModules">No modules configured.</div>
       </div>
     </div>
 
@@ -282,6 +285,22 @@
         <textarea class="context-textarea" id="gitRulesContent" style="width: 100%; min-height: 300px; font-family: monospace; font-size: 13px;" placeholder="Git rules will appear here..." data-i18n-placeholder="placeholders.gitRules"></textarea>
         <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
           <button class="btn btn-sm btn-primary" onclick="saveGitRules()" data-i18n="buttons.saveRules">Save Rules</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verification Profiles -->
+    <div class="card">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.verificationProfiles">Verification Profiles</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div id="verificationAssigned"></div>
+        <div class="verification-assign-row">
+          <select id="verificationProfileSelect"></select>
+          <input type="text" id="verificationSubpath" placeholder="subpath (default: .)" title="Subpath (default: .)">
+          <button class="btn btn-sm" onclick="assignVerificationProfile()" data-i18n="verification.assign">Assign</button>
         </div>
       </div>
     </div>
@@ -590,6 +609,31 @@
     </div>
   </div>
 
+  <!-- ─── IMPROVEMENTS ─── -->
+  <div class="tab-panel" id="panel-improvements">
+    <div class="card">
+      <div class="card-header">
+        <span data-i18n="tabs.improvements">Improvements</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <select id="improvementScopeFilter" class="scope-filter-select" onchange="loadImprovements()">
+            <option value="" data-i18n="improvements.allScopes">All scopes</option>
+            <option value="workflow">workflow</option>
+            <option value="project">project</option>
+            <option value="skill">skill</option>
+            <option value="tooling">tooling</option>
+            <option value="documentation">documentation</option>
+          </select>
+          <select id="improvementStatusFilter" class="scope-filter-select" onchange="loadImprovements()">
+            <option value="" data-i18n="improvements.allStatuses">All</option>
+            <option value="open" data-i18n="improvements.open">Open</option>
+            <option value="resolved" data-i18n="improvements.resolved">Resolved</option>
+          </select>
+        </div>
+      </div>
+      <div id="improvementsList"></div>
+    </div>
+  </div>
+
   <!-- ─── TERMINAL ─── -->
   <div class="tab-panel" id="panel-terminal">
     <div class="terminal-container">
@@ -623,6 +667,13 @@
       </div>
       <div class="card-body" id="approvalStatusPanel"></div>
     </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" data-i18n="cards.verificationResults">Verification Results</span>
+        <button class="btn btn-sm" id="runVerificationBtn" onclick="runVerificationManual()" data-i18n="verification.run">Run</button>
+      </div>
+      <div class="card-body" id="verificationResults"></div>
+    </div>
     <div class="phase-action-grid" id="phaseActions"></div>
   </div>
 
@@ -652,7 +703,7 @@
 
 <script>
   var I18N_MESSAGES = {{ i18n_default | safe }};
-  var I18N_LOCALE = 'en';
+  var I18N_LOCALE = localStorage.getItem('admin-panel-locale') || 'en';
 </script>
 <script src="js/event-bus.js"></script>
 <script src="js/i18n.js"></script>
@@ -677,6 +728,9 @@
 <script src="js/context.js"></script>
 <script src="js/criteria.js"></script>
 <script src="js/preplanning.js"></script>
+<script src="js/improvements.js"></script>
+<script src="js/verification.js"></script>
+<script src="js/setup.js"></script>
 <script src="js/actions.js"></script>
 <script src="js/app.js"></script>
 <script src="js/workspace.js"></script>

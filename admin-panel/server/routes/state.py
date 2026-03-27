@@ -14,7 +14,7 @@ import discussion_service
 from decorators import with_workspace
 from helpers import compute_phase_sequence
 from i18n import t
-from terminal import session_name, session_exists, send_keys
+from terminal import session_name, session_exists, send_prompt
 import plan_service
 import progress_service
 import research_service
@@ -167,9 +167,9 @@ def set_scope_status(db, ws, project):
             tmux_name = session_name(ws["project_id"], ws["branch"])
             if session_exists(tmux_name):
                 if status == 'approved':
-                    send_keys(tmux_name, 'Scope has been approved.')
+                    send_prompt(tmux_name, 'Scope has been approved.')
                 else:
-                    send_keys(tmux_name, 'Scope has been rejected. Check comments for feedback.')
+                    send_prompt(tmux_name, 'Scope has been rejected. Check comments for feedback.')
         except Exception:
             logger.warning("Failed to send tmux notification", exc_info=True)
 
@@ -192,9 +192,9 @@ def set_plan_status(db, ws, project):
             tmux_name = session_name(ws["project_id"], ws["branch"])
             if session_exists(tmux_name):
                 if status == 'approved':
-                    send_keys(tmux_name, 'Plan has been approved.')
+                    send_prompt(tmux_name, 'Plan has been approved.')
                 else:
-                    send_keys(tmux_name, 'Plan has been rejected. Check comments for feedback.')
+                    send_prompt(tmux_name, 'Plan has been rejected. Check comments for feedback.')
         except Exception:
             logger.warning("Failed to send tmux notification", exc_info=True)
 

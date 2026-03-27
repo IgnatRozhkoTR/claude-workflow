@@ -1,8 +1,10 @@
 """Tmux session management for browser-based terminal access."""
 import logging
+import os
 import subprocess
 import re
 import shutil
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,36 @@ def send_keys(name, command):
         return False
     subprocess.run(['tmux', 'send-keys', '-t', name, command, 'Enter'])
     return True
+
+
+def send_prompt(name, text):
+    """Send a multi-line prompt to a tmux session using buffer paste.
+
+    Unlike send_keys which interprets newlines as Enter keystrokes,
+    this uses tmux load-buffer + paste-buffer for clean multi-line delivery.
+    """
+    if not session_exists(name):
+        return False
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write(text)
+            tmp_path = f.name
+
+        subprocess.run(['tmux', 'load-buffer', tmp_path], check=True)
+        subprocess.run(['tmux', 'paste-buffer', '-t', name], check=True)
+        subprocess.run(['tmux', 'send-keys', '-t', name, 'Enter'])
+        return True
+    except Exception:
+        logger.warning("Failed to send prompt to %s", name, exc_info=True)
+        return False
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def kill_session(name):
@@ -143,3 +175,84 @@ def get_active_session(project_id, branch):
         'exists': session_exists(name),
         'attach_command': f'tmux attach -t {name}'
     }
+
+
+def send_prompt_when_ready(target_session, prompt, max_wait=30, poll_interval=1):
+    """
+    Poll the tmux session until Claude Code is ready to accept input,
+    then paste the prompt and submit it.
+
+    Runs in a background thread so it doesn't block the HTTP response.
+    """
+    import threading
+
+    def _poll_and_send():
+        import time
+
+        logger.info("send_prompt_when_ready: started polling for session '%s' (max_wait=%ds)", target_session, max_wait)
+
+        elapsed = 0
+        poll_count = 0
+        while elapsed < max_wait:
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            poll_count += 1
+
+            if not session_exists(target_session):
+                logger.warning("send_prompt_when_ready: session '%s' disappeared after %ds, aborting", target_session, elapsed)
+                return
+
+            try:
+                result = subprocess.run(
+                    ['tmux', 'capture-pane', '-t', target_session, '-p'],
+                    capture_output=True, text=True, timeout=5
+                )
+                ready = _is_claude_ready(result.stdout)
+                logger.info("send_prompt_when_ready: poll #%d at %ds — ready=%s", poll_count, elapsed, ready)
+                if ready:
+                    logger.info("send_prompt_when_ready: Claude is ready in session '%s', sending prompt", target_session)
+                    break
+            except Exception:
+                logger.warning("send_prompt_when_ready: failed to capture pane for '%s' at poll #%d", target_session, poll_count, exc_info=True)
+                continue
+        else:
+            logger.warning("send_prompt_when_ready: timed out after %ds waiting for Claude Code in session '%s', sending prompt anyway", max_wait, target_session)
+
+        success = send_prompt(target_session, prompt)
+        logger.info("send_prompt_when_ready: send_prompt returned %s for session '%s'", success, target_session)
+
+    thread = threading.Thread(target=_poll_and_send, daemon=True)
+    thread.start()
+    logger.info("send_prompt_when_ready: background thread started for session '%s'", target_session)
+
+
+def _strip_ansi(text):
+    """Remove ANSI escape sequences from text."""
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text).strip()
+
+
+def _is_claude_ready(pane_content):
+    """Check if Claude Code's input field is present in the terminal.
+
+    Detects the input prompt pattern: a line containing ❯ bordered
+    by lines of ─ box-drawing characters.
+    """
+    if not pane_content:
+        return False
+
+    clean = _strip_ansi(pane_content)
+    lines = clean.split('\n')
+
+    for i, line in enumerate(lines):
+        if '❯' in line:
+            # Found the prompt character — verify it's bordered by ─ lines
+            # Check nearby lines (within 2 lines above/below) for border
+            has_border = False
+            for j in range(max(0, i - 2), min(len(lines), i + 3)):
+                if j != i and '─' * 5 in lines[j]:
+                    has_border = True
+                    break
+            if has_border:
+                return True
+
+    return False

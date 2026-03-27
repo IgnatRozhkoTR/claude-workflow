@@ -88,11 +88,13 @@ async function initApp() {
   renderPhaseActions();
   renderApprovalStatus();
   renderContext();
+  loadVerificationData();
   loadCriteria();
   loadGitConfig();
   loadGitRules();
   loadClaudeCommand();
   loadChannelsPreference();
+  loadModulesCard();
 
   // Restore diff toggle states from localStorage
   document.querySelectorAll('#viewModeToggle .toggle-opt').forEach(function(b) {
