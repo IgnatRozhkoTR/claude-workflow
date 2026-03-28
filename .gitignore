@@ -34,6 +34,8 @@ skills/postman-collection/
 **/*.pyc
 **/.DS_Store
 *.db
+*.db-shm
+*.db-wal
 *.zip
 admin-panel/server/projects.json
 admin-panel/.reviews/

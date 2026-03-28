@@ -3,7 +3,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "admin-panel.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "admin-panel.db"
 
 
 def ws_field(ws, field, default=None):
