@@ -19,7 +19,7 @@ def setup_db(tmp_path_factory):
     db_dir = tmp_path_factory.mktemp("db")
     db_file = db_dir / "admin-panel.db"
 
-    import db as db_module
+    from core import db as db_module
     db_module.DB_PATH = db_file
     db_module.init_db()
     db = db_module.get_db()
@@ -34,7 +34,7 @@ def clean_db(setup_db):
     """Truncate all tables between tests for isolation."""
     yield  # let the test run first
     # Clean up AFTER the test
-    from db import get_db
+    from core.db import get_db
     import sqlite3
     tables = [
         "acceptance_criteria", "review_issues", "discussions",
@@ -120,7 +120,7 @@ def git_repo_with_files(git_repo):
 @pytest.fixture
 def project(clean_db, git_repo):
     """Register a test project directly in DB."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     project_id = "test-project"
     registered = datetime.now().isoformat()
@@ -136,7 +136,7 @@ def project(clean_db, git_repo):
 @pytest.fixture
 def workspace(project, git_repo):
     """Create a workspace at phase 0."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     now = datetime.now().isoformat()
     cursor = db.execute(
@@ -163,7 +163,7 @@ def workspace(project, git_repo):
 @pytest.fixture
 def second_workspace(project, git_repo):
     """Create a second workspace in the same project, simulating a different branch."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     now = datetime.now().isoformat()
     cursor = db.execute(

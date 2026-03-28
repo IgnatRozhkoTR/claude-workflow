@@ -3,8 +3,8 @@ import json
 import re
 from abc import ABC, abstractmethod
 
-from db import get_db
-from phase import Phase
+from core.db import get_db_ctx
+from core.phase import PhaseId
 
 
 class AdvanceGuard(ABC):
@@ -39,17 +39,14 @@ class ResearchProvenGuard(AdvanceGuard):
         return "research_proven"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        if Phase(phase) < "1.3":
+        if PhaseId(phase) < "1.3":
             return {"guard": self.name, "status": "skip"}
 
-        db = get_db()
-        try:
+        with get_db_ctx() as db:
             rows = db.execute(
                 "SELECT id, topic, proven FROM research_entries WHERE workspace_id = ?",
                 (ws["id"],)
             ).fetchall()
-        finally:
-            db.close()
 
         if not rows:
             return {"guard": self.name, "status": "approved"}
@@ -88,7 +85,7 @@ class PlanApprovedGuard(AdvanceGuard):
         return "plan_approved"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        if Phase(phase) < "2.0":
+        if PhaseId(phase) < "2.0":
             return {"guard": self.name, "status": "skip"}
 
         plan_json = ws["plan_json"]
@@ -125,7 +122,7 @@ class ScopeApprovedGuard(AdvanceGuard):
         return "scope_approved"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        p = Phase(phase)
+        p = PhaseId(phase)
         if p < "3.0" or p >= "5":
             return {"guard": self.name, "status": "skip"}
 
@@ -156,15 +153,12 @@ class ReviewGuard(AdvanceGuard):
         if phase != "4.2" and not self._GATE_PATTERN.match(phase):
             return {"guard": self.name, "status": "skip"}
 
-        db = get_db()
-        try:
+        with get_db_ctx() as db:
             row = db.execute(
                 "SELECT COUNT(*) as cnt FROM discussions "
                 "WHERE workspace_id = ? AND scope = 'review' AND parent_id IS NULL AND resolution = 'open'",
                 (ws["id"],)
             ).fetchone()
-        finally:
-            db.close()
 
         count = row["cnt"] if row else 0
         if count > 0:

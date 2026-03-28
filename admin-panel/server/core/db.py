@@ -6,6 +6,11 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent / "admin-panel.db"
 
 
+def ws_field(ws, field, default=None):
+    """Get a workspace field with a default for columns added via migration."""
+    return ws[field] if field in ws.keys() else default
+
+
 def get_db():
     db = sqlite3.connect(str(DB_PATH), timeout=10)
     db.row_factory = sqlite3.Row

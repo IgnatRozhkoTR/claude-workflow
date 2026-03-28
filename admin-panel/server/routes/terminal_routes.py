@@ -1,20 +1,13 @@
 """Terminal WebSocket and REST routes for tmux session management."""
-import os
-import pty
-import select
-import struct
-import fcntl
-import termios
-import threading
 import json
+import os
 import re
-import signal
 
 from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
-from terminal import session_name, session_exists, create_session, send_keys, send_prompt, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command
-from db import get_db
+from core.terminal import session_name, session_exists, create_session, send_keys, send_prompt, kill_session, tmux_available, build_claude_command, list_sessions, get_session_command, run_pty_websocket, TMUX_NOT_INSTALLED
+from core.db import get_db_ctx, ws_field
 
 _SAFE_NOTIFY_RE = re.compile(r'[^a-zA-Z0-9 .,!?\-_\'\"():;/]')
 _MAX_NOTIFY_LENGTH = 300
@@ -29,7 +22,7 @@ def register_terminal_ws(app):
     @sock.route('/ws/terminal/<project>/<branch>')
     def terminal_ws(ws, project, branch):
         if not tmux_available():
-            ws.send(json.dumps({'error': 'tmux is not installed. Run: brew install tmux'}))
+            ws.send(json.dumps({'error': TMUX_NOT_INSTALLED}))
             return
 
         name = session_name(project, branch)
@@ -38,64 +31,7 @@ def register_terminal_ws(app):
             ws.send(json.dumps({'error': 'No tmux session. Use Start or Resume first.'}))
             return
 
-        pid, master_fd = pty.fork()
-
-        if pid == 0:
-            os.execvp('tmux', ['tmux', 'attach', '-t', name])
-
-        running = True
-        ws_lock = threading.Lock()
-
-        def pty_to_ws():
-            """Read from PTY, send to WebSocket."""
-            while running:
-                try:
-                    r, _, _ = select.select([master_fd], [], [], 0.1)
-                    if master_fd in r:
-                        data = os.read(master_fd, 4096)
-                        if not data:
-                            break
-                        with ws_lock:
-                            ws.send(data.decode('utf-8', errors='replace'))
-                except (OSError, Exception):
-                    break
-
-        reader = threading.Thread(target=pty_to_ws, daemon=True)
-        reader.start()
-
-        try:
-            while True:
-                msg = ws.receive()
-                if msg is None:
-                    break
-
-                if isinstance(msg, str):
-                    if msg.startswith('{'):
-                        try:
-                            ctrl = json.loads(msg)
-                            if 'resize' in ctrl:
-                                cols, rows = ctrl['resize']
-                                winsize = struct.pack('HHHH', rows, cols, 0, 0)
-                                fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
-                                os.kill(pid, signal.SIGWINCH)
-                                continue
-                        except (json.JSONDecodeError, KeyError):
-                            pass
-                    os.write(master_fd, msg.encode())
-                else:
-                    os.write(master_fd, msg)
-        except Exception:
-            pass
-        finally:
-            running = False
-            try:
-                os.close(master_fd)
-            except OSError:
-                pass
-            try:
-                os.waitpid(pid, os.WNOHANG)
-            except ChildProcessError:
-                pass
+        run_pty_websocket(ws, name)
 
 
 @bp.route('/api/terminal/sessions', methods=['GET'])
@@ -120,10 +56,9 @@ def kill_terminal_session_by_name(name):
 def terminal_start(project, branch):
     """Create tmux session and start Claude Code."""
     if not tmux_available():
-        return jsonify({'error': 'tmux is not installed. Run: brew install tmux'}), 503
+        return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         ws = db.execute(
             "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
             (project, branch)
@@ -149,18 +84,15 @@ def terminal_start(project, branch):
             'attach_command': f'tmux attach -t {name}',
             'status': 'started'
         })
-    finally:
-        db.close()
 
 
 @bp.route('/api/ws/<project>/<branch>/terminal/resume', methods=['POST'])
 def terminal_resume(project, branch):
     """Resume Claude Code session in tmux."""
     if not tmux_available():
-        return jsonify({'error': 'tmux is not installed. Run: brew install tmux'}), 503
+        return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         ws = db.execute(
             "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
             (project, branch)
@@ -186,14 +118,11 @@ def terminal_resume(project, branch):
             'attach_command': f'tmux attach -t {name}',
             'status': 'created' if created else 'attached'
         })
-    finally:
-        db.close()
 
 
 @bp.route('/api/ws/<project>/<branch>/command', methods=['GET'])
 def get_command_config(project, branch):
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         ws = db.execute(
             "SELECT claude_command, skip_permissions, restrict_to_workspace, allowed_external_paths FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
             (project, branch)
@@ -203,17 +132,14 @@ def get_command_config(project, branch):
         return jsonify({
             'claude_command': ws['claude_command'] or 'claude',
             'skip_permissions': bool(ws['skip_permissions']),
-            'restrict_to_workspace': bool(ws['restrict_to_workspace']) if 'restrict_to_workspace' in ws.keys() else True,
-            'allowed_external_paths': ws['allowed_external_paths'] if 'allowed_external_paths' in ws.keys() else '/tmp/'
+            'restrict_to_workspace': bool(ws_field(ws, 'restrict_to_workspace', 1)),
+            'allowed_external_paths': ws_field(ws, 'allowed_external_paths', '/tmp/')
         })
-    finally:
-        db.close()
 
 
 @bp.route('/api/ws/<project>/<branch>/command', methods=['PUT'])
 def update_command_config(project, branch):
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         data = request.get_json() or {}
 
         updates = []
@@ -247,15 +173,13 @@ def update_command_config(project, branch):
         db.commit()
 
         return jsonify({'ok': True})
-    finally:
-        db.close()
 
 
 @bp.route('/api/ws/<project>/<branch>/terminal/status', methods=['GET'])
 def terminal_status(project, branch):
     """Check if tmux session exists."""
     if not tmux_available():
-        return jsonify({'error': 'tmux is not installed. Run: brew install tmux'}), 503
+        return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
     name = session_name(project, branch)
     return jsonify({

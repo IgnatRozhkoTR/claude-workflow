@@ -1,10 +1,10 @@
 """Comment CRUD, resolve, and list routes."""
 from flask import Blueprint, jsonify, request
 
-import comment_service
-import discussion_service
-from decorators import with_workspace
-from i18n import t
+from services import comment_service
+from services import discussion_service
+from core.decorators import with_workspace
+from core.i18n import t
 
 bp = Blueprint("comments", __name__)
 

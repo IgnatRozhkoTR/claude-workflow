@@ -6,7 +6,7 @@ SERVER_DIR = str(Path(__file__).resolve().parent.parent)
 if SERVER_DIR not in sys.path:
     sys.path.insert(0, SERVER_DIR)
 
-from terminal import _strip_ansi, _is_claude_ready
+from core.terminal import _strip_ansi, _is_claude_ready
 
 
 REALISTIC_PANE = """claude --dangerously-skip-permissions

@@ -1,9 +1,9 @@
 """Verification profile CRUD and results routes."""
 from flask import Blueprint, jsonify, request
 
-import verification_service
-from decorators import with_workspace
-from db import get_db
+from services import verification_service
+from core.decorators import with_workspace
+from core.db import get_db_ctx
 
 bp = Blueprint("verification", __name__)
 
@@ -11,12 +11,9 @@ bp = Blueprint("verification", __name__)
 @bp.route("/api/verification/profiles", methods=["GET"])
 def list_profiles():
     """List all verification profiles (global, not workspace-scoped)."""
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         profiles = verification_service.get_all_profiles(db)
         return jsonify({"profiles": profiles})
-    finally:
-        db.close()
 
 
 @bp.route("/api/verification/profiles", methods=["POST"])
@@ -28,13 +25,10 @@ def create_profile():
     description = body.get("description", "").strip()
     if not name or not language:
         return jsonify({"error": "name and language are required"}), 400
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         result = verification_service.create_profile(db, name, language, description=description or None)
         db.commit()
         return jsonify(result)
-    finally:
-        db.close()
 
 
 @bp.route("/api/verification/profiles/<int:profile_id>/steps", methods=["POST"])
@@ -45,8 +39,7 @@ def add_step(profile_id):
     command = body.get("command", "").strip()
     if not name or not command:
         return jsonify({"error": "name and command are required"}), 400
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         result = verification_service.add_step(
             db, profile_id, name, command,
             description=body.get("description"),
@@ -61,38 +54,30 @@ def add_step(profile_id):
             return jsonify(result), 404
         db.commit()
         return jsonify(result)
-    finally:
-        db.close()
 
 
 @bp.route("/api/verification/steps/<int:step_id>", methods=["PUT"])
 def update_step(step_id):
     """Update a verification step."""
     body = request.get_json(silent=True) or {}
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         result = verification_service.update_step(db, step_id, **body)
         if "error" in result:
             code = 404 if result["error"] == "step_not_found" else 400
             return jsonify(result), code
         db.commit()
         return jsonify(result)
-    finally:
-        db.close()
 
 
 @bp.route("/api/verification/steps/<int:step_id>", methods=["DELETE"])
 def delete_step(step_id):
     """Delete a verification step."""
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         result = verification_service.delete_step(db, step_id)
         if "error" in result:
             return jsonify(result), 404
         db.commit()
         return jsonify(result)
-    finally:
-        db.close()
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/verification/profiles", methods=["GET"])

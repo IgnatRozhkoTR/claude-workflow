@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 _cache = {}
-_MESSAGES_DIR = Path(__file__).parent / "messages"
+_MESSAGES_DIR = Path(__file__).parent.parent / "messages"
 
 
 def _load(locale):

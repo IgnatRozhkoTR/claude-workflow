@@ -1,10 +1,10 @@
 """Acceptance criteria routes: CRUD and manual validation."""
 from flask import Blueprint, jsonify, request
 
-import criteria_service
-from decorators import with_workspace
-from helpers import VALID_CRITERIA_TYPES
-from i18n import t
+from services import criteria_service
+from core.decorators import with_workspace
+from core.helpers import VALID_CRITERIA_TYPES
+from core.i18n import t
 
 bp = Blueprint("criteria", __name__)
 

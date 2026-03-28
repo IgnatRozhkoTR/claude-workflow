@@ -1,12 +1,86 @@
 """Tmux session management for browser-based terminal access."""
+import fcntl
+import json
 import logging
 import os
-import subprocess
+import pty
 import re
+import select
 import shutil
+import signal
+import struct
+import subprocess
 import tempfile
+import termios
+import threading
+
+from core.db import ws_field
 
 logger = logging.getLogger(__name__)
+
+TMUX_NOT_INSTALLED = "tmux is not installed. Run: brew install tmux"
+
+
+def run_pty_websocket(ws, tmux_session_name):
+    """Attach a PTY to a WebSocket, bridging tmux session I/O to the browser."""
+    pid, master_fd = pty.fork()
+
+    if pid == 0:
+        os.execvp('tmux', ['tmux', 'attach', '-t', tmux_session_name])
+
+    running = True
+    ws_lock = threading.Lock()
+
+    def pty_to_ws():
+        """Read from PTY, send to WebSocket."""
+        while running:
+            try:
+                r, _, _ = select.select([master_fd], [], [], 0.1)
+                if master_fd in r:
+                    data = os.read(master_fd, 4096)
+                    if not data:
+                        break
+                    with ws_lock:
+                        ws.send(data.decode('utf-8', errors='replace'))
+            except (OSError, Exception):
+                break
+
+    reader = threading.Thread(target=pty_to_ws, daemon=True)
+    reader.start()
+
+    try:
+        while True:
+            msg = ws.receive()
+            if msg is None:
+                break
+
+            if isinstance(msg, str):
+                if msg.startswith('{'):
+                    try:
+                        ctrl = json.loads(msg)
+                        if 'resize' in ctrl:
+                            cols, rows = ctrl['resize']
+                            winsize = struct.pack('HHHH', rows, cols, 0, 0)
+                            fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
+                            os.kill(pid, signal.SIGWINCH)
+                            continue
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+                os.write(master_fd, msg.encode())
+            else:
+                os.write(master_fd, msg)
+    except Exception:
+        pass
+    finally:
+        running = False
+        try:
+            os.close(master_fd)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            pass
 
 
 def tmux_available():
@@ -93,6 +167,16 @@ def send_prompt(name, text):
                 pass
 
 
+def notify_workspace(ws, message):
+    """Best-effort tmux notification to a workspace session. Logs failures silently."""
+    try:
+        name = session_name(ws["project_id"], ws["branch"])
+        if session_exists(name):
+            send_prompt(name, message)
+    except Exception:
+        logger.warning("Failed to send tmux notification", exc_info=True)
+
+
 def kill_session(name):
     """Kill a tmux session."""
     subprocess.run(['tmux', 'kill-session', '-t', name], capture_output=True)
@@ -100,15 +184,15 @@ def kill_session(name):
 
 def build_claude_command(ws, resume=False, channels=None):
     """Build the full claude command from workspace config."""
-    cmd = (ws['claude_command'] if 'claude_command' in ws.keys() else None) or 'claude'
-    skip = ws['skip_permissions'] if 'skip_permissions' in ws.keys() else 1
+    cmd = ws_field(ws, 'claude_command') or 'claude'
+    skip = ws_field(ws, 'skip_permissions', 1)
     if skip:
         cmd += ' --dangerously-skip-permissions'
-    ch = channels if channels is not None else ws.get('channels', '')
+    ch = channels if channels is not None else ws_field(ws, 'channels', '')
     if ch:
         cmd += f' --channels {ch}'
-    label = ws['sanitized_branch'] if 'sanitized_branch' in ws.keys() else None
-    session_id = ws['session_id'] if 'session_id' in ws.keys() else None
+    label = ws_field(ws, 'sanitized_branch')
+    session_id = ws_field(ws, 'session_id')
     if resume and session_id:
         cmd += f' -r {session_id}'
     elif resume and label:

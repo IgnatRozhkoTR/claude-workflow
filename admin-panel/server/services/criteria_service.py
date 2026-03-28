@@ -9,7 +9,7 @@ This module handles the data operations.
 import json
 from datetime import datetime
 
-from helpers import VALID_CRITERIA_TYPES
+from core.helpers import VALID_CRITERIA_TYPES
 
 
 def _safe_parse_json(raw):

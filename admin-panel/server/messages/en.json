@@ -121,6 +121,7 @@
   "advance.error.unprovenEntries": "{count} research entries not yet proven. Deploy prover sub-agent.",
   "advance.error.noResearchCompletionProgress": "Call workspace_update_progress to record research completion.",
   "advance.error.noImpactAnalysisProgress": "Call workspace_update_progress with phase '1.3' to record impact analysis before advancing.",
+  "advance.error.scopeAndPlanMustBeApproved": "Scope and plan must both be approved before proceeding.",
   "advance.error.noPlanExecution": "Plan must have at least one execution item.",
   "advance.error.planValidationFailed": "Plan validation failed.",
   "advance.error.planItemIdMismatch": "Item {i}: expected id '{expected_id}', got '{actual_id}'.",

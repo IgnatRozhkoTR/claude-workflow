@@ -27,7 +27,7 @@ def _git(cwd, *args):
 
 def set_phase(ws_id, phase, **kwargs):
     """Set workspace phase (and optionally other columns) in DB."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     updates = ["phase = ?"]
     params = [phase]
@@ -42,7 +42,7 @@ def set_phase(ws_id, phase, **kwargs):
 
 def add_progress(ws_id, phase_key, summary="Done"):
     """Insert a progress entry for gate validation."""
-    from db import get_db
+    from core.db import get_db
     now = datetime.now().isoformat()
     db = get_db()
     db.execute(
@@ -56,7 +56,7 @@ def add_progress(ws_id, phase_key, summary="Done"):
 
 def add_research(ws_id, topic="Test topic", findings=None, proven=0, discussion_id=None):
     """Insert a research entry."""
-    from db import get_db
+    from core.db import get_db
     if findings is None:
         findings = [{"summary": "Found something", "details": "Details", "proof": {"type": "code", "file": "src/main.py", "line_start": 1, "line_end": 5}}]
     now = datetime.now().isoformat()
@@ -75,7 +75,7 @@ def add_research(ws_id, topic="Test topic", findings=None, proven=0, discussion_
 def add_comment(workspace_id, scope="plan", target="task1", text="Review this",
                 resolution=None, file_path=None, line_start=None, line_end=None, author="user"):
     """Insert a scoped comment into the discussions table."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     cursor = db.execute(
         "INSERT INTO discussions (workspace_id, scope, target, text, author, status, resolution, "
@@ -92,7 +92,7 @@ def add_comment(workspace_id, scope="plan", target="task1", text="Review this",
 
 def add_discussion(workspace_id, text="Architecture question", author="agent", type="general"):
     """Insert a general discussion (scope IS NULL)."""
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     cursor = db.execute(
         "INSERT INTO discussions (workspace_id, text, author, status, created_at, type) "
@@ -107,7 +107,7 @@ def add_discussion(workspace_id, text="Architecture question", author="agent", t
 
 def add_review_issue(ws_id, file_path="src/main.py", code_snippet="def main():", severity="major"):
     """Insert a review issue."""
-    from db import get_db
+    from core.db import get_db
     now = datetime.now().isoformat()
     db = get_db()
     cursor = db.execute(
@@ -125,7 +125,7 @@ def add_review_issue(ws_id, file_path="src/main.py", code_snippet="def main():",
 def add_criterion(ws_id, cr_type="unit_test", description="Test criterion",
                   status="proposed", source="user", details_json=None):
     """Insert an acceptance criterion."""
-    from db import get_db
+    from core.db import get_db
     now = datetime.now().isoformat()
     db = get_db()
     cursor = db.execute(

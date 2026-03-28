@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
-from decorators import with_workspace
-from helpers import sanitize_branch, workspace_dir, run_git, DEFAULT_SOURCE_BRANCH
-from i18n import t
-from terminal import session_name
+from core.db import get_db, get_db_ctx
+from core.decorators import with_workspace
+from core.helpers import sanitize_branch, workspace_dir, run_git, DEFAULT_SOURCE_BRANCH
+from core.i18n import t
+from core.terminal import session_name
 
 bp = Blueprint("workspaces", __name__)
 
@@ -449,99 +449,88 @@ def _install_git_hooks(dst_claude, working_dir):
         run_git(working_dir, "config", "--worktree", "core.hooksPath", str(hooks_dir))
 
 
-def _register_workspace(project_id, branch, sanitized, working_dir, source, locale, project_path):
+def _register_workspace(db, project_id, branch, sanitized, working_dir, source, locale, project_path):
     """Insert workspace into DB and return the creation response."""
     ws_path = workspace_dir(project_path, branch)
     ws_path.mkdir(parents=True, exist_ok=True)
 
     created = datetime.now().isoformat()
 
-    db = get_db()
-    try:
-        db.execute(
-            "INSERT INTO workspaces (project_id, branch, sanitized_branch, session_id, "
-            "working_dir, created, status, phase, scope_json, plan_json, source_branch, locale) "
-            "VALUES (?, ?, ?, NULL, ?, ?, 'active', '0', ?, ?, ?, ?)",
-            (project_id, branch, sanitized, str(working_dir), created,
-             '{}', '{"description":"","systemDiagram":"","execution":[]}', source, locale)
-        )
-        db.commit()
+    db.execute(
+        "INSERT INTO workspaces (project_id, branch, sanitized_branch, session_id, "
+        "working_dir, created, status, phase, scope_json, plan_json, source_branch, locale) "
+        "VALUES (?, ?, ?, NULL, ?, ?, 'active', '0', ?, ?, ?, ?)",
+        (project_id, branch, sanitized, str(working_dir), created,
+         '{}', '{"description":"","systemDiagram":"","execution":[]}', source, locale)
+    )
+    db.commit()
 
-        tmux_name = session_name(project_id, sanitized)
-        command = f"cd {working_dir} && tmux attach -t {tmux_name}"
+    tmux_name = session_name(project_id, sanitized)
+    command = f"cd {working_dir} && tmux attach -t {tmux_name}"
 
-        return jsonify({
-            "workspace": str(ws_path),
-            "working_dir": working_dir,
-            "branch": branch,
-            "command": command
-        }), 201
-    finally:
-        db.close()
+    return jsonify({
+        "workspace": str(ws_path),
+        "working_dir": working_dir,
+        "branch": branch,
+        "command": command
+    }), 201
 
 
 @bp.route("/api/projects/<project_id>/workspaces", methods=["POST"])
 def create_workspace(project_id):
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
         if not project:
             return jsonify({"error": t("api.error.projectNotFound")}), 404
-    finally:
-        db.close()
 
-    body = request.get_json(silent=True) or {}
-    branch = body.get("branch", "").strip()
-    source = body.get("source", DEFAULT_SOURCE_BRANCH).strip()
-    use_worktree = body.get("worktree", True)
-    locale = body.get("locale", "en").strip()
+        body = request.get_json(silent=True) or {}
+        branch = body.get("branch", "").strip()
+        source = body.get("source", DEFAULT_SOURCE_BRANCH).strip()
+        use_worktree = body.get("worktree", True)
+        locale = body.get("locale", "en").strip()
 
-    if not branch:
-        return jsonify({"error": t("api.error.branchNameRequired")}), 400
+        if not branch:
+            return jsonify({"error": t("api.error.branchNameRequired")}), 400
 
-    project_path = project["path"]
-    sanitized = sanitize_branch(branch)
+        project_path = project["path"]
+        sanitized = sanitize_branch(branch)
 
-    ok, _, _ = run_git(project_path, "rev-parse", "--is-inside-work-tree")
-    if not ok:
-        run_git(project_path, "init")
-        run_git(project_path, "commit", "--allow-empty", "-m", "Initial commit")
-
-    has_remote, remotes, _ = run_git(project_path, "remote")
-    if has_remote and remotes.strip():
-        run_git(project_path, "fetch", "origin")
-
-    source_ref = f"origin/{source}"
-    ok, _, _ = run_git(project_path, "rev-parse", "--verify", source_ref)
-    if not ok:
-        ok, _, _ = run_git(project_path, "rev-parse", "--verify", source)
+        ok, _, _ = run_git(project_path, "rev-parse", "--is-inside-work-tree")
         if not ok:
-            return jsonify({"error": t("api.error.sourceBranchNotFound", source=source)}), 404
-        source_ref = source
+            run_git(project_path, "init")
+            run_git(project_path, "commit", "--allow-empty", "-m", "Initial commit")
 
-    check_db = get_db()
-    try:
-        existing = check_db.execute(
+        has_remote, remotes, _ = run_git(project_path, "remote")
+        if has_remote and remotes.strip():
+            run_git(project_path, "fetch", "origin")
+
+        source_ref = f"origin/{source}"
+        ok, _, _ = run_git(project_path, "rev-parse", "--verify", source_ref)
+        if not ok:
+            ok, _, _ = run_git(project_path, "rev-parse", "--verify", source)
+            if not ok:
+                return jsonify({"error": t("api.error.sourceBranchNotFound", source=source)}), 404
+            source_ref = source
+
+        existing = db.execute(
             "SELECT id FROM workspaces WHERE project_id = ? AND sanitized_branch = ? AND status = 'active'",
             (project_id, sanitized)
         ).fetchone()
         if existing:
             return jsonify({"error": t("api.error.workspaceAlreadyExists", branch=branch)}), 409
-    finally:
-        check_db.close()
 
-    if use_worktree:
-        working_dir, err = _setup_worktree_workspace(project_path, branch, sanitized, source_ref)
-        if err:
-            return err
-        _install_worktree_configs(project_path, working_dir)
-    else:
-        working_dir, err = _setup_checkout_workspace(project_path, branch, source_ref)
-        if err:
-            return err
-        _install_checkout_configs(project_path)
+        if use_worktree:
+            working_dir, err = _setup_worktree_workspace(project_path, branch, sanitized, source_ref)
+            if err:
+                return err
+            _install_worktree_configs(project_path, working_dir)
+        else:
+            working_dir, err = _setup_checkout_workspace(project_path, branch, source_ref)
+            if err:
+                return err
+            _install_checkout_configs(project_path)
 
-    return _register_workspace(project_id, branch, sanitized, working_dir, source, locale, project_path)
+        return _register_workspace(db, project_id, branch, sanitized, working_dir, source, locale, project_path)
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/archive", methods=["PUT"])

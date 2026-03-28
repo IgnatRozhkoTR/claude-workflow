@@ -121,6 +121,7 @@
   "advance.error.unprovenEntries": "{count} записей исследования ещё не доказано. Разверните суб-агента-доказчика.",
   "advance.error.noResearchCompletionProgress": "Вызовите workspace_update_progress для записи завершения исследования.",
   "advance.error.noImpactAnalysisProgress": "Вызовите workspace_update_progress с фазой '1.3' для записи анализа влияния перед продвижением.",
+  "advance.error.scopeAndPlanMustBeApproved": "Скоп и план должны быть одобрены перед продвижением.",
   "advance.error.noPlanExecution": "План должен содержать хотя бы один элемент выполнения.",
   "advance.error.planValidationFailed": "Валидация плана не прошла.",
   "advance.error.planItemIdMismatch": "Элемент {i}: ожидался id '{expected_id}', получен '{actual_id}'.",

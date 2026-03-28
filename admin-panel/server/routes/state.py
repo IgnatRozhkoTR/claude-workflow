@@ -8,17 +8,17 @@ from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 
-from db import get_db
-import comment_service
-import discussion_service
-from decorators import with_workspace
-from helpers import compute_phase_sequence
-from i18n import t
-from terminal import session_name, session_exists, send_prompt
-import plan_service
-import progress_service
-import research_service
-import scope_service
+from core.db import get_db, get_db_ctx, ws_field
+from services import comment_service
+from services import discussion_service
+from core.decorators import with_workspace
+from core.helpers import compute_phase_sequence
+from core.i18n import t
+from core.terminal import notify_workspace
+from services import plan_service
+from services import progress_service
+from services import research_service
+from services import scope_service
 
 def _group_comments(comments):
     """Group a flat list of comment dicts by 'scope:target' key."""
@@ -102,8 +102,8 @@ def get_workspace_state(db, ws, project):
         "branch": ws["branch"],
         "claude_command": ws["claude_command"] or "claude",
         "skip_permissions": bool(ws["skip_permissions"]),
-        "restrict_to_workspace": bool(ws["restrict_to_workspace"]) if "restrict_to_workspace" in ws.keys() else True,
-        "allowed_external_paths": ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/",
+        "restrict_to_workspace": bool(ws_field(ws, "restrict_to_workspace", 1)),
+        "allowed_external_paths": ws_field(ws, "allowed_external_paths", "/tmp/"),
         "comments": comments,
         "research": research,
         "discussions": discussions,
@@ -111,7 +111,7 @@ def get_workspace_state(db, ws, project):
         "progress": progress,
         "sessions": sessions,
         "impact_analysis": impact_analysis,
-        "yolo_mode": bool(ws["yolo_mode"]) if "yolo_mode" in ws.keys() else False,
+        "yolo_mode": bool(ws_field(ws, "yolo_mode", 0)),
     })
 
 
@@ -162,16 +162,10 @@ def set_scope_status(db, ws, project):
         return jsonify(result), 400
     db.commit()
 
-    if status in ('approved', 'rejected'):
-        try:
-            tmux_name = session_name(ws["project_id"], ws["branch"])
-            if session_exists(tmux_name):
-                if status == 'approved':
-                    send_prompt(tmux_name, 'Scope has been approved.')
-                else:
-                    send_prompt(tmux_name, 'Scope has been rejected. Check comments for feedback.')
-        except Exception:
-            logger.warning("Failed to send tmux notification", exc_info=True)
+    if status == 'approved':
+        notify_workspace(ws, 'Scope has been approved.')
+    elif status == 'rejected':
+        notify_workspace(ws, 'Scope has been rejected. Check comments for feedback.')
 
     return jsonify({"ok": True, "scope_status": status})
 
@@ -187,16 +181,10 @@ def set_plan_status(db, ws, project):
     db.execute("UPDATE workspaces SET plan_status = ? WHERE id = ?", (status, ws["id"]))
     db.commit()
 
-    if status in ('approved', 'rejected'):
-        try:
-            tmux_name = session_name(ws["project_id"], ws["branch"])
-            if session_exists(tmux_name):
-                if status == 'approved':
-                    send_prompt(tmux_name, 'Plan has been approved.')
-                else:
-                    send_prompt(tmux_name, 'Plan has been rejected. Check comments for feedback.')
-        except Exception:
-            logger.warning("Failed to send tmux notification", exc_info=True)
+    if status == 'approved':
+        notify_workspace(ws, 'Plan has been approved.')
+    elif status == 'rejected':
+        notify_workspace(ws, 'Plan has been rejected. Check comments for feedback.')
 
     return jsonify({"ok": True, "plan_status": status})
 
@@ -220,7 +208,7 @@ def set_phase(db, ws, project):
         (ws["id"], old_phase, new_phase, datetime.now().isoformat())
     )
 
-    from advance_service import is_user_gate
+    from advance.orchestrator import is_user_gate
 
     if is_user_gate(new_phase):
         import secrets
@@ -256,49 +244,47 @@ def query_progress():
     if not date_from or not date_to:
         return jsonify({"error": t("api.error.provideDateParams")}), 400
 
-    db = get_db()
-    try:
-        query = (
-            "SELECT pe.phase, pe.summary, pe.details_json, pe.created_at, pe.updated_at, "
-            "w.branch, w.working_dir, p.name AS project_name, p.id AS project_id "
-            "FROM progress_entries pe "
-            "JOIN workspaces w ON pe.workspace_id = w.id "
-            "JOIN projects p ON w.project_id = p.id "
-            "WHERE (pe.created_at >= ? OR pe.updated_at >= ?) "
-            "AND (pe.created_at < ? OR pe.updated_at < ?) "
-        )
-        start = f"{date_from}T00:00:00"
-        end = f"{date_to}T23:59:59"
-        params = [start, start, end, end]
+    query = (
+        "SELECT pe.phase, pe.summary, pe.details_json, pe.created_at, pe.updated_at, "
+        "w.branch, w.working_dir, p.name AS project_name, p.id AS project_id "
+        "FROM progress_entries pe "
+        "JOIN workspaces w ON pe.workspace_id = w.id "
+        "JOIN projects p ON w.project_id = p.id "
+        "WHERE (pe.created_at >= ? OR pe.updated_at >= ?) "
+        "AND (pe.created_at < ? OR pe.updated_at < ?) "
+    )
+    start = f"{date_from}T00:00:00"
+    end = f"{date_to}T23:59:59"
+    params = [start, start, end, end]
 
-        if project_id:
-            query += "AND p.id = ? "
-            params.append(project_id)
+    if project_id:
+        query += "AND p.id = ? "
+        params.append(project_id)
 
-        query += "ORDER BY pe.updated_at"
+    query += "ORDER BY pe.updated_at"
+
+    with get_db_ctx() as db:
         rows = db.execute(query, params).fetchall()
 
-        entries = []
-        for row in rows:
-            entry = {
-                "project": row["project_name"],
-                "project_id": row["project_id"],
-                "branch": row["branch"],
-                "phase": row["phase"],
-                "summary": row["summary"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            }
-            if row["details_json"]:
-                try:
-                    entry["details"] = json.loads(row["details_json"])
-                except json.JSONDecodeError:
-                    pass
-            entries.append(entry)
+    entries = []
+    for row in rows:
+        entry = {
+            "project": row["project_name"],
+            "project_id": row["project_id"],
+            "branch": row["branch"],
+            "phase": row["phase"],
+            "summary": row["summary"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+        if row["details_json"]:
+            try:
+                entry["details"] = json.loads(row["details_json"])
+            except json.JSONDecodeError:
+                pass
+        entries.append(entry)
 
-        return jsonify({"entries": entries, "date_from": date_from, "date_to": date_to})
-    finally:
-        db.close()
+    return jsonify({"entries": entries, "date_from": date_from, "date_to": date_to})
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/restore-plan", methods=["POST"])
@@ -361,12 +347,12 @@ def can_modify(db, ws, project):
     # Check plan approval (if plan exists with execution items)
     plan = plan_service.get_plan(ws)
     if plan.get("execution"):
-        plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+        plan_status = ws_field(ws, "plan_status", "pending")
         if plan_status != "approved":
             return jsonify({"allowed": False, "reason": t("api.scope.planNotApproved", locale)})
 
     # Check scope approval
-    scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
+    scope_status = ws_field(ws, "scope_status", "pending")
     if scope_status != "approved":
         return jsonify({"allowed": False, "reason": t("api.scope.scopeNotApproved", locale)})
 

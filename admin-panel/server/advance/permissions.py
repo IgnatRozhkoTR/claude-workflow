@@ -7,7 +7,8 @@ import json
 import os
 import re
 
-import scope_service
+from services import scope_service
+from core.db import ws_field
 
 _EDIT_PHASE_RE = re.compile(r'^3\.\d+\.[02]$|^4\.1$')
 _COMMIT_PHASE_RE = re.compile(r'^3\.\d+\.4$|^4\.1$|^5$')
@@ -67,8 +68,8 @@ def _requires_approval(ws):
         None if both are approved, or a denial result dict if either is not.
     """
     phase = ws["phase"]
-    scope_status = ws["scope_status"] if "scope_status" in ws.keys() else "pending"
-    plan_status = ws["plan_status"] if "plan_status" in ws.keys() else "pending"
+    scope_status = ws_field(ws, "scope_status", "pending")
+    plan_status = ws_field(ws, "plan_status", "pending")
 
     if scope_status != "approved":
         return {"governed": True, "phase": phase, "allowed": False,
@@ -104,21 +105,30 @@ def _canonicalize_path(file_path, cwd):
     return os.path.abspath(os.path.join(cwd, file_path))
 
 
+def _is_path_allowed(file_path, ws):
+    """Check if a path is within workspace scope or an allowed external path."""
+    ws_dir = os.path.abspath(ws["working_dir"])
+    abs_path = os.path.abspath(file_path)
+
+    if abs_path.startswith(ws_dir + "/") or abs_path == ws_dir:
+        return True
+
+    if not ws_field(ws, "restrict_to_workspace", 1):
+        return True
+
+    allowed_paths = ws_field(ws, "allowed_external_paths", "/tmp/").split(",")
+    return any(exc.strip() and abs_path.startswith(exc.strip()) for exc in allowed_paths)
+
+
 def _file_matches_scope(file_path, ws):
     """Check if a file path matches the workspace scope patterns."""
     ws_dir = os.path.abspath(ws["working_dir"])
     abs_file = os.path.abspath(file_path)
 
     if not abs_file.startswith(ws_dir + "/") and abs_file != ws_dir:
-        restrict = ws["restrict_to_workspace"] if "restrict_to_workspace" in ws.keys() else 1
-        if not restrict:
-            return True, []
-        exceptions = (ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/").split(",")
-        for exc in exceptions:
-            exc = exc.strip()
-            if exc and abs_file.startswith(exc):
-                return True, []
-        return False, ["(workspace directory only)"]
+        if not _is_path_allowed(file_path, ws):
+            return False, ["(workspace directory only)"]
+        return True, []
 
     scope_json = ws["scope_json"]
     if not scope_json or scope_json in ("{}", "null"):
@@ -192,14 +202,8 @@ def _check_edit_tool(ws, file_path, cwd):
 
     ws_dir = os.path.abspath(ws["working_dir"])
     if not canon.startswith(ws_dir + "/") and canon != ws_dir:
-        restrict = ws["restrict_to_workspace"] if "restrict_to_workspace" in ws.keys() else 1
-        if not restrict:
+        if _is_path_allowed(canon, ws):
             return {"governed": True, "phase": ws["phase"], "allowed": True}
-        exceptions = (ws["allowed_external_paths"] if "allowed_external_paths" in ws.keys() else "/tmp/").split(",")
-        for exc in exceptions:
-            exc = exc.strip()
-            if exc and canon.startswith(exc):
-                return {"governed": True, "phase": ws["phase"], "allowed": True}
         return {"governed": True, "phase": ws["phase"], "allowed": False,
                 "reason": "File outside workspace directory. Modify allowed_external_paths in Configuration to add exceptions."}
 

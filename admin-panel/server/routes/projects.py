@@ -7,9 +7,9 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
-from helpers import run_git, write_json
-from i18n import t
+from core.db import get_db
+from core.helpers import run_git, write_json
+from core.i18n import t
 
 bp = Blueprint("projects", __name__)
 

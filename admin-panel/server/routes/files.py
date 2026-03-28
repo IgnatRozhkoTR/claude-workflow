@@ -3,9 +3,9 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-from decorators import with_workspace
-from helpers import run_git, DEFAULT_SOURCE_BRANCH
-from i18n import t
+from core.decorators import with_workspace
+from core.helpers import run_git, DEFAULT_SOURCE_BRANCH
+from core.i18n import t
 
 bp = Blueprint("files", __name__)
 

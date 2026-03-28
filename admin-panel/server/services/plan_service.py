@@ -7,8 +7,8 @@ import json
 import re
 from datetime import datetime
 
-from i18n import t
-from phase import Phase
+from core.i18n import t
+from core.phase import PhaseId
 
 _EMPTY_PLAN = {"description": "", "systemDiagram": "", "execution": []}
 
@@ -82,7 +82,7 @@ def set_plan(db, ws, plan_data):
     locale = ws["locale"] or "en"
     phase = ws["phase"]
 
-    if Phase(phase) < "2.0":
+    if PhaseId(phase) < "2.0":
         return {"error": t("mcp.error.planPhase", locale)}
 
     save_prev_snapshot(db, ws["id"])
@@ -144,7 +144,7 @@ def extend_plan(db, ws, new_subphase, scope_entry, diagrams=None, replace_diagra
     locale = ws["locale"] or "en"
     phase = ws["phase"]
 
-    if Phase(phase) < "2.0":
+    if PhaseId(phase) < "2.0":
         return {"error": t("mcp.error.planPhase", locale)}
 
     if not scope_entry or not isinstance(scope_entry, dict):

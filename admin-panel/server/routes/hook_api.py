@@ -7,8 +7,8 @@ import os
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
-import permission_service
+from core.db import get_db, ws_field
+from advance import permissions as permission_service
 
 bp = Blueprint("hook_api", __name__)
 
@@ -47,7 +47,7 @@ def check_permission():
         if not ws:
             return jsonify({"governed": False, "allowed": True})
 
-        if ws.get("yolo_mode") if "yolo_mode" in ws.keys() else False:
+        if ws_field(ws, "yolo_mode", 0):
             return jsonify({"governed": True, "allowed": True})
 
         tool_input = {

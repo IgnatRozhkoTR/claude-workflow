@@ -5,17 +5,31 @@ from datetime import datetime
 from pathlib import Path
 
 
+def _load_profile_with_steps(db, profile):
+    """Return profile as dict with its steps appended."""
+    result = dict(profile)
+    result["steps"] = [dict(r) for r in db.execute(
+        "SELECT * FROM verification_steps WHERE profile_id = ? ORDER BY sort_order",
+        (result["id"],)
+    ).fetchall()]
+    return result
+
+
+def _load_run_with_steps(db, run):
+    """Return verification run as dict with its step results appended."""
+    result = dict(run)
+    result["steps"] = [dict(r) for r in db.execute(
+        "SELECT * FROM verification_step_results WHERE run_id = ?", (run["id"],)
+    ).fetchall()]
+    return result
+
+
 def get_all_profiles(db):
     """Get all verification profiles with their steps."""
     profiles = [dict(r) for r in db.execute(
         "SELECT * FROM verification_profiles ORDER BY origin, name"
     ).fetchall()]
-    for p in profiles:
-        p["steps"] = [dict(r) for r in db.execute(
-            "SELECT * FROM verification_steps WHERE profile_id = ? ORDER BY sort_order",
-            (p["id"],)
-        ).fetchall()]
-    return profiles
+    return [_load_profile_with_steps(db, p) for p in profiles]
 
 
 def get_profile(db, profile_id):
@@ -23,12 +37,7 @@ def get_profile(db, profile_id):
     row = db.execute("SELECT * FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()
     if not row:
         return None
-    profile = dict(row)
-    profile["steps"] = [dict(r) for r in db.execute(
-        "SELECT * FROM verification_steps WHERE profile_id = ? ORDER BY sort_order",
-        (profile["id"],)
-    ).fetchall()]
-    return profile
+    return _load_profile_with_steps(db, row)
 
 
 def create_profile(db, name, language, description=None):
@@ -100,12 +109,7 @@ def get_project_profiles(db, project_id):
     ).fetchall()
     result = []
     for r in rows:
-        item = dict(r)
-        item["steps"] = [dict(s) for s in db.execute(
-            "SELECT * FROM verification_steps WHERE profile_id = ? ORDER BY sort_order",
-            (item["id"],)
-        ).fetchall()]
-        result.append(item)
+        result.append(_load_profile_with_steps(db, r))
     return result
 
 
@@ -264,11 +268,7 @@ def get_verification_results(db, workspace_id, phase=None, run_id=None):
         ).fetchone()
         if not run:
             return None
-        result = dict(run)
-        result["steps"] = [dict(r) for r in db.execute(
-            "SELECT * FROM verification_step_results WHERE run_id = ?", (run["id"],)
-        ).fetchall()]
-        return result
+        return _load_run_with_steps(db, run)
 
     query = "SELECT * FROM verification_runs WHERE workspace_id = ?"
     params = [workspace_id]
@@ -280,8 +280,4 @@ def get_verification_results(db, workspace_id, phase=None, run_id=None):
     run = db.execute(query, params).fetchone()
     if not run:
         return None
-    result = dict(run)
-    result["steps"] = [dict(r) for r in db.execute(
-        "SELECT * FROM verification_step_results WHERE run_id = ?", (run["id"],)
-    ).fetchall()]
-    return result
+    return _load_run_with_steps(db, run)

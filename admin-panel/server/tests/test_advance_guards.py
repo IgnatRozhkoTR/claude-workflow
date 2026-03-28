@@ -1,8 +1,8 @@
 """Tests for cross-cutting advance guards."""
-from advance_guards import GUARD_ORCHESTRATOR, ResearchProvenGuard, ReviewGuard
-from advance_service import perform_advance
+from advance.guards import GUARD_ORCHESTRATOR, ResearchProvenGuard, ReviewGuard
+from advance.orchestrator import perform_advance
 from testing_utils import set_phase, add_progress, add_research, make_plan_json, add_comment
-from db import get_db
+from core.db import get_db
 
 
 def _get_ws_row(ws_id):
@@ -117,7 +117,7 @@ def test_advance_at_exempt_phase_ignores_unproven(workspace, project):
 
 def test_plan_guard_skip_early_phases(workspace, project):
     """Plan guard skips at phases before planning."""
-    from advance_guards import PlanApprovedGuard
+    from advance.guards import PlanApprovedGuard
     guard = PlanApprovedGuard()
     ws = _get_ws_row(workspace["id"])
     for phase in ("0", "1.0", "1.1", "1.2", "1.3"):
@@ -127,7 +127,7 @@ def test_plan_guard_skip_early_phases(workspace, project):
 
 def test_plan_guard_approved_no_plan(workspace, project):
     """No plan exists — guard approves (nothing to check)."""
-    from advance_guards import PlanApprovedGuard
+    from advance.guards import PlanApprovedGuard
     guard = PlanApprovedGuard()
     set_phase(workspace["id"], "2.0")
     ws = _get_ws_row(workspace["id"])
@@ -137,7 +137,7 @@ def test_plan_guard_approved_no_plan(workspace, project):
 
 def test_plan_guard_rejected_unapproved(workspace, project):
     """Plan exists but not approved — guard rejects."""
-    from advance_guards import PlanApprovedGuard
+    from advance.guards import PlanApprovedGuard
     guard = PlanApprovedGuard()
     plan = make_plan_json(1)
     set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="pending")
@@ -149,7 +149,7 @@ def test_plan_guard_rejected_unapproved(workspace, project):
 
 def test_plan_guard_approved_when_approved(workspace, project):
     """Plan approved — guard passes."""
-    from advance_guards import PlanApprovedGuard
+    from advance.guards import PlanApprovedGuard
     guard = PlanApprovedGuard()
     plan = make_plan_json(1)
     set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved")
@@ -162,7 +162,7 @@ def test_plan_guard_approved_when_approved(workspace, project):
 
 def test_scope_guard_skip_non_execution(workspace, project):
     """Scope guard skips at non-execution phases."""
-    from advance_guards import ScopeApprovedGuard
+    from advance.guards import ScopeApprovedGuard
     guard = ScopeApprovedGuard()
     ws = _get_ws_row(workspace["id"])
     for phase in ("0", "1.0", "1.1", "2.0", "2.1", "5"):
@@ -172,7 +172,7 @@ def test_scope_guard_skip_non_execution(workspace, project):
 
 def test_scope_guard_rejected_unapproved(workspace, project):
     """Scope not approved during execution — guard rejects."""
-    from advance_guards import ScopeApprovedGuard
+    from advance.guards import ScopeApprovedGuard
     guard = ScopeApprovedGuard()
     set_phase(workspace["id"], "3.1.0", scope_status="pending")
     ws = _get_ws_row(workspace["id"])
@@ -183,7 +183,7 @@ def test_scope_guard_rejected_unapproved(workspace, project):
 
 def test_scope_guard_approved_when_approved(workspace, project):
     """Scope approved during execution — guard passes."""
-    from advance_guards import ScopeApprovedGuard
+    from advance.guards import ScopeApprovedGuard
     guard = ScopeApprovedGuard()
     set_phase(workspace["id"], "3.1.0", scope_status="approved")
     ws = _get_ws_row(workspace["id"])
@@ -277,9 +277,9 @@ def test_advance_blocked_by_review_guard_at_gate(workspace, project):
     set_phase(workspace["id"], "4.2", scope_status="approved", plan_status="approved")
     add_research(workspace["id"], topic="Good", proven=1)
     ws = _get_ws_row(workspace["id"])
-    from advance_service import approve_gate
+    from advance.orchestrator import approve_gate
     nonce_row = _get_ws_row(workspace["id"])
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     db.execute("UPDATE workspaces SET gate_nonce = 'test-nonce' WHERE id = ?", (workspace["id"],))
     db.commit()

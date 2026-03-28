@@ -8,7 +8,7 @@ are thin wrappers that delegate to this module.
 """
 from datetime import datetime
 
-from comment_service import load_replies
+from services.comment_service import load_replies
 
 
 def post_discussion(db, workspace_id, text, author="user", disc_type="general",

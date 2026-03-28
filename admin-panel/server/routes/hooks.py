@@ -4,9 +4,9 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
-from helpers import find_workspace, run_git, workspace_dir
-from i18n import t
+from core.db import get_db
+from core.helpers import find_workspace, run_git, workspace_dir
+from core.i18n import t
 
 bp = Blueprint("hooks", __name__)
 

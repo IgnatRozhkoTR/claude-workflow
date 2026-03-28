@@ -3,9 +3,9 @@ import functools
 
 from flask import jsonify
 
-from db import get_db
-from helpers import find_workspace
-from i18n import t
+from core.db import get_db, get_db_ctx
+from core.helpers import find_workspace
+from core.i18n import t
 
 
 def with_workspace(fn):
@@ -43,4 +43,16 @@ def with_workspace(fn):
         finally:
             db.close()
 
+    return wrapper
+
+
+def with_project(fn):
+    """Decorator that loads project by project_id URL param, returns 404 if not found."""
+    @functools.wraps(fn)
+    def wrapper(project_id, **kwargs):
+        with get_db_ctx() as db:
+            project = db.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+            if not project:
+                return jsonify({"error": t("api.error.projectNotFound")}), 404
+            return fn(db=db, project=project, **kwargs)
     return wrapper

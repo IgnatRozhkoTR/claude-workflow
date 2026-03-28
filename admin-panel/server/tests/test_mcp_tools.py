@@ -401,7 +401,7 @@ class TestComments:
 
     def test_get_comments_unresolved_only_default(self, workspace, monkeypatch):
         cid = add_comment(workspace["id"])
-        from db import get_db
+        from core.db import get_db
         db = get_db()
         db.execute("UPDATE discussions SET status = 'resolved' WHERE id = ?", (cid,))
         db.commit()
@@ -568,7 +568,7 @@ class TestProgress:
         from mcp_server import workspace_update_progress
         result = workspace_update_progress(phase="1.0", summary="Updated")
         assert result["ok"]
-        from db import get_db
+        from core.db import get_db
         db = get_db()
         rows = db.execute(
             "SELECT * FROM progress_entries WHERE workspace_id = ? AND phase = '1.0'",
@@ -704,7 +704,7 @@ class TestCriteria:
 
     def test_update_criteria_blocked_if_accepted(self, workspace, monkeypatch):
         from testing_utils import add_criterion
-        from db import get_db
+        from core.db import get_db
         criterion_id = add_criterion(workspace["id"], cr_type="unit_test", description="Test")
         db = get_db()
         db.execute("UPDATE acceptance_criteria SET status = 'accepted' WHERE id = ?", (criterion_id,))
@@ -719,7 +719,7 @@ class TestCriteria:
 
     def test_update_criteria_resets_rejected_to_proposed(self, workspace, monkeypatch):
         from testing_utils import add_criterion
-        from db import get_db
+        from core.db import get_db
         criterion_id = add_criterion(workspace["id"], cr_type="unit_test", description="Test")
         db = get_db()
         db.execute("UPDATE acceptance_criteria SET status = 'rejected' WHERE id = ?", (criterion_id,))

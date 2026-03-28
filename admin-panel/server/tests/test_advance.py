@@ -5,15 +5,16 @@ from testing_utils import set_phase, add_progress, add_research, add_discussion,
 # ── Approve/Reject endpoint tests ────────────────────────────────────────────
 
 
-def test_approve_at_plan_review(client, workspace):
-    """Approve at phase 2.1 → advances to first execution phase."""
+def test_approve_at_plan_review(workspace, project):
+    """Phase 2.0 auto-advances directly to first execution phase when scope and plan are both approved."""
     plan = make_plan_json(2)
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce-abc", plan_json=plan, plan_status="approved")
+    set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved", scope_status="approved")
     add_progress(workspace["id"], "2", "Planning done")
-
-    r = client.post("/api/ws/test-project/feature/test/approve", json={"token": "nonce-abc"})
-    assert r.status_code == 200
-    assert r.json["phase"] == "3.1.0"
+    add_criterion(workspace["id"], status="accepted")
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"])
+    assert code == 200
+    assert result["phase"] == "3.1.0"
 
 
 def test_approve_at_code_review(client, workspace):
@@ -39,7 +40,7 @@ def test_approve_at_final_gate(client, workspace):
 
 
 def test_approve_wrong_nonce(client, workspace):
-    set_phase(workspace["id"], "2.1", gate_nonce="correct-nonce")
+    set_phase(workspace["id"], "1.4", gate_nonce="correct-nonce")
 
     r = client.post("/api/ws/test-project/feature/test/approve", json={"token": "wrong-nonce"})
     assert r.status_code == 403
@@ -51,18 +52,19 @@ def test_approve_not_at_gate(client, workspace):
 
 
 def test_approve_missing_token(client, workspace):
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce")
+    set_phase(workspace["id"], "1.4", gate_nonce="nonce")
 
     r = client.post("/api/ws/test-project/feature/test/approve", json={})
     assert r.status_code == 400
 
 
 def test_reject_at_plan_review(client, workspace):
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce-rej")
+    """Reject at phase 1.4 (preparation review) → goes back to 1.1."""
+    set_phase(workspace["id"], "1.4", gate_nonce="nonce-rej")
 
     r = client.post("/api/ws/test-project/feature/test/reject", json={"token": "nonce-rej"})
     assert r.status_code == 200
-    assert r.json["phase"] == "2.0"
+    assert r.json["phase"] == "1.1"
 
 
 def test_reject_at_code_review(client, workspace):
@@ -82,7 +84,7 @@ def test_reject_at_final_gate(client, workspace):
 
 
 def test_reject_with_comments(client, workspace):
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce-c")
+    set_phase(workspace["id"], "4.2", gate_nonce="nonce-c")
 
     r = client.post(
         "/api/ws/test-project/feature/test/reject",
@@ -90,7 +92,7 @@ def test_reject_with_comments(client, workspace):
     )
     assert r.status_code == 200
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     comment = db.execute(
         "SELECT * FROM discussions WHERE workspace_id = ? AND scope = 'phase'", (workspace["id"],)
@@ -103,8 +105,8 @@ def test_reject_with_comments(client, workspace):
 # ── Advancer tests (perform_advance directly) ─────────────────────────────────
 
 
-from advance_service import perform_advance
-from db import get_db
+from advance.orchestrator import perform_advance
+from core.db import get_db
 
 
 def _get_ws_row(ws_id):
@@ -230,27 +232,29 @@ def test_plan_blocked_no_plan(workspace, project):
 
 def test_plan_passes(workspace, project):
     plan = make_plan_json(2)
-    set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved")
+    set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved", scope_status="approved")
     add_progress(workspace["id"], "2", "Planning done")
     add_criterion(workspace["id"], status="accepted")
     ws = _get_ws_row(workspace["id"])
     result, code = perform_advance(ws, project["path"])
-    assert code == 202
-    assert result["phase"] == "2.1"
+    assert code == 200
+    assert result["phase"] == "3.1.0"
 
 
-def test_plan_blocked_by_pending_criteria(client, workspace):
+def test_plan_blocked_by_pending_criteria(workspace, project):
+    """PlanAdvancer at 2.0 blocks when proposed criteria exist."""
     plan = make_plan_json(1)
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce-criteria", plan_json=plan, plan_status="approved")
+    set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved", scope_status="approved")
+    add_progress(workspace["id"], "2", "Planning done")
     add_criterion(workspace["id"], status="proposed")
-
-    r = client.post("/api/ws/test-project/feature/test/approve", json={"token": "nonce-criteria"})
-    assert r.status_code == 400
-    assert "acceptance criteria" in r.json["error"]
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"])
+    assert code == 422
+    assert "acceptance criteria" in result["error"].lower()
 
 
 def test_user_gate_blocks_advance(workspace, project):
-    set_phase(workspace["id"], "2.1")
+    set_phase(workspace["id"], "1.4")
     ws = _get_ws_row(workspace["id"])
     result, code = perform_advance(ws, project["path"])
     assert code == 409
@@ -606,15 +610,16 @@ def test_last_commit_skips_criteria_when_not_last_subphase(workspace, project):
 # ── Plan approval gate with criteria status ─────────────────────────────────
 
 
-def test_approve_blocked_by_proposed_criteria(client, workspace):
-    """Plan approval at 2.1 is blocked when a criterion has 'rejected' status."""
+def test_approve_blocked_by_proposed_criteria(workspace, project):
+    """PlanAdvancer at 2.0 blocks when a criterion has 'rejected' status."""
     plan = make_plan_json(1)
-    set_phase(workspace["id"], "2.1", gate_nonce="nonce-prop", plan_json=plan, plan_status="approved")
+    set_phase(workspace["id"], "2.0", plan_json=plan, plan_status="approved", scope_status="approved")
+    add_progress(workspace["id"], "2", "Planning done")
     add_criterion(workspace["id"], status="rejected")
-
-    r = client.post("/api/ws/test-project/feature/test/approve", json={"token": "nonce-prop"})
-    assert r.status_code == 400
-    assert "acceptance criteria" in r.json["error"].lower()
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"])
+    assert code == 422
+    assert "acceptance criteria" in result["error"].lower()
 
 
 def test_approve_gate_blocked_by_unresolved_review(client, workspace, project):
@@ -635,7 +640,7 @@ def test_approve_gate_blocked_by_unresolved_review(client, workspace, project):
 
 def test_approve_gate_passes_with_resolved_review(client, workspace, project):
     """approve_gate passes when all review items are resolved."""
-    from db import get_db
+    from core.db import get_db
     plan = make_plan_json(2)
     set_phase(workspace["id"], "3.1.3",
               plan_json=plan, plan_status="approved", scope_status="approved",

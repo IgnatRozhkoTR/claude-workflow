@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from flask import Flask, jsonify
-from db import init_db
+from core.db import init_db
 from routes import register_blueprints
 
 

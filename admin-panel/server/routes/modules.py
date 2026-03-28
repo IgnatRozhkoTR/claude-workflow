@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db
+from core.db import get_db_ctx
 
 bp = Blueprint("modules", __name__)
 
@@ -65,20 +65,16 @@ def list_modules():
 
 @bp.route("/api/modules/enabled", methods=["GET"])
 def get_enabled_modules():
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         rows = db.execute("SELECT module_id FROM modules_enabled").fetchall()
         return jsonify({"modules": [row["module_id"] for row in rows]})
-    finally:
-        db.close()
 
 
 @bp.route("/api/modules/enabled", methods=["POST"])
 def set_enabled_modules():
     body = request.json or {}
     module_ids = body.get("modules", [])
-    db = get_db()
-    try:
+    with get_db_ctx() as db:
         db.execute("DELETE FROM modules_enabled")
         for module_id in module_ids:
             db.execute(
@@ -87,5 +83,3 @@ def set_enabled_modules():
             )
         db.commit()
         return jsonify({"status": "saved"})
-    finally:
-        db.close()

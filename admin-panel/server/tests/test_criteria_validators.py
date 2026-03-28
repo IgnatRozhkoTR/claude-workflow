@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from criteria_validators import validate_criterion, validate_all
+from advance.validators import validate_criterion, validate_all
 
 
 def _make_criterion(cr_type, details=None):
@@ -80,7 +80,7 @@ def test_bdd_scenario_missing(tmp_path):
 
 def test_custom_not_auto_validated(tmp_path, clean_db):
     """validate_all must not auto-pass custom criteria; unvalidated custom criteria cause all_passed=False."""
-    from db import get_db
+    from core.db import get_db
     from testing_utils import add_criterion
 
     db = get_db()
@@ -111,7 +111,7 @@ def test_custom_not_auto_validated(tmp_path, clean_db):
 
 def test_custom_manually_validated(tmp_path, clean_db):
     """A custom criterion with validated=1 must not appear in failed results; all_passed is True."""
-    from db import get_db
+    from core.db import get_db
 
     db = get_db()
     db.execute(
@@ -141,7 +141,7 @@ def test_validate_all_mixed(tmp_path, clean_db):
     """validate_all returns correct per-criterion results when some pass and some fail."""
     (tmp_path / "test_ok.py").write_text("def test_one(): pass\n")
 
-    from db import get_db
+    from core.db import get_db
     from testing_utils import add_criterion
 
     db = get_db()

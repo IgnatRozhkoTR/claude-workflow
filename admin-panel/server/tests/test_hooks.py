@@ -11,7 +11,7 @@ def test_session_start_success(client, workspace):
     assert r.status_code == 200
     assert r.json["ok"] is True
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     row = db.execute(
         "SELECT session_id FROM workspaces WHERE id = ?", (workspace["id"],)
@@ -57,7 +57,7 @@ def test_session_start_records_history(client, workspace):
         json={"session_id": "sess-second", "cwd": workspace["working_dir"]},
     )
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     count = db.execute(
         "SELECT COUNT(*) FROM session_history WHERE workspace_id = ?", (workspace["id"],)
@@ -78,7 +78,7 @@ def test_session_start_deduplicates(client, workspace):
         json={"session_id": "sess-dup", "cwd": workspace["working_dir"]},
     )
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     count = db.execute(
         "SELECT COUNT(*) FROM session_history WHERE workspace_id = ? AND session_id = 'sess-dup'",

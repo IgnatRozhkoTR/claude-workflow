@@ -4,8 +4,8 @@ import pytest
 
 def _insert_improvement(scope, title, description="desc", context=None, status="open"):
     """Insert an improvement directly via report_improvement."""
-    from db import get_db
-    import improvement_service
+    from core.db import get_db
+    from services import improvement_service
     db = get_db()
     result = improvement_service.report_improvement(db, scope, title, description, context)
     if status == "resolved":
@@ -84,7 +84,7 @@ def test_resolve_improvement_with_note(client):
     data = response.get_json()
     assert data == {"ok": True}
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     row = db.execute(
         "SELECT resolved_note, status FROM improvements WHERE id = ?", (improvement_id,)
@@ -102,7 +102,7 @@ def test_reopen_improvement(client):
     data = response.get_json()
     assert data == {"ok": True}
 
-    from db import get_db
+    from core.db import get_db
     db = get_db()
     row = db.execute(
         "SELECT status, resolved_note, resolved_at FROM improvements WHERE id = ?", (improvement_id,)

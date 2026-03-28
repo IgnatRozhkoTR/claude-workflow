@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from i18n import t
+from core.i18n import t
 
 logger = logging.getLogger(__name__)
 

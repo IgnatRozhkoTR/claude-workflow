@@ -5,7 +5,7 @@ wrappers that delegate to this module.
 """
 from datetime import datetime
 
-from i18n import t
+from core.i18n import t
 
 
 def load_replies(db, parent_id):

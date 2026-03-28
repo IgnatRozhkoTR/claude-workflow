@@ -2,18 +2,14 @@
 import json
 import logging
 import os
-import pty
-import select
-import struct
-import fcntl
-import termios
-import signal
-import threading
+from pathlib import Path
 
 from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
-from terminal import session_exists, create_session, send_keys, kill_session, tmux_available, send_prompt_when_ready
+from core.terminal import session_exists, create_session, send_keys, kill_session, tmux_available, send_prompt_when_ready, run_pty_websocket, TMUX_NOT_INSTALLED
+
+_MODULES_DIR = Path(os.path.expanduser("~/.claude/modules"))
 
 logger = logging.getLogger(__name__)
 
@@ -29,85 +25,37 @@ def register_setup_ws(app):
     @sock.route('/ws/setup-terminal')
     def setup_terminal_ws(ws):
         if not tmux_available():
-            ws.send(json.dumps({'error': 'tmux is not installed. Run: brew install tmux'}))
+            ws.send(json.dumps({'error': TMUX_NOT_INSTALLED}))
             return
 
         if not session_exists(_SETUP_SESSION):
             ws.send(json.dumps({'error': 'No setup session running. Start setup first.'}))
             return
 
-        pid, master_fd = pty.fork()
-
-        if pid == 0:
-            os.execvp('tmux', ['tmux', 'attach', '-t', _SETUP_SESSION])
-
-        running = True
-        ws_lock = threading.Lock()
-
-        def pty_to_ws():
-            """Read from PTY, send to WebSocket."""
-            while running:
-                try:
-                    r, _, _ = select.select([master_fd], [], [], 0.1)
-                    if master_fd in r:
-                        data = os.read(master_fd, 4096)
-                        if not data:
-                            break
-                        with ws_lock:
-                            ws.send(data.decode('utf-8', errors='replace'))
-                except (OSError, Exception):
-                    break
-
-        reader = threading.Thread(target=pty_to_ws, daemon=True)
-        reader.start()
-
-        try:
-            while True:
-                msg = ws.receive()
-                if msg is None:
-                    break
-
-                if isinstance(msg, str):
-                    if msg.startswith('{'):
-                        try:
-                            ctrl = json.loads(msg)
-                            if 'resize' in ctrl:
-                                cols, rows = ctrl['resize']
-                                winsize = struct.pack('HHHH', rows, cols, 0, 0)
-                                fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
-                                os.kill(pid, signal.SIGWINCH)
-                                continue
-                        except (json.JSONDecodeError, KeyError):
-                            pass
-                    os.write(master_fd, msg.encode())
-                else:
-                    os.write(master_fd, msg)
-        except Exception:
-            pass
-        finally:
-            running = False
-            try:
-                os.close(master_fd)
-            except OSError:
-                pass
-            try:
-                os.waitpid(pid, os.WNOHANG)
-            except ChildProcessError:
-                pass
+        run_pty_websocket(ws, _SETUP_SESSION)
 
 
 @bp.route('/api/setup/start', methods=['POST'])
 def setup_start():
     """Start a Claude Code setup session in a dedicated tmux pane."""
     if not tmux_available():
-        return jsonify({'error': 'tmux is not installed. Run: brew install tmux'}), 503
+        return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
     data = request.get_json(silent=True) or {}
     modules = data.get('modules', [])
     languages = data.get('languages', [])
     custom_languages = data.get('custom_languages', [])
 
-    logger.info("setup_start: modules=%s languages=%s custom_languages=%s", modules, languages, custom_languages)
+    logger.info("setup_start: modules_to_enable=%s languages=%s custom_languages=%s", modules, languages, custom_languages)
+
+    available_module_ids = []
+    if _MODULES_DIR.is_dir():
+        for entry in sorted(_MODULES_DIR.iterdir()):
+            if entry.is_dir() and (entry / "SKILL.md").is_file():
+                available_module_ids.append(entry.name)
+
+    selected_set = set(modules)
+    modules_to_disable = [m for m in available_module_ids if m not in selected_set]
 
     if session_exists(_SETUP_SESSION):
         logger.info("setup_start: killing existing session '%s'", _SETUP_SESSION)
@@ -121,7 +69,8 @@ def setup_start():
         "Read the setup skill at ~/.claude/skills/setup/SKILL.md and follow its instructions.",
         "",
         "Configuration:",
-        "- Modules to install: " + json.dumps(modules),
+        "- Modules to enable: " + json.dumps(modules),
+        "- Modules to disable: " + json.dumps(modules_to_disable),
         "- Preset verification profiles to assign: " + json.dumps(languages),
         "- Custom verification profiles to create: " + json.dumps(custom_languages),
         "",

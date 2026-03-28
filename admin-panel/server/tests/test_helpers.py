@@ -1,5 +1,5 @@
 """Tests for match_scope_pattern from helpers module."""
-from helpers import match_scope_pattern
+from core.helpers import match_scope_pattern
 
 
 def test_match_scope_pattern_returnsTrue_whenExactFileMatch():

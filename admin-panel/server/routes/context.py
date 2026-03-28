@@ -3,10 +3,10 @@ import json
 
 from flask import Blueprint, jsonify, request
 
-import discussion_service
-from decorators import with_workspace
-from helpers import run_git
-from i18n import t
+from services import discussion_service
+from core.decorators import with_workspace
+from core.helpers import run_git
+from core.i18n import t
 
 bp = Blueprint("context", __name__)
 

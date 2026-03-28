@@ -1,5 +1,5 @@
-"""Tests for Phase comparator."""
-from phase import Phase
+"""Tests for PhaseId comparator."""
+from core.phase import PhaseId as Phase
 
 
 def test_equality_same():
@@ -71,7 +71,7 @@ def test_str():
 
 
 def test_repr():
-    assert repr(Phase("3.1.4")) == "Phase('3.1.4')"
+    assert repr(Phase("3.1.4")) == "PhaseId('3.1.4')"
 
 
 def test_copy_constructor():
