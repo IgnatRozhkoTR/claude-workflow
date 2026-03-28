@@ -695,6 +695,7 @@
 </main>
 
 <div class="term-scroll-controls" id="termScrollControls">
+  <button class="term-scroll-btn" onclick="sendTermEscape()" style="font-size: 12px; font-weight: 600;">ESC</button>
   <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(-3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(-3)" onmouseup="stopTermScroll()">&#9650;</button>
   <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(3)" onmouseup="stopTermScroll()">&#9660;</button>
 </div>
@@ -791,6 +792,16 @@ function startTermScroll(delta) {
 }
 function stopTermScroll() {
   if (_termScrollInterval) { clearInterval(_termScrollInterval); _termScrollInterval = null; }
+}
+function sendTermEscape() {
+  if (typeof terminalWs !== 'undefined' && terminalWs && terminalWs.readyState === WebSocket.OPEN) {
+    terminalWs.send('\x1b');
+    return;
+  }
+  if (typeof splitWs !== 'undefined' && splitWs && splitWs.readyState === WebSocket.OPEN) {
+    splitWs.send('\x1b');
+    return;
+  }
 }
 function doTermScroll(delta) {
   var vp = document.querySelector('#terminalContainer .xterm-viewport') ||

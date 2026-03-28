@@ -411,7 +411,13 @@ Call `workspace_advance(commit_hash="{hash}")`.
 
 **Actors**: Fresh reviewer sub-agents (zero implementation context) | **Code edits: OFF**
 
-Deploy code-reviewer sub-agents. Do NOT brief reviewers with implementation context — they must review the code blind.
+Deploy **exactly 3** code-reviewer sub-agents **in parallel**, each assigned a distinct review perspective:
+
+1. **Clean code & SOLID** — naming, method length, SRP violations, DRY, code smells
+2. **Architecture & data flow** — component boundaries, dependency direction, query patterns, transaction scope
+3. **Edge cases & error handling** — null paths, missing validation, error propagation, concurrency concerns
+
+Do NOT brief reviewers with implementation context — they must review the code blind. Provide only the ticket description and branch name.
 
 Reviewers submit findings via `workspace_submit_review_issue(file_path, line_start, line_end, severity, description)`. Only `critical` and `major` severity findings are accepted — lower severity is rejected by the server.
 

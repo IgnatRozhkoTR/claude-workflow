@@ -51,6 +51,8 @@ function renderCriteria() {
       } else if (c.validated === -1) {
         validationBadge = ' <span class="badge badge-danger">' + t('badges.userRejected') + '</span>' +
           ' <button class="btn btn-sm" onclick="validateCriterion(' + c.id + ', true)">' + t('buttons.reapprove') + '</button>';
+      } else {
+        validationBadge = ' <button class="btn btn-sm" onclick="validateCriterionManual(' + c.id + ')">Validate</button>';
       }
     }
 
@@ -223,6 +225,13 @@ function deleteCriterion(id) {
   if (!ctx) return;
   apiDelete('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/criteria/' + id)
     .then(function() { loadCriteria(); });
+}
+
+async function validateCriterionManual(id) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  await apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/criteria/' + id + '/validate', {});
+  loadCriteria();
 }
 
 async function validateCriterion(id, passed) {

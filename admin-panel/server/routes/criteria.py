@@ -71,6 +71,17 @@ def delete_criterion(db, ws, project, criterion_id):
     return jsonify({"ok": True})
 
 
+@bp.route("/api/ws/<project_id>/<path:branch>/criteria/<int:criterion_id>/validate", methods=["POST"])
+@with_workspace
+def validate_criterion(db, ws, project, criterion_id):
+    db.execute(
+        "UPDATE acceptance_criteria SET validated = 1, validation_message = 'Manually validated by user' WHERE id = ? AND workspace_id = ?",
+        (criterion_id, ws["id"])
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
 @bp.route("/api/ws/<project_id>/<path:branch>/criteria/<int:criterion_id>/validate", methods=["PUT"])
 @with_workspace
 def validate_criterion_manual(db, ws, project, criterion_id):
