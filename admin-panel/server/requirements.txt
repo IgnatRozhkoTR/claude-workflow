@@ -2,3 +2,4 @@ flask
 pytest
 mcp[cli]
 jsonschema
+yoyo-migrations

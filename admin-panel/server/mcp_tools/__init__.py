@@ -18,7 +18,6 @@ from mcp.server.fastmcp import FastMCP
 from core.db import get_db, init_db
 from core.helpers import VALID_CRITERIA_TYPES, compute_phase_sequence
 from core.i18n import t
-from core.phase import PhaseId
 from services import comment_service
 from services import criteria_service
 from services import discussion_service

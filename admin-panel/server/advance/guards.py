@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 
 from core.db import get_db_ctx
-from core.phase import PhaseId
+from core.phase import phase_key
 
 
 class AdvanceGuard(ABC):
@@ -39,7 +39,7 @@ class ResearchProvenGuard(AdvanceGuard):
         return "research_proven"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        if PhaseId(phase) < "1.3":
+        if phase_key(phase) < phase_key("1.3"):
             return {"guard": self.name, "status": "skip"}
 
         with get_db_ctx() as db:
@@ -85,7 +85,7 @@ class PlanApprovedGuard(AdvanceGuard):
         return "plan_approved"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        if PhaseId(phase) < "2.0":
+        if phase_key(phase) < phase_key("2.0"):
             return {"guard": self.name, "status": "skip"}
 
         plan_json = ws["plan_json"]
@@ -122,8 +122,7 @@ class ScopeApprovedGuard(AdvanceGuard):
         return "scope_approved"
 
     def evaluate(self, phase: str, ws, body: dict) -> dict:
-        p = PhaseId(phase)
-        if p < "3.0" or p >= "5":
+        if phase_key(phase) < phase_key("3.0") or phase_key(phase) >= phase_key("5"):
             return {"guard": self.name, "status": "skip"}
 
         if ws["scope_status"] != "approved":

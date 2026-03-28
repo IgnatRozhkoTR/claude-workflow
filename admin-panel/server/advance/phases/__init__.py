@@ -8,7 +8,7 @@ Each workflow sub-phase is a Phase subclass that encapsulates:
 import re
 from abc import ABC, abstractmethod
 
-from core.phase import PhaseId
+from core.phase import phase_key
 
 
 class Phase(ABC):
@@ -93,23 +93,18 @@ class Phase(ABC):
             return t("advance.success.advancedWithGuide", locale, phase=new_phase, guide=guide)
         return t("advance.success.advanced", locale, phase=new_phase)
 
-    # Comparison operators -- delegate to PhaseId
-    @property
-    def phase_id(self) -> PhaseId:
-        return PhaseId(self.id)
-
     def __lt__(self, other):
-        if isinstance(other, Phase):
-            return self.phase_id < other.phase_id
-        return self.phase_id < PhaseId(str(other))
+        a = phase_key(self.id)
+        b = phase_key(other.id if isinstance(other, Phase) else str(other))
+        return a < b
 
     def __le__(self, other):
         return self == other or self < other
 
     def __gt__(self, other):
-        if isinstance(other, Phase):
-            return self.phase_id > other.phase_id
-        return self.phase_id > PhaseId(str(other))
+        a = phase_key(self.id)
+        b = phase_key(other.id if isinstance(other, Phase) else str(other))
+        return a > b
 
     def __ge__(self, other):
         return self == other or self > other

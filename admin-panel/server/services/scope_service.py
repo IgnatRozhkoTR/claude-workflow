@@ -8,7 +8,7 @@ import re
 
 from core.helpers import match_scope_pattern
 from core.i18n import t
-from core.phase import PhaseId
+from core.phase import phase_key
 
 _PHASE_3_SUB_RE = re.compile(r'^3\.\d+\.\d+$')
 
@@ -26,7 +26,7 @@ def set_scope(db, ws, scope_data, enforce_phase_guard=True):
     locale = ws["locale"] or "en"
     phase = ws["phase"]
 
-    if enforce_phase_guard and PhaseId(phase) < "1.0":
+    if enforce_phase_guard and phase_key(phase) < phase_key("1.0"):
         return {"error": t("mcp.error.scopePhase0", locale)}
 
     scope_json = json.dumps(scope_data)
