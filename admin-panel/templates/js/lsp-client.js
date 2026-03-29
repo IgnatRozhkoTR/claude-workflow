@@ -242,7 +242,19 @@ function registerLspProviders(editor, filePath, languageId) {
                 selectExplorerFile(targetPath, loc.range.start.line + 1);
                 return null;
               }
-              return lspLocationToMonaco(loc);
+              var targetLine = loc.range.start.line + 1;
+              var targetCol = loc.range.start.character + 1;
+              editor.setPosition({ lineNumber: targetLine, column: targetCol });
+              editor.revealLineInCenter(targetLine);
+              return {
+                uri: model.uri,
+                range: new monaco.Range(
+                  loc.range.start.line + 1,
+                  loc.range.start.character + 1,
+                  loc.range.end.line + 1,
+                  loc.range.end.character + 1
+                )
+              };
             }).filter(Boolean);
           })
           .catch(function() { return null; });
