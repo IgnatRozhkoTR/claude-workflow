@@ -8,6 +8,7 @@ from flask import Blueprint, request, jsonify
 from flask_sock import Sock
 
 from core.terminal import session_exists, create_session, send_keys, kill_session, tmux_available, send_prompt_when_ready, run_pty_websocket, TMUX_NOT_INSTALLED
+from core.db import get_db_ctx
 
 _MODULES_DIR = Path(os.path.expanduser("~/.claude/modules"))
 
@@ -16,6 +17,54 @@ logger = logging.getLogger(__name__)
 _SETUP_SESSION = "ws-setup"
 
 bp = Blueprint('setup', __name__)
+
+
+def _resolve_preset_profile_lsp(profile_ids):
+    """Return a list of preset profile descriptors including LSP fields when present."""
+    if not profile_ids:
+        return profile_ids
+
+    try:
+        with get_db_ctx() as db:
+            placeholders = ",".join("?" * len(profile_ids))
+            rows = db.execute(
+                f"SELECT id, name, language, lsp_command, lsp_install_command "
+                f"FROM verification_profiles WHERE id IN ({placeholders})",
+                profile_ids,
+            ).fetchall()
+    except Exception:
+        logger.warning("setup_start: could not fetch profile LSP data, falling back to raw IDs")
+        return profile_ids
+
+    result = []
+    rows_by_id = {r["id"]: r for r in rows}
+    for pid in profile_ids:
+        row = rows_by_id.get(pid)
+        if row is None:
+            result.append(pid)
+            continue
+        entry = {"id": row["id"], "name": row["name"], "language": row["language"]}
+        if row["lsp_command"]:
+            entry["lsp_server"] = row["lsp_command"]
+        if row["lsp_install_command"]:
+            entry["lsp_install"] = row["lsp_install_command"]
+        result.append(entry)
+    return result
+
+
+def _format_custom_languages(custom_languages):
+    """Normalise custom language entries, keeping LSP fields when present."""
+    result = []
+    for cl in custom_languages:
+        entry = {"name": cl.get("name", ""), "config": cl.get("config", ""), "details": cl.get("details", "")}
+        lsp_command = cl.get("lsp_command", "").strip()
+        lsp_install_command = cl.get("lsp_install_command", "").strip()
+        if lsp_command:
+            entry["lsp_server"] = lsp_command
+        if lsp_install_command:
+            entry["lsp_install"] = lsp_install_command
+        result.append(entry)
+    return result
 
 
 def register_setup_ws(app):
@@ -57,6 +106,9 @@ def setup_start():
     selected_set = set(modules)
     modules_to_disable = [m for m in available_module_ids if m not in selected_set]
 
+    preset_profiles_with_lsp = _resolve_preset_profile_lsp(languages)
+    custom_languages_with_lsp = _format_custom_languages(custom_languages)
+
     if session_exists(_SETUP_SESSION):
         logger.info("setup_start: killing existing session '%s'", _SETUP_SESSION)
         kill_session(_SETUP_SESSION)
@@ -71,8 +123,8 @@ def setup_start():
         "Configuration:",
         "- Modules to enable: " + json.dumps(modules),
         "- Modules to disable: " + json.dumps(modules_to_disable),
-        "- Preset verification profiles to assign: " + json.dumps(languages),
-        "- Custom verification profiles to create: " + json.dumps(custom_languages),
+        "- Preset verification profiles to assign: " + json.dumps(preset_profiles_with_lsp),
+        "- Custom verification profiles to create: " + json.dumps(custom_languages_with_lsp),
         "",
         "Complete the setup and report the results.",
     ]

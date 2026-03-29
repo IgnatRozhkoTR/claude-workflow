@@ -16,10 +16,12 @@ from .improvements import bp as improvements_bp
 from .verification import bp as verification_bp
 from .modules import bp as modules_bp
 from .setup import bp as setup_bp, register_setup_ws
+from .lsp import bp as lsp_bp, register_lsp_ws
 
 
 def register_blueprints(app):
-    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, hook_api_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp, terminal_bp, improvements_bp, verification_bp, modules_bp, setup_bp]:
+    for bp_module in [projects_bp, workspaces_bp, state_bp, comments_bp, files_bp, hooks_bp, hook_api_bp, context_bp, criteria_bp, static_bp, git_config_bp, advance_bp, terminal_bp, improvements_bp, verification_bp, modules_bp, setup_bp, lsp_bp]:
         app.register_blueprint(bp_module)
     register_terminal_ws(app)
     register_setup_ws(app)
+    register_lsp_ws(app)

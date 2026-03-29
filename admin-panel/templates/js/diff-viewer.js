@@ -4,6 +4,11 @@
 var _diffFilter = '';
 var _showResolved = false;
 
+async function goToFileViewer(filePath) {
+  await switchTab('files');
+  selectExplorerFile(filePath);
+}
+
 document.addEventListener('workspace-reset', function() {
   _diffFilter = '';
   var searchInput = document.getElementById('diffFileSearch');
@@ -41,9 +46,10 @@ function renderFileList() {
       div.className = 'file-item' + (state.selectedFile === f.path ? ' active' : '');
       div.title = f.path;
       div.dataset.path = f.path;
-      div.onclick = (e) => { if (!e.target.closest('.comment-icon')) selectFile(f.path); };
+      div.onclick = (e) => { if (!e.target.closest('.comment-icon, .go-to-file-btn')) selectFile(f.path); };
       var unresolvedDot = fileHasUnresolvedComments(f.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
-      div.innerHTML = `<span>${escapeHtml(f.path.split('/').pop())}</span>${unresolvedDot}${renderCommentIcon('review', f.path)}<div class="file-stat"><span class="file-stat-add">+${f.additions}</span><span class="file-stat-del">-${f.deletions}</span></div>`;
+      var goToBtn = '<button class="btn btn-sm go-to-file-btn" onclick="goToFileViewer(\'' + escapeHtml(f.path) + '\')" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
+      div.innerHTML = `<span>${escapeHtml(f.path.split('/').pop())}</span>${unresolvedDot}${renderCommentIcon('review', f.path)}${goToBtn}<div class="file-stat"><span class="file-stat-add">+${f.additions}</span><span class="file-stat-del">-${f.deletions}</span></div>`;
       container.appendChild(div);
     });
   } else {
@@ -51,10 +57,11 @@ function renderFileList() {
     renderTreeNode(tree, container, 0, {
       pathFn: function(item) { return item.path; },
       isSelected: function(path) { return state.selectedFile === path; },
-      onClick: function(e, val) { if (!e.target.closest('.comment-icon')) selectFile(val.path); },
+      onClick: function(e, val) { if (!e.target.closest('.comment-icon, .go-to-file-btn')) selectFile(val.path); },
       renderFileContent: function(val, key) {
         var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
-        return '<span>' + escapeHtml(key) + '</span>' + unresolvedDot + renderCommentIcon('review', val.path) + '<div class="file-stat"><span class="file-stat-add">+' + val.additions + '</span><span class="file-stat-del">-' + val.deletions + '</span></div>';
+        var goToBtn = '<button class="btn btn-sm go-to-file-btn" onclick="goToFileViewer(\'' + escapeHtml(val.path) + '\')" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
+        return '<span>' + escapeHtml(key) + '</span>' + unresolvedDot + renderCommentIcon('review', val.path) + goToBtn + '<div class="file-stat"><span class="file-stat-add">+' + val.additions + '</span><span class="file-stat-del">-' + val.deletions + '</span></div>';
       }
     });
   }
@@ -100,9 +107,17 @@ function renderDiff(path) {
 
   pathHeader.innerHTML = '<span style="opacity: 0.6;">\uD83D\uDCC4</span> ' + escapeHtml(path) + ' <span style="font-size: 0.75rem; color: var(--text-muted);">+' + file.additions + ' \u2212' + file.deletions + '</span>';
 
+  var goToFileViewerBtn = document.createElement('button');
+  goToFileViewerBtn.className = 'btn btn-sm';
+  goToFileViewerBtn.style.cssText = 'margin-left: auto; font-size: 0.7rem;';
+  goToFileViewerBtn.title = t('buttons.goToFileViewer');
+  goToFileViewerBtn.innerHTML = '&#128196; ' + t('buttons.goToFileViewer');
+  goToFileViewerBtn.onclick = function() { goToFileViewer(path); };
+  pathHeader.appendChild(goToFileViewerBtn);
+
   var showResolvedBtn = document.createElement('button');
   showResolvedBtn.className = 'btn btn-sm';
-  showResolvedBtn.style.cssText = 'margin-left: auto; font-size: 0.7rem;';
+  showResolvedBtn.style.cssText = 'font-size: 0.7rem;';
   showResolvedBtn.textContent = _showResolved ? t('review.hideResolved') : t('review.showResolved');
   showResolvedBtn.onclick = function() {
     _showResolved = !_showResolved;
@@ -317,15 +332,7 @@ async function replyToReviewComment(commentId, text) {
 async function refreshComments() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
-  var data = await apiListComments(ctx.projectId, ctx.branch, 'review');
-  Object.keys(COMMENTS).forEach(function(key) {
-    if (key.startsWith('review:')) delete COMMENTS[key];
-  });
-  (data.comments || []).forEach(function(c) {
-    var key = 'review:' + c.file_path;
-    if (!COMMENTS[key]) COMMENTS[key] = [];
-    COMMENTS[key].push(c);
-  });
+  await _fetchAndPopulateReviewComments(ctx);
   renderDiffView();
   renderReviewTab();
   updateReviewBadge();

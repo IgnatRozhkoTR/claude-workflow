@@ -10,6 +10,9 @@ async function initApp() {
     return;
   }
 
+  stopLspPolling();
+  _lspProfiles = [];
+
   resetAppState();
 
   try {
@@ -89,12 +92,14 @@ async function initApp() {
   renderApprovalStatus();
   renderContext();
   loadVerificationData();
+  loadLspProfiles();
+  startLspPolling();
   loadCriteria();
   loadGitConfig();
   loadGitRules();
   loadClaudeCommand();
   loadChannelsPreference();
-  loadModulesCard();
+  if (typeof renderLspShortcutsConfig === 'function') renderLspShortcutsConfig();
 
   // Restore diff toggle states from localStorage
   document.querySelectorAll('#viewModeToggle .toggle-opt').forEach(function(b) {
@@ -195,10 +200,8 @@ function doTerminalAction(endpoint, btnId, mode) {
 
       safeCopyToClipboard(result.attach_command).then(function() {
         if (btn) {
-          var original = btn.textContent;
-          btn.textContent = t('actions.copied');
           btn.disabled = false;
-          setTimeout(function() { btn.textContent = original; }, 1500);
+          flashButton(btn, t('actions.copied'));
         }
       });
     })
@@ -235,10 +238,8 @@ function doNotify(type) {
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/notify', { message: message })
   .then(function() {
     if (btn) {
-      var original = btn.textContent;
-      btn.textContent = t('actions.notified');
       btn.disabled = false;
-      setTimeout(function() { btn.textContent = original; }, 1500);
+      flashButton(btn, t('actions.notified'));
     }
   })
   .catch(function(e) {
@@ -254,8 +255,7 @@ function copyWorkspacePath() {
   safeCopyToClipboard(cmd).then(function() {
     var btn = document.getElementById('copyPathBtn');
     if (!btn) return;
-    btn.textContent = t('actions.copied');
-    setTimeout(function() { btn.textContent = t('actions.copyPath'); }, 1500);
+    flashButton(btn, t('actions.copied'));
   });
 }
 

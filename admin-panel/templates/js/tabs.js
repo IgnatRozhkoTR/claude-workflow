@@ -83,8 +83,6 @@ async function switchTab(tabId) {
     if (typeof renderFileList === 'function') renderFileList();
   } else if (tabId === 'review') {
     if (typeof loadReviewComments === 'function') loadReviewComments();
-  } else if (tabId === 'improvements') {
-    if (typeof loadImprovements === 'function') loadImprovements();
   } else if (tabId === 'files') {
     if (!_explorerLoaded && typeof loadExplorerFiles === 'function') {
       _explorerLoaded = true;

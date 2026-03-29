@@ -66,6 +66,7 @@
   "buttons.revokeRejection": "Revoke Rejection",
   "buttons.restore": "↩ Restore",
   "buttons.viewFile": "View File",
+  "buttons.goToFileViewer": "Go to file viewer",
   "buttons.backToProjects": "Back to projects",
   "buttons.viewScope": "View Scope",
   "buttons.viewPlan": "View Plan",
@@ -416,9 +417,6 @@
   "verification.runFailed": "Verification failed",
   "verification.runError": "Verification error",
 
-  "config.modules": "Modules",
-  "config.noModules": "No modules configured.",
-
   "setup.title": "Setup",
   "setup.subtitle": "Configure modules and verification profiles for your workspace.",
   "setup.backToProjects": "Back to projects",
@@ -441,6 +439,9 @@
   "setup.terminalDisconnectBtn": "Disconnect",
   "setup.terminalDisconnected": "Setup terminal disconnected.",
   "setup.terminalError": "Setup terminal connection error.",
+  "setup.lspServerLabel": "LSP Server (optional)",
+  "setup.lspCommandPlaceholder": "LSP binary (e.g. gopls, jdtls)",
+  "setup.lspInstallCommandPlaceholder": "Install command (e.g. go install golang.org/x/tools/gopls@latest)",
 
   "improvements.openBtn": "Improvements",
   "improvements.globalTitle": "Improvements",

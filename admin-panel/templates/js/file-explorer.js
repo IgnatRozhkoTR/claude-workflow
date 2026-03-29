@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════
 
 var explorerState = { selectedFile: null, filter: '', mdMode: 'preview', dirCache: {}, totalFiles: 0 };
+var _explorerPreviousLspFile = null;
 
 function explorerApiUrl(ctx, params) {
   var url = '/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/files';
@@ -152,7 +153,7 @@ async function filterExplorerFiles(query) {
 
 var _explorerFileLines = [];
 
-async function selectExplorerFile(path) {
+async function selectExplorerFile(path, lineNumber) {
   explorerState.selectedFile = path;
   explorerState.mdMode = 'preview';
   var fileList = document.getElementById('explorerFileList');
@@ -175,7 +176,7 @@ async function selectExplorerFile(path) {
   try {
     var data = await apiReadFile(ctx.projectId, ctx.branch, path);
     _explorerFileLines = data.lines || [];
-    renderExplorerContent(path, _explorerFileLines);
+    renderExplorerContent(path, _explorerFileLines, lineNumber);
   } catch (e) {
     content.innerHTML = '<div class="diff-placeholder">' + t('explorer.failedToLoad', {error: escapeHtml(e.message)}) + '</div>';
   }
@@ -186,19 +187,46 @@ function isMarkdownFile(path) {
   return ext === 'md' || ext === 'markdown' || ext === 'mdx';
 }
 
-function renderExplorerContent(path, lines) {
-  var content = document.getElementById('explorerContent');
-  var ext = path.split('.').pop().toLowerCase();
+function renderExplorerContent(path, lines, lineNumber) {
+  if (_explorerPreviousLspFile && _explorerPreviousLspFile !== path) {
+    unregisterLspProviders();
+    lspDidCloseDocument(_explorerPreviousLspFile);
+    _explorerPreviousLspFile = null;
+  }
+
+  var contentEl = document.getElementById('explorerContent');
   var isMd = isMarkdownFile(path);
 
-  var headerHtml = '<div class="explorer-file-header">' + escapeHtml(path);
+  var header = document.createElement('div');
+  header.className = 'explorer-file-header';
+  header.textContent = path;
+
   if (isMd && typeof marked !== 'undefined') {
-    headerHtml += '<div class="toggle-group md-toggle" style="margin-left: 12px;">' +
-      '<button class="toggle-opt' + (explorerState.mdMode === 'source' ? ' active' : '') + '" data-mode="source" onclick="setExplorerMdMode(\'source\')">' + t('buttons.source') + '</button>' +
-      '<button class="toggle-opt' + (explorerState.mdMode === 'preview' ? ' active' : '') + '" data-mode="preview" onclick="setExplorerMdMode(\'preview\')">' + t('buttons.preview') + '</button>' +
-      '</div>';
+    var toggle = document.createElement('div');
+    toggle.className = 'toggle-group md-toggle';
+    toggle.style.marginLeft = '12px';
+
+    var srcBtn = document.createElement('button');
+    srcBtn.className = 'toggle-opt' + (explorerState.mdMode === 'source' ? ' active' : '');
+    srcBtn.dataset.mode = 'source';
+    srcBtn.textContent = t('buttons.source');
+    srcBtn.onclick = function() { setExplorerMdMode('source'); };
+
+    var prevBtn = document.createElement('button');
+    prevBtn.className = 'toggle-opt' + (explorerState.mdMode === 'preview' ? ' active' : '');
+    prevBtn.dataset.mode = 'preview';
+    prevBtn.textContent = t('buttons.preview');
+    prevBtn.onclick = function() { setExplorerMdMode('preview'); };
+
+    toggle.appendChild(srcBtn);
+    toggle.appendChild(prevBtn);
+    header.appendChild(toggle);
   }
-  headerHtml += '<span class="explorer-line-count">' + lines.length + ' lines</span></div>';
+
+  var lineCount = document.createElement('span');
+  lineCount.className = 'explorer-line-count';
+  lineCount.textContent = lines.length + ' lines';
+  header.appendChild(lineCount);
 
   if (isMd && typeof marked !== 'undefined' && explorerState.mdMode === 'preview') {
     var parsed = DOMPurify.sanitize(marked.parse(lines.join('\n')));
@@ -207,28 +235,46 @@ function renderExplorerContent(path, lines) {
     tmp.querySelectorAll('code').forEach(function(el) {
       el.innerHTML = el.innerHTML.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;').replace(/&amp;amp;/g, '&amp;');
     });
-    content.innerHTML = headerHtml +
-      '<div class="explorer-file-body md-preview">' + tmp.innerHTML + '</div>';
+
+    var mdBody = document.createElement('div');
+    mdBody.className = 'explorer-file-body md-preview';
+    mdBody.innerHTML = tmp.innerHTML;
+
+    contentEl.innerHTML = '';
+    contentEl.appendChild(header);
+    contentEl.appendChild(mdBody);
+
     if (typeof hljs !== 'undefined') {
-      content.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
+      contentEl.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
     }
   } else {
-    var lang = LANG_MAP[ext] || ext;
+    disposeEditor();
 
-    var numbered = lines.map(function(line, i) {
-      return '<tr><td class="explorer-line-num">' + (i + 1) + '</td><td class="explorer-line-code">' + escapeHtml(line) + '</td></tr>';
-    }).join('');
+    var editorContainer = document.createElement('div');
+    editorContainer.id = 'monaco-editor-container';
+    editorContainer.style.height = '100%';
+    editorContainer.style.width = '100%';
 
-    content.innerHTML = headerHtml +
-      '<div class="explorer-file-body"><table class="explorer-code-table"><tbody>' + numbered + '</tbody></table></div>';
+    var body = document.createElement('div');
+    body.className = 'explorer-file-body monaco-body';
+    body.style.height = 'calc(100% - 40px)';
+    body.style.padding = '0';
+    body.appendChild(editorContainer);
 
-    if (typeof hljs !== 'undefined') {
-      var codeLines = content.querySelectorAll('.explorer-line-code');
-      codeLines.forEach(function(td) {
-        var result = hljs.highlight(td.textContent, { language: lang, ignoreIllegals: true });
-        td.innerHTML = result.value;
-      });
-    }
+    contentEl.innerHTML = '';
+    contentEl.appendChild(header);
+    contentEl.appendChild(body);
+
+    var fileContent = lines.join('\n');
+    var language = isMd ? 'markdown' : getMonacoLanguage(path);
+    createEditor(editorContainer, fileContent, language, path).then(function(editor) {
+      lspDidOpenDocument(path, fileContent, language);
+      registerLspProviders(editor, path, language);
+      _explorerPreviousLspFile = path;
+      if (lineNumber) {
+        revealLine(lineNumber);
+      }
+    });
   }
 }
 
@@ -250,4 +296,10 @@ document.addEventListener('workspace-reset', function() {
   explorerState.selectedFile = null;
   explorerState.totalFiles = 0;
   _explorerFileLines = [];
+  if (_explorerPreviousLspFile) {
+    unregisterLspProviders();
+    lspDidCloseDocument(_explorerPreviousLspFile);
+    _explorerPreviousLspFile = null;
+  }
+  disposeEditor();
 });

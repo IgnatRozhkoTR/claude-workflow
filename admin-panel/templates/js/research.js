@@ -25,8 +25,9 @@ function renderResearch() {
   RESEARCH_DATA.forEach(function(entry) {
     var topicName = entry.topic || t('research.untitledResearch');
     var proven = entry.proven;
-    var badgeClass = proven === 1 ? 'success' : proven === -1 ? 'danger' : 'warning';
-    var badgeText = proven === 1 ? t('badges.verified') : proven === -1 ? t('badges.rejected') : t('badges.pending');
+    var badge = proofBadge(proven);
+    var badgeClass = badge.className;
+    var badgeText = badge.text;
     var findings = entry.findings || [];
 
     var group = document.createElement('div');
@@ -144,7 +145,7 @@ function renderResearch() {
   }
 }
 
-async function showFilePreview(filePath, startLine, endLine) {
+function _ensureFilePreviewModal() {
   var modal = document.getElementById('filePreviewModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -160,6 +161,61 @@ async function showFilePreview(filePath, startLine, endLine) {
       '<div class="file-preview-body"><pre class="file-preview-code" id="previewCode"></pre></div>' +
       '</div>';
     document.body.appendChild(modal);
+  }
+  return modal;
+}
+
+function _buildFilePreviewLine(lineNum, lineContent, highlightStart, highlightEnd, filePath) {
+  var isHl = highlightStart && highlightEnd && lineNum >= highlightStart && lineNum <= highlightEnd;
+  var cls = isHl ? ' style="background: var(--accent-dim);"' : '';
+  var lineComments = getLineComments('file', filePath, lineNum);
+  var indicatorHtml = lineComments.length > 0 ? '<span class="line-comment-indicator" data-line="' + lineNum + '">' + lineComments.length + '</span>' : '';
+  var hasCommentCls = lineComments.length > 0 ? ' line-has-comment' : '';
+  return '<div class="file-preview-line' + hasCommentCls + '"' + cls + '><span class="line-num line-num-clickable" data-line="' + lineNum + '">' + lineNum + '</span>' + lineContent + indicatorHtml + '</div>';
+}
+
+function _renderCodePreview(lines, startNum, highlightStart, highlightEnd, filePath, ext) {
+  var rawCode = lines.join('\n');
+  var highlighted = null;
+  if (typeof hljs !== 'undefined') {
+    var lang = LANG_MAP[ext] || ext;
+    try {
+      highlighted = hljs.highlight(rawCode, { language: lang, ignoreIllegals: true }).value;
+    } catch (e) {
+      highlighted = hljs.highlightAuto(rawCode).value;
+    }
+  }
+
+  var html = '';
+  if (highlighted) {
+    highlighted.split('\n').forEach(function(line, i) {
+      html += _buildFilePreviewLine(startNum + i, line, highlightStart, highlightEnd, filePath);
+    });
+  } else {
+    lines.forEach(function(line, i) {
+      html += _buildFilePreviewLine(startNum + i, escapeHtml(line), highlightStart, highlightEnd, filePath);
+    });
+  }
+  return html;
+}
+
+function _renderMarkdownPreview(lines) {
+  var md = lines.join('\n');
+  var rendered = document.createElement('div');
+  rendered.className = 'file-preview-markdown';
+  rendered.innerHTML = typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(md)) : escapeHtml(md);
+  if (typeof hljs !== 'undefined') {
+    rendered.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
+  }
+  return rendered;
+}
+
+async function showFilePreview(filePath, startLine, endLine) {
+  var modal = _ensureFilePreviewModal();
+
+  var bodyEl = modal.querySelector('.file-preview-body');
+  if (!document.getElementById('previewCode')) {
+    bodyEl.innerHTML = '<pre class="file-preview-code" id="previewCode"></pre>';
   }
 
   document.getElementById('previewPath').textContent = filePath;
@@ -178,69 +234,23 @@ async function showFilePreview(filePath, startLine, endLine) {
     var data = await apiReadFile(ctx.projectId, ctx.branch, filePath, startLine, endLine, isAbsolute);
     var lines = data.lines || [];
     var startNum = data.start || 1;
-    var highlightStart = data.highlight_start;
-    var highlightEnd = data.highlight_end;
     var ext = filePath.split('.').pop().toLowerCase();
     var isMarkdown = (ext === 'md' || ext === 'markdown' || ext === 'mdx');
-    var codeEl = document.getElementById('previewCode');
-    var bodyEl = codeEl.parentElement;
+    var bodyEl = document.getElementById('previewCode').parentElement;
 
     if (isMarkdown) {
-      var md = lines.join('\n');
-      var rendered = document.createElement('div');
-      rendered.className = 'file-preview-markdown';
-      rendered.innerHTML = typeof marked !== 'undefined' ? DOMPurify.sanitize(marked.parse(md)) : escapeHtml(md);
       bodyEl.innerHTML = '';
-      bodyEl.appendChild(rendered);
-      // Highlight code blocks inside rendered markdown
-      if (typeof hljs !== 'undefined') {
-        rendered.querySelectorAll('pre code').forEach(function(block) { hljs.highlightElement(block); });
-      }
+      bodyEl.appendChild(_renderMarkdownPreview(lines));
     } else {
       bodyEl.innerHTML = '<pre class="file-preview-code" id="previewCode"></pre>';
-      codeEl = document.getElementById('previewCode');
-      var rawCode = lines.join('\n');
-      var highlighted = null;
-      if (typeof hljs !== 'undefined') {
-        var lang = LANG_MAP[ext] || ext;
-        try {
-          highlighted = hljs.highlight(rawCode, { language: lang, ignoreIllegals: true }).value;
-        } catch (e) {
-          highlighted = hljs.highlightAuto(rawCode).value;
-        }
-      }
-
-      if (highlighted) {
-        var hLines = highlighted.split('\n');
-        var html = '';
-        hLines.forEach(function(line, i) {
-          var lineNum = startNum + i;
-          var isHl = highlightStart && highlightEnd && lineNum >= highlightStart && lineNum <= highlightEnd;
-          var cls = isHl ? ' style="background: var(--accent-dim);"' : '';
-          var lineComments = getLineComments('file', filePath, lineNum);
-          var indicatorHtml = lineComments.length > 0 ? '<span class="line-comment-indicator" data-line="' + lineNum + '">' + lineComments.length + '</span>' : '';
-          var hasCommentCls = lineComments.length > 0 ? ' line-has-comment' : '';
-          html += '<div class="file-preview-line' + hasCommentCls + '"' + cls + '><span class="line-num line-num-clickable" data-line="' + lineNum + '">' + lineNum + '</span>' + line + indicatorHtml + '</div>';
-        });
-        codeEl.innerHTML = html;
-      } else {
-        var html = '';
-        lines.forEach(function(line, i) {
-          var lineNum = startNum + i;
-          var isHl = highlightStart && highlightEnd && lineNum >= highlightStart && lineNum <= highlightEnd;
-          var cls = isHl ? ' style="background: var(--accent-dim);"' : '';
-          var lineComments = getLineComments('file', filePath, lineNum);
-          var indicatorHtml = lineComments.length > 0 ? '<span class="line-comment-indicator" data-line="' + lineNum + '">' + lineComments.length + '</span>' : '';
-          var hasCommentCls = lineComments.length > 0 ? ' line-has-comment' : '';
-          html += '<div class="file-preview-line' + hasCommentCls + '"' + cls + '><span class="line-num line-num-clickable" data-line="' + lineNum + '">' + lineNum + '</span>' + escapeHtml(line) + indicatorHtml + '</div>';
-        });
-        codeEl.innerHTML = html;
-      }
-
+      var codeEl = document.getElementById('previewCode');
+      codeEl.innerHTML = _renderCodePreview(lines, startNum, data.highlight_start, data.highlight_end, filePath, ext);
       attachFilePreviewLineClickHandlers(codeEl, filePath, lines, startNum);
     }
 
-    document.getElementById('previewLines').textContent = isMarkdown ? t('research.lineCount', {count: lines.length}) : t('research.linesRange', {start: startNum, end: startNum + lines.length - 1, total: data.total_lines});
+    document.getElementById('previewLines').textContent = isMarkdown
+      ? t('research.lineCount', {count: lines.length})
+      : t('research.linesRange', {start: startNum, end: startNum + lines.length - 1, total: data.total_lines});
   } catch (e) {
     document.getElementById('previewCode').textContent = t('errors.failedToLoad', {error: e.message});
   }

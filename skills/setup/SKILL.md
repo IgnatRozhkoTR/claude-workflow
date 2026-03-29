@@ -16,20 +16,31 @@ This skill is invoked automatically by the admin panel's setup wizard. It receiv
 ## Input
 
 The setup configuration is passed as the initial prompt. It contains:
-- **modules**: List of module IDs to install (e.g., `["telegram"]`)
+- **modules to enable**: List of module IDs to enable (e.g., `["telegram"]`)
+- **modules to disable**: List of module IDs to disable (e.g., `["other_module"]`)
 - **languages**: List of language profile configurations to set up
 
 ## Execution Flow
 
-### Phase 1: Module Installation
+### Phase 1: Module Configuration
 
-For each module in the `modules` list:
+For each module in the `modules to enable` list:
 
 1. Read the module's skill file at `~/.claude/modules/<module_id>/SKILL.md`
-2. Read the skill thoroughly — understand its `install` section before doing anything
-3. Follow the `install` instructions exactly as written in the skill
-4. If the skill defines a `status` command, run it after installation to verify success
-5. If installation fails:
+2. Read the skill thoroughly — understand its `enable` section before doing anything
+3. Follow the `enable` instructions exactly as written in the skill (the `enable` command handles install if needed, then activates the integration)
+4. If the skill defines a `status` command, run it after enabling to verify success
+5. If enabling fails:
+   - Capture the full error output
+   - Report it clearly: what failed, what the error was, what the user can do
+   - Continue to the next module — do not abort the entire setup
+
+For each module in the `modules to disable` list:
+
+1. Read the module's skill file at `~/.claude/modules/<module_id>/SKILL.md`
+2. Read the skill thoroughly — understand its `disable` section before doing anything
+3. Follow the `disable` instructions exactly as written in the skill
+4. If disabling fails:
    - Capture the full error output
    - Report it clearly: what failed, what the error was, what the user can do
    - Continue to the next module — do not abort the entire setup
@@ -81,9 +92,27 @@ For each custom language configuration:
    - Run a smoke test of the tool to confirm it works end-to-end
 3. Assign the profile to the workspace
 
+### LSP Server Setup
+
+For each profile that includes LSP configuration (`lsp_server` field in the configuration):
+
+1. Check if the LSP server binary is installed by running the `lsp_install_check_command` from the profile, or `which <lsp_server>` if no check command is provided
+2. If not installed, run the `lsp_install` command from the configuration
+   - If the install command fails, report clearly: what binary is missing, what was attempted, and what the user must do manually
+3. Smoke-test the server to confirm it runs: try `<lsp_server> --help` or `<lsp_server> --version`
+   - If the binary exits with a non-zero code but the LSP protocol requires no flags, treat it as passing if the binary is found
+   - If the binary is not found at all, report it as a failure
+4. Report LSP server status alongside the profile status: installed / not installed / failed
+
+For custom profiles with LSP:
+
+1. The user provided the binary name (`lsp_server`) and install command (`lsp_install`) in the configuration
+2. Follow the same check → install → smoke-test flow described above
+3. After the profile is created via `workspace_create_verification_profile`, note the LSP binary so the user knows it will be used when the profile is active
+
 ### Phase 3: Final Verification
 
-1. List all installed modules and their status (installed / failed / skipped)
+1. List all configured modules and their status (enabled / disabled / failed / skipped)
 2. List all configured verification profiles with the status of each step:
    - Step name, install check result, smoke test result
 3. Run a quick verification pass of each profile to confirm all steps pass cleanly

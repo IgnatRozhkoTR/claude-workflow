@@ -127,7 +127,17 @@ function renderSetupPage() {
     + '<input id="setup-custom-name" class="ws-input" style="margin-bottom: 8px;" placeholder="' + t('setup.customProfileNamePlaceholder') + '">'
     + '<input id="setup-custom-config" class="ws-input" style="margin-bottom: 8px;" placeholder="' + t('setup.customConfigPlaceholder') + '">'
     + '<textarea id="setup-custom-details" class="ws-input" style="margin-bottom: 8px; min-height: 60px; resize: vertical;" placeholder="' + t('setup.customDetailsPlaceholder') + '"></textarea>'
+    + '<div style="color: var(--text-muted); font-size: 0.78rem; margin-bottom: 4px;">' + t('setup.lspServerLabel') + '</div>'
+    + '<input id="setup-custom-lsp-command" class="ws-input" style="margin-bottom: 8px;" placeholder="' + t('setup.lspCommandPlaceholder') + '">'
+    + '<input id="setup-custom-lsp-install-command" class="ws-input" style="margin-bottom: 8px;" placeholder="' + t('setup.lspInstallCommandPlaceholder') + '">'
     + '<button class="btn btn-sm" style="margin-top: 8px;" onclick="addCustomProfile()">' + t('setup.addProfileBtn') + '</button>'
+    + '</div>'
+    + '</div>'
+
+    + '<div class="setup-section">'
+    + '<div class="setup-section-title">LSP Keyboard Shortcuts</div>'
+    + '<div id="setup-shortcuts">'
+    + (typeof renderSetupShortcutsSection === 'function' ? renderSetupShortcutsSection() : '')
     + '</div>'
     + '</div>'
 
@@ -187,20 +197,30 @@ function renderSetupLanguages(profiles) {
       var id = profile.id;
       var name = _wsEscape(profile.name || '');
       var language = _wsEscape(profile.language || '');
+      var lspCommand = profile.lsp_command ? _wsEscape(profile.lsp_command) : '';
+
+      var lspBadge = lspCommand
+        ? '<span class="badge" style="font-size: 0.65rem; padding: 1px 6px; background: var(--info, #0d6efd); color: #fff; border-radius: 3px; margin-left: 4px;">LSP: ' + lspCommand + '</span>'
+        : '';
 
       return '<label class="ws-checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; cursor: pointer;">'
         + '<input type="checkbox" class="setup-language-checkbox" data-profile-id="' + id + '">'
         + '<span>' + name + '</span>'
         + (language ? '<span style="color: var(--text-muted); font-size: 0.78rem;">(' + language + ')</span>' : '')
+        + lspBadge
         + '</label>';
     }).join('');
   }
 
   var customHtml = _setupCustomProfiles.map(function(cp, index) {
+    var lspBadge = cp.lsp_command
+      ? '<span class="badge" style="font-size: 0.65rem; padding: 1px 6px; background: var(--info, #0d6efd); color: #fff; border-radius: 3px; margin-left: 4px;">LSP: ' + _wsEscape(cp.lsp_command) + '</span>'
+      : '';
     return '<div style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--border);">'
       + '<span style="font-size: 0.82rem;">' + _wsEscape(cp.name) + '</span>'
       + (cp.config ? '<span style="color: var(--text-muted); font-size: 0.78rem;">(' + _wsEscape(cp.config) + ')</span>' : '')
       + '<span class="badge" style="font-size: 0.65rem; padding: 1px 6px; background: var(--accent); color: var(--accent-text); border-radius: 3px; margin-left: 4px;">custom</span>'
+      + lspBadge
       + '<button class="btn btn-sm btn-outline" style="margin-left: auto; font-size: 0.72rem;" onclick="removeCustomProfile(' + index + ')">' + t('setup.removeToolBtn') + '</button>'
       + '</div>';
   }).join('');
@@ -210,58 +230,55 @@ function renderSetupLanguages(profiles) {
 
 // ─── Custom profile form ───
 
+function _reRenderLanguages() {
+  var languagesEl = document.getElementById('setup-languages');
+  if (!languagesEl) return;
+
+  var checkedProfileIds = [];
+  document.querySelectorAll('.setup-language-checkbox:checked').forEach(function(cb) {
+    checkedProfileIds.push(cb.getAttribute('data-profile-id'));
+  });
+
+  languagesEl.innerHTML = renderSetupLanguages(_setupCachedProfiles);
+
+  checkedProfileIds.forEach(function(id) {
+    var cb = document.querySelector('.setup-language-checkbox[data-profile-id="' + id + '"]');
+    if (cb) cb.checked = true;
+  });
+}
+
 function addCustomProfile() {
   var nameEl = document.getElementById('setup-custom-name');
   var configEl = document.getElementById('setup-custom-config');
   var detailsEl = document.getElementById('setup-custom-details');
+  var lspCommandEl = document.getElementById('setup-custom-lsp-command');
+  var lspInstallCommandEl = document.getElementById('setup-custom-lsp-install-command');
 
   var name = nameEl ? nameEl.value.trim() : '';
   var config = configEl ? configEl.value.trim() : '';
   var details = detailsEl ? detailsEl.value.trim() : '';
+  var lspCommand = lspCommandEl ? lspCommandEl.value.trim() : '';
+  var lspInstallCommand = lspInstallCommandEl ? lspInstallCommandEl.value.trim() : '';
 
   if (!name) {
     if (nameEl) nameEl.focus();
     return;
   }
 
-  _setupCustomProfiles.push({ name: name, config: config, details: details });
+  _setupCustomProfiles.push({ name: name, config: config, details: details, lsp_command: lspCommand, lsp_install_command: lspInstallCommand });
 
   if (nameEl) nameEl.value = '';
   if (configEl) configEl.value = '';
   if (detailsEl) detailsEl.value = '';
+  if (lspCommandEl) lspCommandEl.value = '';
+  if (lspInstallCommandEl) lspInstallCommandEl.value = '';
 
-  var languagesEl = document.getElementById('setup-languages');
-  if (languagesEl) {
-    var checkedProfileIds = [];
-    document.querySelectorAll('.setup-language-checkbox:checked').forEach(function(cb) {
-      checkedProfileIds.push(cb.getAttribute('data-profile-id'));
-    });
-
-    languagesEl.innerHTML = renderSetupLanguages(_setupCachedProfiles);
-
-    checkedProfileIds.forEach(function(id) {
-      var cb = document.querySelector('.setup-language-checkbox[data-profile-id="' + id + '"]');
-      if (cb) cb.checked = true;
-    });
-  }
+  _reRenderLanguages();
 }
 
 function removeCustomProfile(index) {
   _setupCustomProfiles.splice(index, 1);
-  var languagesEl = document.getElementById('setup-languages');
-  if (languagesEl) {
-    var checkedProfileIds = [];
-    document.querySelectorAll('.setup-language-checkbox:checked').forEach(function(cb) {
-      checkedProfileIds.push(cb.getAttribute('data-profile-id'));
-    });
-
-    languagesEl.innerHTML = renderSetupLanguages(_setupCachedProfiles);
-
-    checkedProfileIds.forEach(function(id) {
-      var cb = document.querySelector('.setup-language-checkbox[data-profile-id="' + id + '"]');
-      if (cb) cb.checked = true;
-    });
-  }
+  _reRenderLanguages();
 }
 
 // ─── Config collection ───
@@ -278,7 +295,10 @@ function getSetupConfig() {
   });
 
   var customLanguages = _setupCustomProfiles.map(function(cp) {
-    return { name: cp.name, config: cp.config, details: cp.details };
+    var entry = { name: cp.name, config: cp.config, details: cp.details };
+    if (cp.lsp_command) entry.lsp_command = cp.lsp_command;
+    if (cp.lsp_install_command) entry.lsp_install_command = cp.lsp_install_command;
+    return entry;
   });
 
   return {
@@ -295,6 +315,10 @@ async function startSetup() {
   if (errorEl) errorEl.textContent = '';
 
   var config = getSetupConfig();
+
+  if (typeof collectSetupShortcuts === 'function' && typeof saveLspShortcuts === 'function') {
+    saveLspShortcuts(collectSetupShortcuts());
+  }
 
   try {
     await apiPost('/api/modules/enabled', { modules: config.modules });
@@ -484,8 +508,7 @@ async function loadGlobalImprovements() {
   if (statusFilter && statusFilter.value) params.set('status', statusFilter.value);
 
   try {
-    var resp = await fetch('/api/improvements' + (params.toString() ? '?' + params.toString() : ''));
-    var data = await resp.json();
+    var data = await apiGet('/api/improvements' + (params.toString() ? '?' + params.toString() : ''));
     renderGlobalImprovements(data.improvements || []);
   } catch (e) {
     container.innerHTML = '<div class="no-items-msg">' + t('improvements.noItems') + '</div>';
@@ -504,31 +527,11 @@ function renderGlobalImprovements(items) {
   }
 
   container.innerHTML = items.map(function(item) {
-    var resolved = item.status === 'resolved';
-    var scopeClass = 'improvement-scope scope-' + item.scope;
-    var html = '<div class="improvement-item' + (resolved ? ' resolved' : '') + '">'
-      + '<div class="improvement-header">'
-      + '<span class="' + scopeClass + '">' + _wsEscape(item.scope) + '</span>'
-      + '<span class="improvement-title">' + _wsEscape(item.title) + '</span>'
-      + '<span class="improvement-date">' + formatDate(item.created_at) + '</span>'
-      + '</div>'
-      + '<div class="improvement-body">' + _wsEscape(item.description) + '</div>';
-
-    if (item.context) {
-      html += '<div class="improvement-context">' + _wsEscape(item.context) + '</div>';
-    }
-    if (resolved && item.resolved_note) {
-      html += '<div class="improvement-resolved-note"><strong>' + t('improvements.resolvedNote') + ':</strong> ' + _wsEscape(item.resolved_note) + '</div>';
-    }
-
-    html += '<div class="improvement-actions">';
-    if (item.status === 'open') {
-      html += '<button class="btn btn-sm" onclick="resolveGlobalImprovement(' + item.id + ')">' + t('improvements.resolve') + '</button>';
-    } else {
-      html += '<button class="btn btn-sm btn-outline" onclick="reopenGlobalImprovement(' + item.id + ')">' + t('improvements.reopen') + '</button>';
-    }
-    html += '</div></div>';
-    return html;
+    return renderImprovementItem(item, {
+      escapeFn: _wsEscape,
+      onResolve: 'resolveGlobalImprovement',
+      onReopen: 'reopenGlobalImprovement'
+    });
   }).join('');
 }
 
@@ -538,11 +541,7 @@ async function resolveGlobalImprovement(id) {
   var note = prompt(t('improvements.resolvePrompt'));
   if (note === null) return;
   try {
-    await fetch('/api/improvements/' + id + '/resolve', {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({note: note})
-    });
+    await apiPut('/api/improvements/' + id + '/resolve', {note: note});
     await loadGlobalImprovements();
   } catch (e) {
     if (typeof showToast === 'function') showToast('Failed to resolve: ' + e.message);
@@ -551,10 +550,7 @@ async function resolveGlobalImprovement(id) {
 
 async function reopenGlobalImprovement(id) {
   try {
-    await fetch('/api/improvements/' + id + '/reopen', {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'}
-    });
+    await apiPut('/api/improvements/' + id + '/reopen');
     await loadGlobalImprovements();
   } catch (e) {
     if (typeof showToast === 'function') showToast('Failed to reopen: ' + e.message);

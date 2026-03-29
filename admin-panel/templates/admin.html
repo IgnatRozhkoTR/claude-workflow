@@ -53,8 +53,8 @@
 <link rel="stylesheet" href="css/diff-viewer.css">
 <link rel="stylesheet" href="css/preplanning.css">
 <link rel="stylesheet" href="css/terminal.css">
-<link rel="stylesheet" href="css/improvements.css">
 <link rel="stylesheet" href="css/verification.css">
+<link rel="stylesheet" href="css/lsp.css">
 <link rel="stylesheet" href="css/setup.css">
 <link rel="stylesheet" href="css/mobile.css">
 <link rel="stylesheet" href="css/workspace.css">
@@ -62,6 +62,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
 <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16.png">
 </head>
@@ -114,6 +115,13 @@
       <option value="en">EN</option>
       <option value="ru">RU</option>
     </select>
+    <div class="lsp-control" style="position: relative;">
+      <button id="lspIndicator" class="theme-toggle" onclick="toggleLspDropdown()" title="Language Servers" style="display:none;">
+        <span id="lspIndicatorIcon">LSP</span>
+      </button>
+      <div id="lspDropdown" class="lsp-dropdown" style="display:none;">
+      </div>
+    </div>
     <button class="header-refresh-btn" onclick="location.reload()" title="Refresh page" data-i18n-title="header.refresh">&#x21bb;</button>
     <button class="btn btn-sm" onclick="showProjectSelector()" title="Switch project" id="switchProjectBtn" data-i18n="header.switch">Switch</button>
     <span class="badge badge-warning" id="phaseLabel">Phase 3 — Planning</span>
@@ -138,11 +146,7 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     <span class="review-badge" id="reviewBadge" style="display:none"></span>
   </button>
-  <button class="sidebar-btn" data-tab="improvements" title="Improvements" data-i18n-title="tabs.improvements">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
-    <span class="review-badge" id="improvementBadge" style="display:none"></span>
-  </button>
-  <button class="sidebar-btn" data-tab="terminal" title="Terminal" data-i18n-title="tabs.terminal">
+<button class="sidebar-btn" data-tab="terminal" title="Terminal" data-i18n-title="tabs.terminal">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="4 17 10 11 4 5"></polyline>
       <line x1="12" y1="19" x2="20" y2="19"></line>
@@ -190,17 +194,6 @@
       <button class="btn btn-sm btn-outline" onclick="copyWorkspacePath()" id="copyPathBtn" data-i18n="actions.copyPath">Path</button>
     </div>
     <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>
-
-    <!-- Modules -->
-    <div class="card collapsed" id="modulesCard" style="display: none;">
-      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
-        <span class="card-title" data-i18n="config.modules">Modules</span>
-        <span class="card-collapse-chevron">&#9660;</span>
-      </div>
-      <div class="card-body" id="modulesCardBody">
-        <div style="color: var(--text-muted); font-size: 0.82rem;" data-i18n="config.noModules">No modules configured.</div>
-      </div>
-    </div>
 
     <!-- Claude Command -->
     <div class="card collapsed">
@@ -286,6 +279,16 @@
         <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
           <button class="btn btn-sm btn-primary" onclick="saveGitRules()" data-i18n="buttons.saveRules">Save Rules</button>
         </div>
+      </div>
+    </div>
+
+    <!-- LSP Shortcuts -->
+    <div class="card collapsed" id="lspShortcutsCard">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title">LSP Shortcuts</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body" id="lspShortcutsBody">
       </div>
     </div>
 
@@ -609,31 +612,6 @@
     </div>
   </div>
 
-  <!-- ─── IMPROVEMENTS ─── -->
-  <div class="tab-panel" id="panel-improvements">
-    <div class="card">
-      <div class="card-header">
-        <span data-i18n="tabs.improvements">Improvements</span>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <select id="improvementScopeFilter" class="scope-filter-select" onchange="loadImprovements()">
-            <option value="" data-i18n="improvements.allScopes">All scopes</option>
-            <option value="workflow">workflow</option>
-            <option value="project">project</option>
-            <option value="skill">skill</option>
-            <option value="tooling">tooling</option>
-            <option value="documentation">documentation</option>
-          </select>
-          <select id="improvementStatusFilter" class="scope-filter-select" onchange="loadImprovements()">
-            <option value="" data-i18n="improvements.allStatuses">All</option>
-            <option value="open" data-i18n="improvements.open">Open</option>
-            <option value="resolved" data-i18n="improvements.resolved">Resolved</option>
-          </select>
-        </div>
-      </div>
-      <div id="improvementsList"></div>
-    </div>
-  </div>
-
   <!-- ─── TERMINAL ─── -->
   <div class="tab-panel" id="panel-terminal">
     <div class="terminal-container">
@@ -723,13 +701,16 @@
 <script src="js/tree-utils.js"></script>
 <script src="js/research.js"></script>
 <script src="js/diff-viewer.js"></script>
+<script src="js/monaco-editor.js"></script>
+<script src="js/lsp-shortcuts.js"></script>
+<script src="js/lsp-client.js"></script>
+<script src="js/lsp-controls.js"></script>
 <script src="js/file-explorer.js"></script>
 <script src="js/git-config.js"></script>
 <script src="js/claude-config.js"></script>
 <script src="js/context.js"></script>
 <script src="js/criteria.js"></script>
 <script src="js/preplanning.js"></script>
-<script src="js/improvements.js"></script>
 <script src="js/verification.js"></script>
 <script src="js/setup.js"></script>
 <script src="js/actions.js"></script>
@@ -748,7 +729,7 @@
   </div>
 </div>
 <script>
-  document.addEventListener('DOMContentLoaded', function() { applyI18nToDOM(); });
+  document.addEventListener('DOMContentLoaded', function() { applyI18nToDOM(); initMonaco(); });
 </script>
 <script>
 function toggleMobileSidebar() {

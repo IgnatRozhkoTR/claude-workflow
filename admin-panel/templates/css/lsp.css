@@ -1,0 +1,192 @@
+/* ═══ LSP CONTROLS ═══ */
+
+/* Header indicator */
+.lsp-control {
+  position: relative;
+}
+
+#lspIndicator {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lsp-status-off { color: var(--text-muted); }
+.lsp-status-running { color: #4ade80; }
+.lsp-status-partial { color: #fbbf24; }
+.lsp-status-error { color: #f87171; }
+
+/* Dropdown */
+.lsp-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.3));
+  z-index: 200;
+  padding: 8px;
+}
+
+.lsp-dropdown-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+.lsp-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  gap: 8px;
+}
+
+.lsp-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.lsp-server-name {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.lsp-server-lang {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lsp-server-status {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.lsp-server-status.running { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+.lsp-server-status.stopped { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+.lsp-server-status.error { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.lsp-server-status.starting { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+
+.lsp-dropdown-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.lsp-btn {
+  font-size: 11px;
+  padding: 5px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.lsp-dropdown-actions .lsp-btn {
+  flex: 1;
+}
+
+.lsp-btn:hover { background: var(--bg-hover); }
+.lsp-btn.start { border-color: #4ade80; color: #4ade80; }
+.lsp-btn.stop { border-color: #f87171; color: #f87171; }
+
+.lsp-dropdown-error {
+  font-size: 11px;
+  color: #f87171;
+  padding: 4px 8px;
+}
+
+/* LSP section in verification profile cards */
+.lsp-profile-section {
+  margin-top: 8px;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.lsp-profile-section .lsp-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.lsp-profile-section .lsp-info-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lsp-profile-section .lsp-command {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.lsp-profile-section .lsp-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.lsp-profile-section .lsp-toggle-label input {
+  margin: 0;
+}
+
+/* LSP Shortcut config rows */
+.setup-shortcut-row, .lsp-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.setup-shortcut-row label, .lsp-shortcut-row label {
+  font-size: 12px;
+  min-width: 140px;
+}
+
+.setup-shortcut-row input, .lsp-shortcut-row input {
+  font-size: 12px;
+  font-family: monospace;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text);
+  width: 160px;
+  text-align: center;
+}
+
+.shortcut-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}

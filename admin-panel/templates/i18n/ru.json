@@ -66,6 +66,7 @@
   "buttons.revokeRejection": "Отозвать отклонение",
   "buttons.restore": "↩ Восстановить",
   "buttons.viewFile": "Просмотреть файл",
+  "buttons.goToFileViewer": "Открыть в просмотре файлов",
   "buttons.backToProjects": "Назад к проектам",
   "buttons.viewScope": "Перейти к скоупу",
   "buttons.viewPlan": "Перейти к плану",
@@ -416,9 +417,6 @@
   "verification.runFailed": "Верификация не пройдена",
   "verification.runError": "Ошибка верификации",
 
-  "config.modules": "Модули",
-  "config.noModules": "Модули не настроены.",
-
   "setup.title": "Настройка",
   "setup.subtitle": "Настройте модули и профили верификации для рабочего пространства.",
   "setup.backToProjects": "Назад к проектам",
@@ -441,6 +439,9 @@
   "setup.terminalDisconnectBtn": "Отключить",
   "setup.terminalDisconnected": "Терминал настройки отключён.",
   "setup.terminalError": "Ошибка подключения терминала настройки.",
+  "setup.lspServerLabel": "LSP-сервер (необязательно)",
+  "setup.lspCommandPlaceholder": "Исполняемый файл LSP (например gopls, jdtls)",
+  "setup.lspInstallCommandPlaceholder": "Команда установки (например go install golang.org/x/tools/gopls@latest)",
 
   "improvements.openBtn": "Улучшения",
   "improvements.globalTitle": "Улучшения",
