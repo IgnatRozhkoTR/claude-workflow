@@ -238,24 +238,18 @@ function registerLspProviders(editor, filePath, languageId) {
 
             return locations.map(function(loc) {
               var targetPath = lspUriToPath(loc.uri);
-              if (targetPath !== filePath) {
-                selectExplorerFile(targetPath, loc.range.start.line + 1);
-                return null;
+              var range = new monaco.Range(
+                loc.range.start.line + 1,
+                loc.range.start.character + 1,
+                loc.range.end.line + 1,
+                loc.range.end.character + 1
+              );
+
+              if (targetPath === filePath) {
+                return { uri: model.uri, range: range };
               }
-              var targetLine = loc.range.start.line + 1;
-              var targetCol = loc.range.start.character + 1;
-              editor.setPosition({ lineNumber: targetLine, column: targetCol });
-              editor.revealLineInCenter(targetLine);
-              return {
-                uri: model.uri,
-                range: new monaco.Range(
-                  loc.range.start.line + 1,
-                  loc.range.start.character + 1,
-                  loc.range.end.line + 1,
-                  loc.range.end.character + 1
-                )
-              };
-            }).filter(Boolean);
+              return { uri: monaco.Uri.parse(loc.uri), range: range };
+            });
           })
           .catch(function() { return null; });
       }

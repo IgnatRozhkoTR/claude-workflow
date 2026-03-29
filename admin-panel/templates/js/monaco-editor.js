@@ -74,6 +74,30 @@ function initMonaco() {
 
   window._monacoReady = new Promise(function(resolve) {
     require(['vs/editor/editor.main'], function() {
+      monaco.editor.registerEditorOpener({
+        openCodeEditor: function(source, resource, selectionOrPosition) {
+          var path = resource.path;
+          var relativePath = (typeof lspUriToPath === 'function')
+            ? lspUriToPath(resource.toString())
+            : path;
+
+          var lineNumber = null;
+          if (selectionOrPosition) {
+            if (typeof selectionOrPosition.startLineNumber === 'number') {
+              lineNumber = selectionOrPosition.startLineNumber;
+            } else if (typeof selectionOrPosition.lineNumber === 'number') {
+              lineNumber = selectionOrPosition.lineNumber;
+            }
+          }
+
+          if (typeof selectExplorerFile === 'function') {
+            selectExplorerFile(relativePath, lineNumber);
+            return true;
+          }
+          return false;
+        }
+      });
+
       resolve();
     });
   });
