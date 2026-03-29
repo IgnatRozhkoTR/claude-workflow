@@ -62,10 +62,7 @@ function renderLspHeaderIndicator() {
     if (p.instance_status === 'error') errors++;
   });
 
-  var iconEl = document.getElementById('lspIndicatorIcon');
-  if (!iconEl) return;
-
-  indicator.className = 'theme-toggle';
+  indicator.className = 'btn btn-sm';
 
   if (errors > 0) {
     indicator.classList.add('lsp-status-error');
@@ -77,7 +74,7 @@ function renderLspHeaderIndicator() {
     indicator.classList.add('lsp-status-partial');
   }
 
-  iconEl.textContent = 'LSP ' + running + '/' + total;
+  indicator.textContent = 'LSP ' + running + '/' + total;
   indicator.title = 'Language Servers: ' + running + '/' + total + ' running';
 }
 
