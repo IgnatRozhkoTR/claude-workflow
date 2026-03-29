@@ -48,7 +48,7 @@ function renderFileList() {
       div.dataset.path = f.path;
       div.onclick = (e) => { if (!e.target.closest('.comment-icon, .go-to-file-btn')) selectFile(f.path); };
       var unresolvedDot = fileHasUnresolvedComments(f.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
-      var goToBtn = '<button class="btn btn-sm go-to-file-btn" onclick="goToFileViewer(\'' + escapeHtml(f.path) + '\')" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
+      var goToBtn = '<button class="btn btn-sm go-to-file-btn" data-filepath="' + escapeHtml(f.path) + '" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
       div.innerHTML = `<span>${escapeHtml(f.path.split('/').pop())}</span>${unresolvedDot}${renderCommentIcon('review', f.path)}${goToBtn}<div class="file-stat"><span class="file-stat-add">+${f.additions}</span><span class="file-stat-del">-${f.deletions}</span></div>`;
       container.appendChild(div);
     });
@@ -60,7 +60,7 @@ function renderFileList() {
       onClick: function(e, val) { if (!e.target.closest('.comment-icon, .go-to-file-btn')) selectFile(val.path); },
       renderFileContent: function(val, key) {
         var unresolvedDot = fileHasUnresolvedComments(val.path) ? '<span class="file-unresolved-dot" title="Has unresolved comments"></span>' : '';
-        var goToBtn = '<button class="btn btn-sm go-to-file-btn" onclick="goToFileViewer(\'' + escapeHtml(val.path) + '\')" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
+        var goToBtn = '<button class="btn btn-sm go-to-file-btn" data-filepath="' + escapeHtml(val.path) + '" title="' + t('buttons.goToFileViewer') + '" style="padding: 0 4px; font-size: 0.7rem; line-height: 1; flex-shrink: 0;">&#128196;</button>';
         return '<span>' + escapeHtml(key) + '</span>' + unresolvedDot + renderCommentIcon('review', val.path) + goToBtn + '<div class="file-stat"><span class="file-stat-add">+' + val.additions + '</span><span class="file-stat-del">-' + val.deletions + '</span></div>';
       }
     });
@@ -379,6 +379,14 @@ async function setDiffSource(mode) {
 //  RESIZABLE FILE LIST PANEL
 // ═══════════════════════════════════════════════
 makeResizable('diffResizeHandle', 'diffFileList');
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.go-to-file-btn');
+  if (btn && btn.dataset.filepath) {
+    e.stopPropagation();
+    goToFileViewer(btn.dataset.filepath);
+  }
+});
 
 EventBus.on('state:refreshed', function() {
   renderFileList();

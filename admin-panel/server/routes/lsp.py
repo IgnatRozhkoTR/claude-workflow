@@ -168,34 +168,43 @@ def register_lsp_ws(app):
                 break
 
             try:
-                msg = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                ws.send(json.dumps({"error": "invalid_json"}))
-                continue
+                try:
+                    msg = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    ws.send(json.dumps({"error": "invalid_json"}))
+                    continue
 
-            method = msg.get("method")
-            params = msg.get("params", {})
-            msg_id = msg.get("id")
-            profile_id = msg.get("profile_id", default_profile_id)
+                method = msg.get("method")
+                params = msg.get("params", {})
+                msg_id = msg.get("id")
+                profile_id = msg.get("profile_id", default_profile_id)
 
-            if not method:
-                ws.send(json.dumps({"error": "method is required"}))
-                continue
+                if not method:
+                    ws.send(json.dumps({"error": "method is required"}))
+                    continue
 
-            if profile_id is None:
-                ws.send(json.dumps({"error": "profile_id is required (in message or init)"}))
-                continue
+                if profile_id is None:
+                    ws.send(json.dumps({"error": "profile_id is required (in message or init)"}))
+                    continue
 
-            is_notification = msg_id is None
-            if is_notification:
-                lsp_service.send_lsp_notification(project_id, profile_id, method, params)
-                continue
+                is_notification = msg_id is None
+                if is_notification:
+                    result = lsp_service.send_lsp_notification(project_id, profile_id, method, params)
+                    if result and "error" in result:
+                        ws.send(json.dumps({"error": result["error"], "method": method}))
+                    continue
 
-            result = lsp_service.send_lsp_request(project_id, profile_id, method, params)
+                result = lsp_service.send_lsp_request(project_id, profile_id, method, params)
 
-            if "error" in result and "jsonrpc" not in result:
-                ws.send(json.dumps({"id": msg_id, "error": {"code": -1, "message": result["error"]}}))
-                continue
+                if "error" in result and "jsonrpc" not in result:
+                    ws.send(json.dumps({"id": msg_id, "error": {"code": -1, "message": result["error"]}}))
+                    continue
 
-            result["id"] = msg_id
-            ws.send(json.dumps(result))
+                result["id"] = msg_id
+                ws.send(json.dumps(result))
+            except Exception as exc:
+                logger.error("Unhandled error in WebSocket message loop: %s", exc)
+                try:
+                    ws.send(json.dumps({"error": "internal_server_error"}))
+                except Exception:
+                    break

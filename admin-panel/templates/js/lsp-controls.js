@@ -121,13 +121,17 @@ function renderLspDropdown() {
 
   _lspProfiles.forEach(function(p) {
     var status = p.instance_status || 'stopped';
+    var validStatuses = ['running', 'stopped', 'starting', 'error'];
+    if (validStatuses.indexOf(status) === -1) status = 'stopped';
     var isRunning = status === 'running';
     var isError = status === 'error';
     if (isError) hasErrors = true;
+    var safeProfileId = parseInt(p.profile_id, 10);
+    if (isNaN(safeProfileId)) return;
 
     var btnHtml = isRunning
-      ? '<button class="lsp-btn stop" onclick="stopLspServer(' + p.profile_id + '); event.stopPropagation();">Stop</button>'
-      : '<button class="lsp-btn start" onclick="startLspServer(' + p.profile_id + '); event.stopPropagation();">Start</button>';
+      ? '<button class="lsp-btn stop" onclick="stopLspServer(' + safeProfileId + '); event.stopPropagation();">Stop</button>'
+      : '<button class="lsp-btn start" onclick="startLspServer(' + safeProfileId + '); event.stopPropagation();">Start</button>';
 
     html += '<div class="lsp-dropdown-item">'
       + '<div>'
@@ -182,11 +186,15 @@ function renderLspProfileCards() {
     section.className = 'lsp-profile-section';
 
     var status = lspProfile.instance_status || 'stopped';
+    var validStatuses = ['running', 'stopped', 'starting', 'error'];
+    if (validStatuses.indexOf(status) === -1) status = 'stopped';
     var isRunning = status === 'running';
+    var safeProfileId = parseInt(lspProfile.profile_id, 10);
+    if (isNaN(safeProfileId)) return;
 
     var btnHtml = isRunning
-      ? '<button class="lsp-btn stop" onclick="stopLspServer(' + lspProfile.profile_id + ')">Stop</button>'
-      : '<button class="lsp-btn start" onclick="startLspServer(' + lspProfile.profile_id + ')">Start</button>';
+      ? '<button class="lsp-btn stop" onclick="stopLspServer(' + safeProfileId + ')">Stop</button>'
+      : '<button class="lsp-btn start" onclick="startLspServer(' + safeProfileId + ')">Start</button>';
 
     var toggleChecked = lspProfile.lsp_enabled ? ' checked' : '';
 
@@ -196,7 +204,7 @@ function renderLspProfileCards() {
       + btnHtml
       + '</div>'
       + '<label class="lsp-toggle-label">'
-      + '<input type="checkbox"' + toggleChecked + ' onchange="toggleLspProfile(' + lspProfile.profile_id + ', this.checked)">'
+      + '<input type="checkbox"' + toggleChecked + ' onchange="toggleLspProfile(' + safeProfileId + ', this.checked)">'
       + ' LSP enabled'
       + '</label>'
       + '</div>'

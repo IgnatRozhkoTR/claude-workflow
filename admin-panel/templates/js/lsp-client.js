@@ -8,6 +8,7 @@ var _lspPendingRequests = {};
 var _lspRequestId = 1;
 var _lspOpenDocuments = {};
 var _lspProviderDisposables = [];
+var _lspRegistrationVersion = 0;
 var _lspReconnectTimer = null;
 var _lspLanguageProfileMap = {};  // languageId -> profile_id
 
@@ -226,8 +227,11 @@ function lspReferences(filePath, line, column) {
 
 function registerLspProviders(editor, filePath, languageId) {
   unregisterLspProviders();
+  _lspRegistrationVersion++;
+  var myVersion = _lspRegistrationVersion;
 
   window._monacoReady.then(function() {
+    if (myVersion !== _lspRegistrationVersion) return;
     var defDisposable = monaco.languages.registerDefinitionProvider(languageId, {
       provideDefinition: function(model, position) {
         return lspGoToDefinition(filePath, position.lineNumber, position.column)

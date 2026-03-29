@@ -58,7 +58,7 @@ function _resolveKeyPart(lower, original) {
     return monaco.KeyMod.CtrlCmd;
   }
   if (lower === 'ctrl' || lower === 'control') {
-    return monaco.KeyMod.WinCtrl;
+    return monaco.KeyMod.CtrlCmd;
   }
   if (lower === 'alt' || lower === 'option' || lower === 'opt') {
     return monaco.KeyMod.Alt;

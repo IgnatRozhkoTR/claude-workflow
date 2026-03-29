@@ -102,7 +102,11 @@ def _read_lsp_message(stdout, timeout=None):
     if len(body) < length:
         return None
 
-    return json.loads(body.decode("utf-8"))
+    try:
+        return json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Malformed JSON in LSP message body")
+        return None
 
 
 def _process_key(project_id, profile_id):
@@ -400,7 +404,10 @@ def stop_lsp_server(db, project_id, profile_id):
     except subprocess.TimeoutExpired:
         logger.warning("LSP server pid=%d did not terminate, sending SIGKILL", process.pid)
         process.kill()
-        process.wait(timeout=3)
+        try:
+            process.wait(timeout=3)
+        except (subprocess.TimeoutExpired, OSError):
+            logger.warning("LSP server pid=%d did not exit after SIGKILL", process.pid)
     except OSError:
         pass
 
@@ -521,6 +528,8 @@ def send_lsp_request(project_id, profile_id, method, params):
                 return response
             if "method" in response:
                 logger.debug("LSP notification (skipped): %s", response.get("method"))
+            else:
+                logger.warning("LSP response with mismatched id: expected=%s, got=%s", request_id, response.get("id"))
 
 
 def send_lsp_notification(project_id, profile_id, method, params):
@@ -570,7 +579,10 @@ def shutdown_all():
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             process.kill()
-            process.wait(timeout=3)
+            try:
+                process.wait(timeout=3)
+            except (subprocess.TimeoutExpired, OSError):
+                logger.warning("LSP server pid=%d did not exit after SIGKILL", process.pid)
         except OSError:
             pass
     logger.info("All LSP servers shut down (%d total)", len(keys))
