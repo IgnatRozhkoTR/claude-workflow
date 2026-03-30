@@ -40,12 +40,22 @@ def get_profile(db, profile_id):
     return _load_profile_with_steps(db, row)
 
 
-def create_profile(db, name, language, description=None):
+def create_profile(db, name, language, description=None, lsp_command=None, lsp_args=None,
+                   lsp_install_check_command=None, lsp_install_command=None,
+                   lsp_workspace_config=None, lsp_port=None):
     """Create a new user verification profile."""
     now = datetime.now().isoformat()
     cursor = db.execute(
-        "INSERT INTO verification_profiles (name, language, description, origin, created_at) VALUES (?, ?, ?, 'user', ?)",
-        (name.strip(), language.strip(), description.strip() if description else None, now)
+        "INSERT INTO verification_profiles (name, language, description, origin, created_at, "
+        "lsp_command, lsp_args, lsp_install_check_command, lsp_install_command, lsp_workspace_config, lsp_port) "
+        "VALUES (?, ?, ?, 'user', ?, ?, ?, ?, ?, ?, ?)",
+        (name.strip(), language.strip(), description.strip() if description else None, now,
+         lsp_command.strip() if lsp_command else None,
+         lsp_args.strip() if lsp_args else None,
+         lsp_install_check_command.strip() if lsp_install_check_command else None,
+         lsp_install_command.strip() if lsp_install_command else None,
+         lsp_workspace_config.strip() if lsp_workspace_config else None,
+         lsp_port)
     )
     return {"ok": True, "id": cursor.lastrowid}
 

@@ -33,17 +33,33 @@ def workspace_get_verification_profiles(ws, project, db, locale) -> list:
 
 @mcp.tool()
 @with_mcp_workspace
-def workspace_create_verification_profile(ws, project, db, locale, name: str, language: str, description: str = "") -> dict:
+def workspace_create_verification_profile(ws, project, db, locale, name: str, language: str, description: str = "",
+                                           lsp_command: str = "", lsp_args: str = "",
+                                           lsp_install_check_command: str = "", lsp_install_command: str = "",
+                                           lsp_workspace_config: str = "", lsp_port: int = 0) -> dict:
     """Create a new verification profile. Use workspace_add_verification_step to add steps after creation.
 
     - name: display name (e.g. "Go", "Rust", "Java (Custom)")
     - language: language key (e.g. "go", "rust", "java")
-    - description: what this profile checks"""
+    - description: what this profile checks
+    - lsp_command: LSP server binary (e.g. "jdtls", "pyright-langserver"). Required for LSP button to appear.
+    - lsp_args: JSON array of CLI args (e.g. '["--stdio"]'). Optional.
+    - lsp_install_check_command: command to check if LSP server is installed (e.g. "which jdtls"). Optional.
+    - lsp_install_command: command to install the LSP server (e.g. "brew install jdtls"). Optional.
+    - lsp_workspace_config: JSON workspace config for the LSP server. Optional.
+    - lsp_port: fixed port for the LSP server (0 = auto). Optional."""
     if not name or not name.strip():
         return {"error": "Name is required"}
     if not language or not language.strip():
         return {"error": "Language is required"}
-    result = verification_service.create_profile(db, name, language, description=description or None)
+    result = verification_service.create_profile(
+        db, name, language, description=description or None,
+        lsp_command=lsp_command or None, lsp_args=lsp_args or None,
+        lsp_install_check_command=lsp_install_check_command or None,
+        lsp_install_command=lsp_install_command or None,
+        lsp_workspace_config=lsp_workspace_config or None,
+        lsp_port=lsp_port if lsp_port else None
+    )
     if "ok" in result:
         db.commit()
     return result

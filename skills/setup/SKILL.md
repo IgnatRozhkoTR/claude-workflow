@@ -77,7 +77,20 @@ For each selected preset language profile:
 
 For each custom language configuration:
 
-1. Create the verification profile via `workspace_create_verification_profile` MCP tool
+1. Create the verification profile via `workspace_create_verification_profile` MCP tool.
+   **If the configuration includes LSP settings**, pass them in the same call:
+   ```
+   workspace_create_verification_profile(
+     name="Go",
+     language="go",
+     description="Go compilation, lint, and test",
+     lsp_command="gopls",
+     lsp_args='["serve"]',
+     lsp_install_check_command="which gopls",
+     lsp_install_command="go install golang.org/x/tools/gopls@latest"
+   )
+   ```
+   The `lsp_command` parameter is **required** for the LSP button to appear in the admin panel header. If omitted, the profile will work for verification but LSP integration will be missing.
 2. For each tool specified in the configuration:
    - If `install_check_command` is not provided, auto-detect it: use `which <tool>` as the default
    - If `install_command` is not provided, auto-detect based on OS and package manager:
@@ -106,9 +119,14 @@ For each profile that includes LSP configuration (`lsp_server` field in the conf
 
 For custom profiles with LSP:
 
-1. The user provided the binary name (`lsp_server`) and install command (`lsp_install`) in the configuration
+1. The user provides the binary name (`lsp_server`) and install command (`lsp_install`) in the configuration
 2. Follow the same check → install → smoke-test flow described above
-3. After the profile is created via `workspace_create_verification_profile`, note the LSP binary so the user knows it will be used when the profile is active
+3. **CRITICAL**: Pass LSP parameters directly in `workspace_create_verification_profile` — they CANNOT be added after creation. The following parameters map from the user's configuration:
+   - `lsp_server` → `lsp_command` parameter
+   - `lsp_install` → `lsp_install_command` parameter
+   - Auto-derive `lsp_install_check_command` as `which <lsp_server>` if not provided
+   - Set `lsp_args` if the LSP protocol requires specific flags (e.g., `'["--stdio"]'`)
+4. After creation, verify the profile ID was returned and the LSP button appears in the admin panel
 
 ### Phase 3: Final Verification
 

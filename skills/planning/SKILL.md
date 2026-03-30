@@ -113,6 +113,9 @@ Call `workspace_get_state` and read the `acceptance_criteria` field. The user ma
 Call `workspace_propose_criteria` for any gaps. Supported types:
 
 **For `unit_test` or `integration_test`:**
+
+Create **one criterion per test class** — group all test methods for the same file into a single call. Do NOT create a separate criterion for each test method.
+
 ```
 workspace_propose_criteria(
   type="unit_test",
@@ -120,6 +123,21 @@ workspace_propose_criteria(
   details_json='{"file": "src/test/java/com/example/UserServiceTest.java", "test_names": ["createUser_shouldReturnUser_whenValid", "createUser_shouldThrow_whenEmailTaken"]}'
 )
 ```
+
+**Mandatory rules for `unit_test` and `integration_test` criteria:**
+
+1. **`details_json` MUST contain both `file` and `test_names`** — these are the fields the validator checks. Putting file paths or test names in the `description` field does nothing; the validator ignores `description` for automated checks.
+
+2. **`file`** — full path to the test class, relative to project root. Use the project's actual directory structure (check existing tests with Glob/Grep to confirm the path convention).
+
+3. **`test_names`** — array of exact test method names. Before proposing, check the project's existing test naming convention:
+   - Look at existing test files in the same module/package
+   - Common conventions: `methodName_shouldBehavior_whenCondition`, `test_method_name_condition`, `testMethodNameCondition`
+   - **Match whatever convention the project already uses** — the test names you propose here will be matched against actual method names at validation time. If they don't match, validation fails.
+
+4. **One call per test class** — if you need unit tests for `UserService` and `OrderService`, that's two `workspace_propose_criteria` calls (one for `UserServiceTest`, one for `OrderServiceTest`), not one call per test method and not one call with mixed files.
+
+5. **`description`** is a human-readable summary shown in the admin panel. Keep it short — the technical details belong in `details_json`.
 
 **For `bdd_scenario`:**
 ```
@@ -206,3 +224,6 @@ Execute in order:
 | Use `proposed` or `rejected` criteria status at advance time | All criteria must be `accepted` or deleted before advancing |
 | Brief the plan-advisor with implementation assumptions | Present the outline, let the advisor form independent judgment |
 | Pass `details_json` as a dict object | It must be a JSON-encoded string |
+| Put file paths or test names in `description` instead of `details_json` | `description` is for humans; `details_json.file` and `details_json.test_names` are what the validator reads |
+| Create one criterion per test method | Group all methods for the same test class into one criterion with the `test_names` array |
+| Invent test names without checking project convention | Grep existing tests first, match the naming pattern (e.g., `method_shouldX_whenY`) |
