@@ -45,13 +45,16 @@ function loadLspProfiles() {
 function renderLspHeaderIndicator() {
   var indicator = document.getElementById('lspIndicator');
   if (!indicator) return;
+  var wrapper = indicator.closest('.lsp-control');
 
   if (_lspProfiles.length === 0) {
     indicator.style.display = 'none';
+    if (wrapper) wrapper.style.display = 'none';
     return;
   }
 
   indicator.style.display = '';
+  if (wrapper) wrapper.style.display = '';
 
   var running = 0;
   var errors = 0;

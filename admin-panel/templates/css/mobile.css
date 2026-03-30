@@ -135,6 +135,7 @@
   }
 
   .mobile-menu-dropdown #sessionBlock {
+    display: flex !important;
     flex-direction: column;
     gap: 6px;
     width: 100%;
