@@ -60,6 +60,15 @@ def create_profile(db, name, language, description=None, lsp_command=None, lsp_a
     return {"ok": True, "id": cursor.lastrowid}
 
 
+def delete_profile(db, profile_id):
+    """Delete a verification profile. Cascade deletes handle steps, assignments, and LSP instances."""
+    row = db.execute("SELECT id, name FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()
+    if not row:
+        return None
+    db.execute("DELETE FROM verification_profiles WHERE id = ?", (profile_id,))
+    return dict(row)
+
+
 def add_step(db, profile_id, name, command, description=None, install_check_command=None,
              install_command=None, enabled=True, sort_order=0, timeout=120, fail_severity="blocking"):
     """Add a verification step to a profile."""

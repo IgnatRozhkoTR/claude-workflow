@@ -31,6 +31,17 @@ def create_profile():
         return jsonify(result)
 
 
+@bp.route("/api/verification/profiles/<int:profile_id>", methods=["DELETE"])
+def delete_profile(profile_id):
+    """Delete a verification profile and all associated data."""
+    with get_db_ctx() as db:
+        result = verification_service.delete_profile(db, profile_id)
+        if not result:
+            return jsonify({"error": "Profile not found"}), 404
+        db.commit()
+        return jsonify({"ok": True, "deleted": result})
+
+
 @bp.route("/api/verification/profiles/<int:profile_id>/steps", methods=["POST"])
 def add_step(profile_id):
     """Add a step to a profile."""

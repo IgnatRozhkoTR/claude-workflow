@@ -332,7 +332,7 @@ async function replyToReviewComment(commentId, text) {
 async function refreshComments() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
-  await _fetchAndPopulateReviewComments(ctx);
+  await loadReviewComments();
   renderDiffView();
   renderReviewTab();
   updateReviewBadge();

@@ -203,12 +203,15 @@ function renderSetupLanguages(profiles) {
         ? '<span class="badge" style="font-size: 0.65rem; padding: 1px 6px; background: var(--info, #0d6efd); color: #fff; border-radius: 3px; margin-left: 4px;">LSP: ' + lspCommand + '</span>'
         : '';
 
-      return '<label class="ws-checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; cursor: pointer;">'
+      return '<div style="display: flex; align-items: center; gap: 8px; padding: 10px 18px;">'
+        + '<label class="ws-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">'
         + '<input type="checkbox" class="setup-language-checkbox" data-profile-id="' + id + '">'
         + '<span>' + name + '</span>'
         + (language ? '<span style="color: var(--text-muted); font-size: 0.78rem;">(' + language + ')</span>' : '')
         + lspBadge
-        + '</label>';
+        + '</label>'
+        + '<button class="btn btn-sm btn-outline" style="font-size: 0.72rem; color: var(--danger, #dc3545); border-color: var(--danger, #dc3545);" onclick="deleteVerificationProfile(' + id + ')">&times;</button>'
+        + '</div>';
     }).join('');
   }
 
@@ -279,6 +282,22 @@ function addCustomProfile() {
 function removeCustomProfile(index) {
   _setupCustomProfiles.splice(index, 1);
   _reRenderLanguages();
+}
+
+async function deleteVerificationProfile(profileId) {
+  if (!confirm('Delete this profile and all its steps? This cannot be undone.')) return;
+  try {
+    var resp = await fetch('/api/verification/profiles/' + profileId, { method: 'DELETE' });
+    var data = await resp.json();
+    if (!resp.ok) {
+      if (typeof showToast === 'function') showToast('Delete failed: ' + (data.error || 'unknown error'));
+      return;
+    }
+    _setupCachedProfiles = _setupCachedProfiles.filter(function(p) { return p.id !== profileId; });
+    _reRenderLanguages();
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Delete failed: ' + e.message);
+  }
 }
 
 // ─── Config collection ───

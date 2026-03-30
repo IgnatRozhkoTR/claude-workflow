@@ -157,6 +157,10 @@
   padding: 4px 0;
 }
 
+.setup-shortcut-row {
+  padding: 4px 18px;
+}
+
 .setup-shortcut-row label, .lsp-shortcut-row label {
   font-size: 12px;
   min-width: 140px;
@@ -179,4 +183,9 @@
   color: var(--text-muted);
   margin-top: 8px;
   line-height: 1.5;
+}
+
+/* Setup wizard needs its own padding since there's no card-body wrapper */
+#setup-shortcuts .shortcut-hint {
+  padding: 0 18px 12px;
 }

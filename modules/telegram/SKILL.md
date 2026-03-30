@@ -31,6 +31,61 @@ Parse the arguments (space-separated). If empty or unrecognized, run status.
 
 ---
 
+### `enable`
+
+Enables the custom multi-session server. If the server is already deployed at
+`~/.claude/channels/telegram/server.ts`, skip re-copying and re-installing
+dependencies — just re-patch the `.mcp.json` files. Otherwise run the full
+`install` flow.
+
+Steps:
+1. Check if `~/.claude/channels/telegram/server.ts` exists.
+   - If it exists: skip to step 3 (re-patch only).
+   - If it does not exist: run the full `install` flow (steps 1–7 of the
+     `install` section), then continue with step 4 below.
+2. (Install path only) After the full install flow completes, continue with step 4.
+3. (Re-patch path) Unlock, patch, and re-lock `.mcp.json` in both locations:
+   ```bash
+   chflags nouchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json 2>/dev/null
+   chflags nouchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json 2>/dev/null
+   # Write the custom-server config to both files
+   chflags uchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
+   chflags uchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json
+   ```
+4. Ensure `autoUpdate: false` is set for `claude-plugins-official` in
+   `~/.claude/plugins/known_marketplaces.json`. If the key is missing or set to
+   `true`, update it to `false`.
+5. Confirm enable and tell the user to restart Claude Code sessions.
+
+---
+
+### `disable`
+
+Disables the custom multi-session server by restoring `.mcp.json` to the
+default plugin config. Does NOT delete `server.ts` or `.env`.
+
+Steps:
+1. Unlock both `.mcp.json` files:
+   ```bash
+   chflags nouchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json 2>/dev/null
+   chflags nouchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json 2>/dev/null
+   ```
+2. Restore both `.mcp.json` files to the default plugin config:
+   ```json
+   {
+     "mcpServers": {
+       "telegram": {
+         "command": "bun",
+         "args": ["run", "--cwd", "${CLAUDE_PLUGIN_ROOT}", "--shell=bun", "--silent", "start"]
+       }
+     }
+   }
+   ```
+3. Confirm disable. Note that `server.ts`, `.env`, and `node_modules` are
+   preserved. Run `enable` to re-activate the custom server.
+
+---
+
 ### No args — `status`
 
 1. Check if custom server exists at `~/.claude/channels/telegram/server.ts`
@@ -78,14 +133,17 @@ Parse the arguments (space-separated). If empty or unrecognized, run status.
 
    **Important**: The marketplace source copy is what Claude Code actually reads. If only the cache copy is patched, the fix won't take effect. Always patch both.
 
-   After patching, make the marketplace `.mcp.json` read-only to prevent auto-sync from reverting it:
+   After patching, lock both `.mcp.json` files with the immutable flag to prevent auto-sync from reverting them:
    ```bash
-   chmod a-w ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
+   chflags uchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
+   chflags uchg ~/.claude/plugins/cache/claude-plugins-official/telegram/0.0.4/.mcp.json
    ```
-6. Check if `~/.claude/channels/telegram/.env` exists with a `BOT_TOKEN` line. If not, tell the user:
+6. Set `autoUpdate: false` for `claude-plugins-official` in `~/.claude/plugins/known_marketplaces.json`.
+   Read the file and update (or add) the `autoUpdate` key to `false` for that entry.
+7. Check if `~/.claude/channels/telegram/.env` exists with a `BOT_TOKEN` line. If not, tell the user:
    > Bot token not found. Create `~/.claude/channels/telegram/.env` with:
    > `BOT_TOKEN=your_token_here`
-7. Confirm installation and tell the user to restart Claude Code sessions for the change to take effect.
+8. Confirm installation and tell the user to restart Claude Code sessions for the change to take effect.
 
 ---
 
@@ -100,13 +158,19 @@ Steps:
    ```bash
    cd ~/.claude/channels/telegram && bun install --no-summary
    ```
-3. Patch `.mcp.json` in ALL locations (same as install step 5):
-   - Each version dir in `~/.claude/plugins/cache/claude-plugins-official/telegram/*/`
-   - The marketplace source: first make writable (`chmod u+w`), patch, then make read-only again (`chmod a-w`):
+3. Patch `.mcp.json` in ALL locations (same as install step 5). For each location, unlock first,
+   write the custom-server config, then re-lock:
+   - Each version dir in `~/.claude/plugins/cache/claude-plugins-official/telegram/*/`:
      ```bash
-     chmod u+w ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
+     chflags nouchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json 2>/dev/null
      # ... patch the file ...
-     chmod a-w ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
+     chflags uchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json
+     ```
+   - The marketplace source:
+     ```bash
+     chflags nouchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json 2>/dev/null
+     # ... patch the file ...
+     chflags uchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json
      ```
 4. Confirm and tell user to restart Claude Code sessions.
 
@@ -129,7 +193,11 @@ Restore `.mcp.json` to the default plugin config in ALL locations. Does NOT dele
 
 Steps:
 1. Find all telegram plugin directories (cache versions + marketplace source)
-2. Make marketplace `.mcp.json` writable first: `chmod u+w ~/.claude/plugins/marketplaces/.../external_plugins/telegram/.mcp.json`
+2. Unlock both `.mcp.json` files before writing:
+   ```bash
+   chflags nouchg ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/.mcp.json 2>/dev/null
+   chflags nouchg ~/.claude/plugins/cache/claude-plugins-official/telegram/<version>/.mcp.json 2>/dev/null
+   ```
 3. Restore `.mcp.json` in each location to the default:
    ```json
    {
@@ -141,7 +209,7 @@ Steps:
      }
    }
    ```
-3. Confirm uninstall. Note that `server.ts` and `.env` are preserved.
+4. Confirm uninstall. Note that `server.ts` and `.env` are preserved.
 
 ---
 

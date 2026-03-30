@@ -99,6 +99,7 @@ async function initApp() {
   loadGitRules();
   loadClaudeCommand();
   loadChannelsPreference();
+  loadModulesCard();
   if (typeof renderLspShortcutsConfig === 'function') renderLspShortcutsConfig();
 
   // Restore diff toggle states from localStorage

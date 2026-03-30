@@ -165,20 +165,20 @@ def perform_advance(ws, project_path, body=None):
                     return result, status_code
         return {"error": t("advance.error.awaitingUserApproval", locale), "phase": phase_str}, 409
 
-    ok, details = phase.validate(ws, body, project_path)
-    if not ok:
-        return {"phase": phase_str, "status": "blocked", **details}, 422
-
-    required_key = phase.progress_key(ws)
-    if required_key and not check_progress(ws["id"], required_key):
-        return {
-            "phase": phase_str,
-            "status": "blocked",
-            "message": t("advance.error.noProgress", locale, phase=required_key, next=phase.next_phase(ws)),
-        }, 422
-
     yolo_mode = ws_field(ws, "yolo_mode", 0)
     if not yolo_mode:
+        ok, details = phase.validate(ws, body, project_path)
+        if not ok:
+            return {"phase": phase_str, "status": "blocked", **details}, 422
+
+        required_key = phase.progress_key(ws)
+        if required_key and not check_progress(ws["id"], required_key):
+            return {
+                "phase": phase_str,
+                "status": "blocked",
+                "message": t("advance.error.noProgress", locale, phase=required_key, next=phase.next_phase(ws)),
+            }, 422
+
         guard_results = GUARD_ORCHESTRATOR.evaluate_all(phase_str, ws, body)
         rejected = [r for r in guard_results if r["status"] == "rejected"]
         if rejected:
