@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════
 //  RESEARCH RENDER
 // ═══════════════════════════════════════════════
+function proofBadge(proven) {
+  if (proven === 1)  return { className: 'badge badge-success', text: t('badges.verified') };
+  if (proven === -1) return { className: 'badge badge-danger',  text: t('badges.rejected') };
+  return { className: 'badge badge-warning', text: t('badges.pending') };
+}
+
 function renderResearch() {
   var container = document.getElementById('researchFindings');
   container.innerHTML = '';
