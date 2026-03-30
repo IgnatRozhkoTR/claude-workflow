@@ -197,7 +197,7 @@
   "phase.done": "Готово",
   "phase.noActionRequired": "На фазе {phase} ({name}) действия пользователя не требуются.",
   "phase.noChangesRecorded": "Изменения фаз ещё не зафиксированы.",
-  "phase.label": "Фаза {phase} — {name}",
+  "phase.label": "Фаза {phase}",
   "phase.subPhaseName": "{groupName} — {step}",
   "phase.implementation": "Реализация",
   "phase.validation": "Валидация",

@@ -197,7 +197,7 @@
   "phase.done": "Done",
   "phase.noActionRequired": "No user action required at phase {phase} ({name}).",
   "phase.noChangesRecorded": "No phase changes recorded yet.",
-  "phase.label": "Phase {phase} — {name}",
+  "phase.label": "Phase {phase}",
   "phase.subPhaseName": "{groupName} — {step}",
   "phase.implementation": "Implementation",
   "phase.validation": "Validation",

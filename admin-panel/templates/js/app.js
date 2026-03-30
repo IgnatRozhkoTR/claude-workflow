@@ -73,7 +73,7 @@ async function initApp() {
   if (LOCK_DATA.session_id) {
     var sessionBlock = document.getElementById('sessionBlock');
     if (sessionBlock) {
-      sessionBlock.style.display = '';
+      sessionBlock.style.display = 'contents';
     }
   }
 
