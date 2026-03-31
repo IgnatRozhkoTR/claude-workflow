@@ -70,7 +70,8 @@ function _createTerminal(containerId, wsRef) {
     fontFamily: "'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
     theme: getTerminalTheme(),
     allowProposedApi: true,
-    scrollback: 5000
+    scrollback: 5000,
+    copyOnSelect: true
   });
 
   var addon = new FitAddon.FitAddon();
@@ -81,6 +82,20 @@ function _createTerminal(containerId, wsRef) {
 
   terminal.open(container);
   addon.fit();
+
+  terminal.attachCustomKeyEventHandler(function(e) {
+    if (e.type !== 'keydown') return true;
+    var isMacCopy = e.metaKey && !e.ctrlKey && e.key === 'c';
+    var isCtrlShiftCopy = e.ctrlKey && e.shiftKey && e.key === 'C';
+    if ((isMacCopy || isCtrlShiftCopy) && terminal.hasSelection()) {
+      var selected = terminal.getSelection();
+      if (selected && typeof safeCopyToClipboard === 'function') {
+        safeCopyToClipboard(selected);
+      }
+      return false;
+    }
+    return true;
+  });
 
   if (terminal.parser) {
     terminal.parser.registerOscHandler(52, function(data) {

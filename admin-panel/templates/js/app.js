@@ -116,6 +116,8 @@ async function initApp() {
   hideProjectSelector();
   setupCollapsibleCards();
   _initialLoad = false;
+
+  setInterval(refreshState, 10000);
 }
 
 // ═══════════════════════════════════════════════

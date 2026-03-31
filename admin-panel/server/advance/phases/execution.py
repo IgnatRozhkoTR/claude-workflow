@@ -96,6 +96,7 @@ class VerificationPhase(Phase):
 
     def __init__(self, n):
         self._n = n
+        self._project_path = None
 
     @property
     def id(self):
@@ -127,7 +128,9 @@ class VerificationPhase(Phase):
             if agent_result and agent_result.get("status") == "failed":
                 return f"3.{n}.2"
 
-        # Fallback: check legacy file-based validation
+        # Fallback: check legacy file-based validation (skipped in yolo mode where _project_path is None)
+        if self._project_path is None:
+            return f"3.{n}.3"
         ws_dir = workspace_dir(self._project_path, ws["branch"])
         validation_path = ws_dir / "validation" / f"3.{n}.json"
         if validation_path.exists():
