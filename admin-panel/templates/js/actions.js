@@ -177,16 +177,6 @@ async function refreshState() {
     updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
     updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');
 
-    try {
-      var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);
-      if (diffData && diffData.files) {
-        AppState.diff = diffData;
-        DIFF_DATA = AppState.diff;
-      }
-    } catch (de) {
-      console.warn('Failed to refresh diff:', de.message);
-    }
-
     EventBus.emit('state:refreshed', stateData);
   } catch (e) {
     console.warn('Failed to refresh state:', e.message);
