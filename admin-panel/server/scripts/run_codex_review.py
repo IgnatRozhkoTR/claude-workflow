@@ -37,7 +37,7 @@ def _parse_args():
 def main():
     args = _parse_args()
     workspace_dir = Path.cwd()
-    prompt_path = workspace_dir / ".codex" / "prompts" / "review.md"
+    prompt_path = Path.home() / ".claude" / ".codex" / "prompts" / "review.md"
     if not prompt_path.exists():
         error = f"Missing Codex review prompt: {prompt_path}"
         print(error, file=sys.stderr)
@@ -59,9 +59,6 @@ def main():
         "exec",
         "--sandbox",
         "read-only",
-        "--ask-for-approval",
-        "never",
-        "--search",
         "--color",
         "always",
         "-C",

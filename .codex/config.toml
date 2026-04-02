@@ -2,4 +2,4 @@ project_doc_fallback_filenames = ["CLAUDE.md"]
 
 [mcp_servers.workspace]
 command = "python3"
-args = ["admin-panel/server/mcp_server.py"]
+args = ["/Users/ignatrozhko/.claude/admin-panel/server/mcp_server.py"]

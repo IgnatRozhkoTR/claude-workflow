@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main():
     workspace_dir = Path.cwd()
-    prompt_path = workspace_dir / ".codex" / "prompts" / "phase1.md"
+    prompt_path = Path.home() / ".claude" / ".codex" / "prompts" / "phase1.md"
     if not prompt_path.exists():
         print(f"Missing Codex phase-1 prompt: {prompt_path}", file=sys.stderr)
         return 1
@@ -24,9 +24,6 @@ def main():
         "exec",
         "--sandbox",
         "read-only",
-        "--ask-for-approval",
-        "never",
-        "--search",
         "--color",
         "always",
         "-C",

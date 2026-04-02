@@ -408,7 +408,7 @@ def _install_worktree_configs(project_path, wt_path):
                 dst_agents_md.unlink()
         dst_agents_md.symlink_to(src_agents_md)
 
-    src_codex = Path(project_path) / ".codex"
+    src_codex = Path.home() / ".claude" / ".codex"
     dst_codex = wt_path / ".codex"
     if src_codex.exists():
         if dst_codex.exists() or dst_codex.is_symlink():
