@@ -134,3 +134,17 @@ def workspace_prove_research(ws, project, db, locale, id: int, proven: bool, not
         return {"error": t("mcp.error.researchEntryNotFound", locale, id=id)}
     db.commit()
     return result
+
+
+@mcp.tool()
+@with_mcp_workspace
+def workspace_delete_research(ws, project, db, locale, id: int) -> dict:
+    """Delete a research entry. Use when findings were rejected by the prover
+    and replaced by new, correct research.
+
+    - id: research entry ID to delete"""
+    deleted = research_service.delete_research(db, id, ws["id"])
+    if not deleted:
+        return {"error": t("mcp.error.researchEntryNotFound", locale, id=id)}
+    db.commit()
+    return {"ok": True, "deleted_id": id}
