@@ -22,9 +22,7 @@ def main():
     command = [
         codex_bin,
         "exec",
-        "--full-auto",
-        "--sandbox",
-        "read-only",
+        "--dangerously-bypass-approvals-and-sandbox",
         "--color",
         "always",
         "-C",
