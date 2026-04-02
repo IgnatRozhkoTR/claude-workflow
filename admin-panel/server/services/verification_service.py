@@ -60,6 +60,47 @@ def create_profile(db, name, language, description=None, lsp_command=None, lsp_a
     return {"ok": True, "id": cursor.lastrowid}
 
 
+def update_profile(db, profile_id, description=None, lsp_command=None, lsp_args=None,
+                   lsp_install_check_command=None, lsp_install_command=None,
+                   lsp_workspace_config=None, lsp_port=None):
+    """Update LSP configuration and/or description on an existing verification profile."""
+    row = db.execute("SELECT id FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()
+    if not row:
+        return {"error": "profile_not_found"}
+
+    fields = []
+    values = []
+
+    if description is not None:
+        fields.append("description = ?")
+        values.append(description.strip() if description else None)
+    if lsp_command is not None:
+        fields.append("lsp_command = ?")
+        values.append(lsp_command.strip() if lsp_command else None)
+    if lsp_args is not None:
+        fields.append("lsp_args = ?")
+        values.append(lsp_args.strip() if lsp_args else None)
+    if lsp_install_check_command is not None:
+        fields.append("lsp_install_check_command = ?")
+        values.append(lsp_install_check_command.strip() if lsp_install_check_command else None)
+    if lsp_install_command is not None:
+        fields.append("lsp_install_command = ?")
+        values.append(lsp_install_command.strip() if lsp_install_command else None)
+    if lsp_workspace_config is not None:
+        fields.append("lsp_workspace_config = ?")
+        values.append(lsp_workspace_config.strip() if lsp_workspace_config else None)
+    if lsp_port is not None:
+        fields.append("lsp_port = ?")
+        values.append(lsp_port)
+
+    if not fields:
+        return {"error": "no_fields_to_update"}
+
+    values.append(profile_id)
+    db.execute(f"UPDATE verification_profiles SET {', '.join(fields)} WHERE id = ?", values)
+    return {"ok": True}
+
+
 def delete_profile(db, profile_id):
     """Delete a verification profile. Cascade deletes handle steps, assignments, and LSP instances."""
     row = db.execute("SELECT id, name FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()

@@ -38,6 +38,15 @@ from mcp_tools.criteria import (
     workspace_get_criteria,
     workspace_update_criteria,
 )
+from mcp_tools.verification import (
+    workspace_get_verification_results,
+    workspace_get_verification_profiles,
+    workspace_create_verification_profile,
+    workspace_update_verification_profile,
+    workspace_add_verification_step,
+    workspace_assign_verification_profile,
+    workspace_submit_validation,
+)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

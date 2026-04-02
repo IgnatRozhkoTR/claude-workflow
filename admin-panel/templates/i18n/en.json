@@ -19,6 +19,7 @@
   "sidebar.plan": "Plan Review",
 
   "cards.claudeCommand": "Claude Command",
+  "cards.codexSettings": "Codex Settings",
   "cards.gitConfiguration": "Git Configuration",
   "cards.gitRules": "Git Rules",
   "cards.taskContext": "Task Context",
@@ -81,6 +82,9 @@
   "config.externalPaths": "Allowed external paths (comma-separated)",
   "config.channels": "Channels",
   "config.yoloMode": "YOLO",
+  "config.codexReviewEnabled": "Run Codex review during agentic review",
+  "config.codexReviewDescription": "Starts a parallel headless Codex review automatically in phase 4.0 and blocks the phase until it completes.",
+  "config.codexReviewStatus": "Codex review status:",
 
   "labels.provider": "Provider",
   "labels.host": "Host",
@@ -217,6 +221,10 @@
   "status.approved": "Approved",
   "status.pending": "Pending Approval",
   "status.notSet": "Not Set",
+  "status.codexReviewIdle": "Idle",
+  "status.codexReviewRunning": "Running",
+  "status.codexReviewCompleted": "Completed",
+  "status.codexReviewFailed": "Failed",
 
   "phaseAction.planReview": "Plan Review",
   "phaseAction.planReviewDesc": "Review the execution plan and scope. Approve to begin implementation, or reject with feedback.",
@@ -445,8 +453,8 @@
   "setup.lspCommandPlaceholder": "LSP binary (e.g. gopls, jdtls)",
   "setup.lspInstallCommandPlaceholder": "Install command (e.g. go install golang.org/x/tools/gopls@latest)",
   "setup.deviceFeaturesTitle": "Device Features",
-  "setup.codexPhase1Label": "Enable Codex Phase 1 Button",
-  "setup.codexPhase1Description": "Shows a workspace button for running preparation phases 1.0-1.3 with Codex before planning.",
+  "setup.codexEnabledLabel": "Enable Codex",
+  "setup.codexEnabledDescription": "Shows Codex controls in workspaces, including the phase 1 launcher and the optional Codex review toggle.",
 
   "improvements.openBtn": "Improvements",
   "improvements.globalTitle": "Improvements",

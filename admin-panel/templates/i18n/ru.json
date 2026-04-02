@@ -19,6 +19,7 @@
   "sidebar.plan": "Обзор плана",
 
   "cards.claudeCommand": "Команда Claude",
+  "cards.codexSettings": "Настройки Codex",
   "cards.gitConfiguration": "Конфигурация Git",
   "cards.gitRules": "Правила Git",
   "cards.taskContext": "Контекст задачи",
@@ -81,6 +82,9 @@
   "config.externalPaths": "Разрешённые внешние пути (через запятую)",
   "config.channels": "Каналы",
   "config.yoloMode": "YOLO",
+  "config.codexReviewEnabled": "Запускать Codex-ревью во время агентного ревью",
+  "config.codexReviewDescription": "Автоматически запускает параллельное headless Codex-ревью в фазе 4.0 и блокирует фазу до его завершения.",
+  "config.codexReviewStatus": "Статус Codex-ревью:",
 
   "labels.provider": "Провайдер",
   "labels.host": "Хост",
@@ -217,6 +221,10 @@
   "status.approved": "Утверждено",
   "status.pending": "Ожидает утверждения",
   "status.notSet": "Не задано",
+  "status.codexReviewIdle": "Не запущено",
+  "status.codexReviewRunning": "Выполняется",
+  "status.codexReviewCompleted": "Завершено",
+  "status.codexReviewFailed": "Ошибка",
 
   "phaseAction.planReview": "Обзор плана",
   "phaseAction.planReviewDesc": "Проверьте план выполнения и область. Одобрите для начала реализации или отклоните с комментарием.",
@@ -445,8 +453,8 @@
   "setup.lspCommandPlaceholder": "Исполняемый файл LSP (например gopls, jdtls)",
   "setup.lspInstallCommandPlaceholder": "Команда установки (например go install golang.org/x/tools/gopls@latest)",
   "setup.deviceFeaturesTitle": "Функции устройства",
-  "setup.codexPhase1Label": "Включить кнопку Codex для фазы 1",
-  "setup.codexPhase1Description": "Показывает в рабочем пространстве кнопку запуска подготовительных фаз 1.0-1.3 через Codex до начала планирования.",
+  "setup.codexEnabledLabel": "Включить Codex",
+  "setup.codexEnabledDescription": "Показывает в рабочих пространствах элементы управления Codex, включая запуск фазы 1 и дополнительное Codex-ревью.",
 
   "improvements.openBtn": "Улучшения",
   "improvements.globalTitle": "Улучшения",

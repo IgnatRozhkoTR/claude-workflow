@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 TMUX_NOT_INSTALLED = "tmux is not installed. Run: brew install tmux"
 SESSION_KIND_CLAUDE = "claude"
 SESSION_KIND_CODEX_PHASE1 = "codex-phase1"
+SESSION_KIND_CODEX_REVIEW = "codex-review"
 _CODEX_PHASE1_RUNNER = Path(__file__).resolve().parent.parent / "scripts" / "run_codex_phase1.py"
+_CODEX_REVIEW_RUNNER = Path(__file__).resolve().parent.parent / "scripts" / "run_codex_review.py"
 
 
 def run_pty_websocket(ws, tmux_session_name):
@@ -215,6 +217,20 @@ def build_codex_phase1_command():
     return "python3 " + shlex.quote(str(_CODEX_PHASE1_RUNNER))
 
 
+def build_codex_review_command(workspace_id, project_id, branch):
+    """Build the command that runs the bounded Codex phase-4 review workflow."""
+    return (
+        "exec python3 "
+        + shlex.quote(str(_CODEX_REVIEW_RUNNER))
+        + " --workspace-id "
+        + shlex.quote(str(workspace_id))
+        + " --project-id "
+        + shlex.quote(str(project_id))
+        + " --branch "
+        + shlex.quote(str(branch))
+    )
+
+
 def list_sessions():
     """List all running tmux sessions."""
     if not tmux_available():
@@ -256,7 +272,8 @@ def get_session_command(name):
             return ''
         lines = [l.strip() for l in result.stdout.split('\n') if l.strip()]
         for line in lines:
-            if 'claude' in line.lower():
+            lower = line.lower()
+            if 'claude' in lower or 'codex' in lower:
                 return line
         return lines[0] if lines else ''
     except Exception:

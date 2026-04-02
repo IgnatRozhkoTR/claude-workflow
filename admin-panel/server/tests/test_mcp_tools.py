@@ -450,6 +450,26 @@ class TestReviewIssues:
         )
         assert result["ok"]
 
+    def test_submit_review_issue_with_codex_author(self, workspace, monkeypatch):
+        Path(workspace["working_dir"]).joinpath("src").mkdir(exist_ok=True)
+        Path(workspace["working_dir"]).joinpath("src/main.py").write_text(
+            "def main():\n    pass\n"
+        )
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_submit_review_issue, workspace_get_review_issues
+        result = workspace_submit_review_issue(
+            file_path="src/main.py",
+            line_start=1,
+            line_end=2,
+            severity="major",
+            description="Codex finding",
+            reviewer_name="codex",
+        )
+        assert result["ok"]
+
+        issues = workspace_get_review_issues()
+        assert issues[0]["author"] == "codex"
+
     def test_submit_issue_file_not_found(self, workspace, monkeypatch):
         monkeypatch.chdir(workspace["working_dir"])
         from mcp_server import workspace_submit_review_issue
@@ -736,3 +756,58 @@ class TestCriteria:
         row = db.execute("SELECT status FROM acceptance_criteria WHERE id = ?", (criterion_id,)).fetchone()
         db.close()
         assert row["status"] == "proposed"
+
+
+class TestUpdateVerificationProfile:
+    def _create_profile(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_create_verification_profile
+        result = workspace_create_verification_profile(
+            name="Test Java", language="java", lsp_command="jdtls"
+        )
+        assert result["ok"]
+        return result["id"]
+
+    def test_update_lsp_command(self, workspace, monkeypatch):
+        profile_id = self._create_profile(workspace, monkeypatch)
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_update_verification_profile
+        from core.db import get_db
+        result = workspace_update_verification_profile(profile_id=profile_id, lsp_command="bash")
+        assert result["ok"]
+        db = get_db()
+        row = db.execute("SELECT lsp_command FROM verification_profiles WHERE id = ?", (profile_id,)).fetchone()
+        db.close()
+        assert row["lsp_command"] == "bash"
+
+    def test_update_multiple_fields(self, workspace, monkeypatch):
+        profile_id = self._create_profile(workspace, monkeypatch)
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_update_verification_profile
+        from core.db import get_db
+        result = workspace_update_verification_profile(
+            profile_id=profile_id,
+            lsp_command="bash",
+            lsp_args='["-c", "JAVA_HOME=/usr/lib/jvm/java-17 exec jdtls"]'
+        )
+        assert result["ok"]
+        db = get_db()
+        row = db.execute(
+            "SELECT lsp_command, lsp_args FROM verification_profiles WHERE id = ?", (profile_id,)
+        ).fetchone()
+        db.close()
+        assert row["lsp_command"] == "bash"
+        assert row["lsp_args"] == '["-c", "JAVA_HOME=/usr/lib/jvm/java-17 exec jdtls"]'
+
+    def test_update_nonexistent_profile(self, workspace, monkeypatch):
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_update_verification_profile
+        result = workspace_update_verification_profile(profile_id=9999, lsp_command="bash")
+        assert result == {"error": "profile_not_found"}
+
+    def test_update_no_fields(self, workspace, monkeypatch):
+        profile_id = self._create_profile(workspace, monkeypatch)
+        monkeypatch.chdir(workspace["working_dir"])
+        from mcp_server import workspace_update_verification_profile
+        result = workspace_update_verification_profile(profile_id=profile_id)
+        assert result == {"error": "no_fields_to_update"}

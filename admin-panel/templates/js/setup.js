@@ -10,7 +10,7 @@ var _setupTermWs = null;
 var _setupTermConnected = false;
 var _setupCustomProfiles = [];
 var _setupCachedProfiles = [];
-var _setupFeatures = { codex_phase1_enabled: false };
+var _setupFeatures = { codex_enabled: false };
 
 // ─── Navigation ───
 
@@ -77,7 +77,7 @@ async function loadSetupData() {
   var modules = [];
   var enabledModules = [];
   var profiles = [];
-  var features = { codex_phase1_enabled: false };
+  var features = { codex_enabled: false };
 
   try {
     var modulesData = await apiGet('/api/modules');
@@ -108,12 +108,12 @@ async function loadSetupData() {
 
   _setupCachedProfiles = profiles;
   _setupFeatures = {
-    codex_phase1_enabled: !!features.codex_phase1_enabled
+    codex_enabled: !!features.codex_enabled
   };
   if (modulesEl) modulesEl.innerHTML = renderSetupModules(modules, enabledModules);
   if (languagesEl) languagesEl.innerHTML = renderSetupLanguages(profiles);
-  var codexCheck = document.getElementById('setup-codex-phase1-check');
-  if (codexCheck) codexCheck.checked = !!_setupFeatures.codex_phase1_enabled;
+  var codexCheck = document.getElementById('setup-codex-enabled-check');
+  if (codexCheck) codexCheck.checked = !!_setupFeatures.codex_enabled;
 }
 
 // ─── Rendering ───
@@ -157,10 +157,10 @@ function renderSetupPage() {
     + '<div class="setup-section">'
     + '<div class="setup-section-title">' + t('setup.deviceFeaturesTitle') + '</div>'
     + '<label class="ws-checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 18px; cursor: pointer;">'
-    + '<input type="checkbox" id="setup-codex-phase1-check" onchange="toggleSetupCodexPhase1(this.checked)" style="margin-top: 2px;">'
+    + '<input type="checkbox" id="setup-codex-enabled-check" onchange="toggleSetupCodexEnabled(this.checked)" style="margin-top: 2px;">'
     + '<div>'
-    + '<div>' + t('setup.codexPhase1Label') + '</div>'
-    + '<div style="color: var(--text-muted); font-size: 0.78rem; margin-top: 2px;">' + t('setup.codexPhase1Description') + '</div>'
+    + '<div>' + t('setup.codexEnabledLabel') + '</div>'
+    + '<div style="color: var(--text-muted); font-size: 0.78rem; margin-top: 2px;">' + t('setup.codexEnabledDescription') + '</div>'
     + '</div>'
     + '</label>'
     + '</div>'
@@ -351,14 +351,14 @@ function getSetupConfig() {
   };
 }
 
-async function toggleSetupCodexPhase1(enabled) {
-  var checkbox = document.getElementById('setup-codex-phase1-check');
-  var previous = !!_setupFeatures.codex_phase1_enabled;
+async function toggleSetupCodexEnabled(enabled) {
+  var checkbox = document.getElementById('setup-codex-enabled-check');
+  var previous = !!_setupFeatures.codex_enabled;
   if (checkbox) checkbox.disabled = true;
   try {
-    var result = await apiPut('/api/setup/features', { codex_phase1_enabled: !!enabled });
-    _setupFeatures.codex_phase1_enabled = !!result.codex_phase1_enabled;
-    if (checkbox) checkbox.checked = _setupFeatures.codex_phase1_enabled;
+    var result = await apiPut('/api/setup/features', { codex_enabled: !!enabled });
+    _setupFeatures.codex_enabled = !!result.codex_enabled;
+    if (checkbox) checkbox.checked = _setupFeatures.codex_enabled;
   } catch (e) {
     if (checkbox) checkbox.checked = previous;
     if (typeof showToast === 'function') showToast('Failed to save: ' + e.message);

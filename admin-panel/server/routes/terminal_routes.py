@@ -8,6 +8,7 @@ from flask_sock import Sock
 from core.terminal import (
     SESSION_KIND_CLAUDE,
     SESSION_KIND_CODEX_PHASE1,
+    SESSION_KIND_CODEX_REVIEW,
     TMUX_NOT_INSTALLED,
     build_claude_command,
     build_codex_phase1_command,
@@ -23,7 +24,8 @@ from core.terminal import (
     tmux_available,
 )
 from core.db import get_db_ctx, ws_field
-from core.global_flags import CODEX_PHASE1_FLAG, is_flag_enabled
+from core.global_flags import is_codex_enabled
+from core.helpers import find_workspace
 
 _SAFE_NOTIFY_RE = re.compile(r'[^a-zA-Z0-9 .,!?\-_\'\"():;/]')
 _MAX_NOTIFY_LENGTH = 300
@@ -37,6 +39,8 @@ def _validate_session_kind(session_kind):
         return SESSION_KIND_CLAUDE
     if session_kind == SESSION_KIND_CODEX_PHASE1:
         return SESSION_KIND_CODEX_PHASE1
+    if session_kind == SESSION_KIND_CODEX_REVIEW:
+        return SESSION_KIND_CODEX_REVIEW
     return None
 
 
@@ -67,11 +71,11 @@ def register_terminal_ws(app):
 
         run_pty_websocket(ws, name)
 
-    @sock.route('/ws/terminal/<project>/<branch>')
+    @sock.route('/ws/terminal/<project>/<path:branch>')
     def terminal_ws(ws, project, branch):
         _attach_terminal_ws(ws, project, branch, SESSION_KIND_CLAUDE)
 
-    @sock.route('/ws/terminal/<project>/<branch>/<session_kind>')
+    @sock.route('/ws/terminal/<project>/<path:branch>/<session_kind>')
     def terminal_ws_kind(ws, project, branch, session_kind):
         _attach_terminal_ws(ws, project, branch, session_kind)
 
@@ -94,17 +98,14 @@ def kill_terminal_session_by_name(name):
     return jsonify({'ok': True, 'status': 'killed'})
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/start', methods=['POST'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/start', methods=['POST'])
 def terminal_start(project, branch):
     """Create tmux session and start Claude Code."""
     if not tmux_available():
         return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
     with get_db_ctx() as db:
-        ws = db.execute(
-            "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
-            (project, branch)
-        ).fetchone()
+        ws = find_workspace(db, project, branch)
         if not ws:
             return jsonify({'error': 'Workspace not found'}), 404
 
@@ -128,21 +129,18 @@ def terminal_start(project, branch):
         })
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/codex-phase1/start', methods=['POST'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/codex-phase1/start', methods=['POST'])
 def terminal_start_codex_phase1(project, branch):
     """Create tmux session and start the bounded Codex phase-1 runner."""
     if not tmux_available():
         return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
     with get_db_ctx() as db:
-        ws = db.execute(
-            "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
-            (project, branch)
-        ).fetchone()
+        ws = find_workspace(db, project, branch)
         if not ws:
             return jsonify({'error': 'Workspace not found'}), 404
-        if not is_flag_enabled(db, CODEX_PHASE1_FLAG, default=False):
-            return jsonify({'error': 'Codex phase 1 is disabled in global setup'}), 409
+        if not is_codex_enabled(db, default=False):
+            return jsonify({'error': 'Codex is disabled in global setup'}), 409
         if ws['phase'] not in _CODEX_PHASE1_ALLOWED_PHASES:
             return jsonify({'error': 'Codex phase 1 can only run during preparation phases'}), 409
 
@@ -164,17 +162,14 @@ def terminal_start_codex_phase1(project, branch):
         })
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/resume', methods=['POST'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/resume', methods=['POST'])
 def terminal_resume(project, branch):
     """Resume Claude Code session in tmux."""
     if not tmux_available():
         return jsonify({'error': TMUX_NOT_INSTALLED}), 503
 
     with get_db_ctx() as db:
-        ws = db.execute(
-            "SELECT * FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
-            (project, branch)
-        ).fetchone()
+        ws = find_workspace(db, project, branch)
         if not ws:
             return jsonify({'error': 'Workspace not found'}), 404
 
@@ -198,13 +193,10 @@ def terminal_resume(project, branch):
         })
 
 
-@bp.route('/api/ws/<project>/<branch>/command', methods=['GET'])
+@bp.route('/api/ws/<project>/<path:branch>/command', methods=['GET'])
 def get_command_config(project, branch):
     with get_db_ctx() as db:
-        ws = db.execute(
-            "SELECT claude_command, skip_permissions, restrict_to_workspace, allowed_external_paths FROM workspaces WHERE project_id = ? AND sanitized_branch = ?",
-            (project, branch)
-        ).fetchone()
+        ws = find_workspace(db, project, branch)
         if not ws:
             return jsonify({'error': 'Workspace not found'}), 404
         return jsonify({
@@ -215,7 +207,7 @@ def get_command_config(project, branch):
         })
 
 
-@bp.route('/api/ws/<project>/<branch>/command', methods=['PUT'])
+@bp.route('/api/ws/<project>/<path:branch>/command', methods=['PUT'])
 def update_command_config(project, branch):
     with get_db_ctx() as db:
         data = request.get_json() or {}
@@ -243,17 +235,18 @@ def update_command_config(project, branch):
         if not updates:
             return jsonify({'error': 'No fields to update'}), 400
 
-        params.extend([project, branch])
-        db.execute(
-            "UPDATE workspaces SET " + ", ".join(updates) + " WHERE project_id = ? AND sanitized_branch = ?",
-            params
-        )
+        ws = find_workspace(db, project, branch)
+        if not ws:
+            return jsonify({'error': 'Workspace not found'}), 404
+
+        params.append(ws['id'])
+        db.execute("UPDATE workspaces SET " + ", ".join(updates) + " WHERE id = ?", params)
         db.commit()
 
         return jsonify({'ok': True})
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/status', methods=['GET'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/status', methods=['GET'])
 def terminal_status(project, branch):
     """Check if tmux session exists."""
     if not tmux_available():
@@ -272,7 +265,7 @@ def terminal_status(project, branch):
     })
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/notify', methods=['POST'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/notify', methods=['POST'])
 def terminal_notify(project, branch):
     """Send a notification message to the active tmux session."""
     if not tmux_available():
@@ -293,7 +286,7 @@ def terminal_notify(project, branch):
     return jsonify({'ok': True, 'status': 'notified'})
 
 
-@bp.route('/api/ws/<project>/<branch>/terminal/kill', methods=['POST'])
+@bp.route('/api/ws/<project>/<path:branch>/terminal/kill', methods=['POST'])
 def terminal_kill(project, branch):
     """Kill the tmux session."""
     if not tmux_available():
@@ -308,4 +301,3 @@ def terminal_kill(project, branch):
     if session_exists(name):
         kill_session(name)
     return jsonify({'ok': True, 'status': 'killed', 'kind': session_kind})
-    return jsonify({'ok': True, 'status': 'not_found'})

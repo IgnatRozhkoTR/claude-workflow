@@ -6,7 +6,7 @@
   "phase.guide.1_4": "Preparation Review (USER GATE). Research summaries, impact analysis, and discussions are ready for user review. Do NOT proceed — wait for the user to approve or reject in the admin panel. If rejected, the workflow returns to Research (1.1) for further investigation.",
   "phase.guide.2_0": "Planning. Resume your plan-advisor TEAMMATE. Create the execution plan with sub-phases. Use workspace_set_scope to define the phase-keyed scope map and workspace_set_plan for the plan. Call workspace_update_progress when done.",
   "phase.guide.2_1": "Plan Review (USER GATE). The plan is awaiting user approval in the admin panel. Do NOT proceed — wait for the user to approve or reject.",
-  "phase.guide.4_0": "Agentic Code Review. Deploy exactly 3 code-reviewer SUB-AGENTS in parallel, each reviewing from a different perspective (e.g. clean code & SOLID, architecture & data flow, edge cases & error handling). Do NOT brief them with implementation context — provide only the task description and branch. Reviewers call workspace_submit_review_issue for critical/major issues. Call workspace_update_progress('4.0') when all 3 reviewers complete.",
+  "phase.guide.4_0": "Agentic Code Review. Deploy exactly 3 code-reviewer SUB-AGENTS in parallel, each reviewing from a different perspective (e.g. clean code & SOLID, architecture & data flow, edge cases & error handling). Do NOT brief them with implementation context — provide only the task description and branch. Reviewers call workspace_submit_review_issue for critical/major issues. If Codex review is enabled for this workspace, a parallel Codex review runs automatically in a separate session. Wait for the Codex completion notice before advancing. Call workspace_update_progress('4.0') when all 3 reviewers complete.",
   "phase.guide.4_1": "Address Review Findings. Call workspace_get_review_issues to see all items. Deploy engineer SUB-AGENTS to fix legitimate issues — they call workspace_resolve_review_issue('fixed'). Mark false positives or out-of-scope items yourself. All review items must then be resolved by the user in the admin panel. Call workspace_update_progress('4') when done.",
   "phase.guide.4_2": "User Approval (USER GATE). All work complete. Awaiting user's final approval in admin panel. Do NOT proceed — wait for the user.",
   "phase.guide.5": "Done. Commit any remaining changes, then push and create MR/PR. Do this DIRECTLY — do NOT delegate git push or MR creation to a sub-agent.",
@@ -51,7 +51,7 @@
 
   "mcp.tool.resolveComment.desc": "Mark a comment as resolved. Only works for non-review scoped comments — review items (scope='review') can only be resolved by the user in the admin panel. Use workspace_resolve_review_issue to set the resolution instead.\n\n    - comment_id: the ID of the comment\n    - Only resolves comments belonging to the current workspace",
 
-  "mcp.tool.submitReviewIssue.desc": "Submit a code review finding. Only critical and major issues are saved — minor/style issues are dropped.\n\n    - file_path: path relative to workspace root (e.g. 'src/main/kotlin/Service.kt')\n    - line_start: first line of the problematic code\n    - line_end: last line of the problematic code\n    - severity: 'critical' or 'major'\n    - description: what the issue is and why it matters",
+  "mcp.tool.submitReviewIssue.desc": "Submit a code review finding. Only critical and major issues are saved — minor/style issues are dropped.\n\n    - file_path: path relative to workspace root (e.g. 'src/main/kotlin/Service.kt')\n    - line_start: first line of the problematic code\n    - line_end: last line of the problematic code\n    - severity: 'critical' or 'major'\n    - description: what the issue is and why it matters\n    - reviewer_name: optional; use 'codex' for Codex-authored findings",
 
   "mcp.tool.getReviewIssues.desc": "Get all review items for the current workspace.\n\n    - status: filter by resolution ('open', 'fixed', 'false_positive', 'out_of_scope'). Empty = all.\n    Returns list with id, file_path, lines, description, resolution, author, resolved.",
 
@@ -87,6 +87,7 @@
   "mcp.error.commentNotFound": "Comment {comment_id} not found in this workspace",
   "mcp.error.reviewIssueNotFound": "Review issue {issue_id} not found",
   "mcp.error.invalidSeverity": "Only 'critical' and 'major' severity issues should be submitted",
+  "mcp.error.invalidReviewerName": "reviewer_name must be 'reviewer' or 'codex'",
   "mcp.error.fileNotFound": "File not found: {file_path}",
   "mcp.error.lineStartBeyondFile": "line_start {line_start} is beyond file length ({length} lines)",
   "mcp.error.failedToReadFile": "Failed to read file: {error}",
@@ -133,6 +134,8 @@
   "advance.error.noCriteria": "At least one acceptance criterion must be defined before advancing to plan review.",
   "advance.error.noPlanningProgress": "Call workspace_update_progress to record planning before approval.",
   "advance.error.noAgenticReviewProgress": "Call workspace_update_progress with phase '4.0' to record agentic review results before advancing.",
+  "advance.error.codexReviewPending": "Codex review is still running for phase 4.0. Wait for the completion notice before advancing.",
+  "advance.error.codexReviewFailed": "Codex review failed for phase 4.0. Check the Codex review session and rerun if needed before advancing.",
   "advance.error.noFixAddressingProgress": "Call workspace_update_progress to record fix addressing before completion.",
   "advance.error.openReviewIssues": "{count} review issue(s) still open. Resolve all issues with workspace_resolve_review_issue.",
   "advance.error.unvalidatedIssues": "{count} resolved issue(s) not yet validated. Deploy review-validator agent to verify all resolutions.",

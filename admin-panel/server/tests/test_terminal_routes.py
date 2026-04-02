@@ -1,24 +1,24 @@
 """Tests for terminal launch routes."""
 import routes.terminal_routes as terminal_routes
 
-from core.global_flags import CODEX_PHASE1_FLAG, set_flag_enabled
+from core.global_flags import set_codex_enabled
 from testing_utils import set_phase
 
 
-def _enable_codex_phase1():
+def _enable_codex():
     from core.db import get_db
 
     db = get_db()
-    set_flag_enabled(db, CODEX_PHASE1_FLAG, True)
+    set_codex_enabled(db, True)
     db.commit()
     db.close()
 
 
-def test_workspace_state_includes_global_codex_phase1_flag(client, workspace):
-    _enable_codex_phase1()
+def test_workspace_state_includes_global_codex_flag(client, workspace):
+    _enable_codex()
     response = client.get(f"/api/ws/{workspace['project_id']}/feature/test/state")
     assert response.status_code == 200
-    assert response.get_json()["codex_phase1_globally_enabled"] is True
+    assert response.get_json()["codex_globally_enabled"] is True
 
 
 def test_start_codex_phase1_requires_global_flag(client, workspace, monkeypatch):
@@ -30,7 +30,7 @@ def test_start_codex_phase1_requires_global_flag(client, workspace, monkeypatch)
 
 
 def test_start_codex_phase1_rejects_after_preparation(client, workspace, monkeypatch):
-    _enable_codex_phase1()
+    _enable_codex()
     set_phase(workspace["id"], "2.0")
     monkeypatch.setattr(terminal_routes, "tmux_available", lambda: True)
 
@@ -40,7 +40,7 @@ def test_start_codex_phase1_rejects_after_preparation(client, workspace, monkeyp
 
 
 def test_start_codex_phase1_uses_dedicated_session(client, workspace, monkeypatch):
-    _enable_codex_phase1()
+    _enable_codex()
 
     created = {}
     sent = {}

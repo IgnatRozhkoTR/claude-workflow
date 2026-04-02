@@ -1,6 +1,8 @@
 import json
 
 from mcp_tools import mcp, with_mcp_workspace
+from core.db import ws_field
+from core.global_flags import is_codex_enabled
 from core.helpers import compute_phase_sequence
 from core.i18n import t
 from services import discussion_service
@@ -98,6 +100,9 @@ def workspace_get_state(ws, project, db, locale) -> dict:
         "locale": ws["locale"],
         "branch": ws["branch"],
         "working_dir": ws["working_dir"],
+        "codex_enabled_globally": is_codex_enabled(db, default=False),
+        "codex_review_enabled": bool(ws_field(ws, "codex_review_enabled", 0)),
+        "codex_review_status": ws_field(ws, "codex_review_status", "idle"),
         "_detail_tools": {
             "plan": t("mcp.tool.getState.detail.plan", locale),
             "progress": t("mcp.tool.getState.detail.progress", locale),

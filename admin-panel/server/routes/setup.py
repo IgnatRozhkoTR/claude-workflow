@@ -9,7 +9,7 @@ from flask_sock import Sock
 
 from core.terminal import session_exists, create_session, send_keys, kill_session, tmux_available, send_prompt_when_ready, run_pty_websocket, TMUX_NOT_INSTALLED
 from core.db import get_db_ctx
-from core.global_flags import CODEX_PHASE1_FLAG, is_flag_enabled, set_flag_enabled
+from core.global_flags import is_codex_enabled, set_codex_enabled
 
 _MODULES_DIR = Path(os.path.expanduser("~/.claude/modules"))
 
@@ -23,20 +23,23 @@ bp = Blueprint('setup', __name__)
 @bp.route('/api/setup/features', methods=['GET'])
 def get_setup_features():
     with get_db_ctx() as db:
+        enabled = is_codex_enabled(db, default=False)
         return jsonify({
-            'codex_phase1_enabled': is_flag_enabled(db, CODEX_PHASE1_FLAG, default=False),
+            'codex_enabled': enabled,
+            'codex_phase1_enabled': enabled,
         })
 
 
 @bp.route('/api/setup/features', methods=['PUT'])
 def update_setup_features():
     data = request.get_json(silent=True) or {}
-    enabled = bool(data.get('codex_phase1_enabled'))
+    enabled = bool(data.get('codex_enabled', data.get('codex_phase1_enabled')))
     with get_db_ctx() as db:
-        set_flag_enabled(db, CODEX_PHASE1_FLAG, enabled)
+        set_codex_enabled(db, enabled)
         db.commit()
     return jsonify({
         'ok': True,
+        'codex_enabled': enabled,
         'codex_phase1_enabled': enabled,
     })
 

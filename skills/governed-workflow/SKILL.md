@@ -421,6 +421,8 @@ Do NOT brief reviewers with implementation context — they must review the code
 
 Reviewers submit findings via `workspace_submit_review_issue(file_path, line_start, line_end, severity, description)`. Only `critical` and `major` severity findings are accepted — lower severity is rejected by the server.
 
+If `workspace_get_state` shows Codex review enabled for the workspace, a parallel Codex review runs automatically in a separate tmux session when phase `4.0` starts. Do not wait for that session to start manually, but do wait for its completion notice before advancing out of `4.0`.
+
 Each submitted finding creates a review discussion with `resolution='open'`.
 
 Call `workspace_advance`.

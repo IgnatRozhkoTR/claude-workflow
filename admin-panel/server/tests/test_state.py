@@ -4,6 +4,9 @@ from datetime import date
 
 import pytest
 
+import routes.state as state_routes
+
+from core.global_flags import set_codex_enabled
 from testing_utils import set_phase, add_progress, add_research
 
 
@@ -84,6 +87,27 @@ def test_set_phase(client, workspace):
     assert len(history) == 1
     assert history[0]["from"] == "0"
     assert history[0]["to"] == "1.0"
+
+
+def test_set_phase_to_agentic_review_starts_codex_review_when_enabled(client, workspace, monkeypatch):
+    from core.db import get_db
+
+    db = get_db()
+    set_codex_enabled(db, True)
+    db.execute("UPDATE workspaces SET codex_review_enabled = 1 WHERE id = ?", (workspace["id"],))
+    db.commit()
+    db.close()
+
+    started = {}
+    monkeypatch.setattr(
+        state_routes,
+        "maybe_start_codex_review_for_workspace",
+        lambda workspace_id: started.update({"workspace_id": workspace_id}),
+    )
+
+    response = client.put(_ws_url(workspace, "phase"), json={"phase": "4.0"})
+    assert response.status_code == 200
+    assert started["workspace_id"] == workspace["id"]
 
 
 def test_set_phase_normalizes(client, workspace):
@@ -175,6 +199,27 @@ def test_set_plan_status(client, workspace):
 def test_set_plan_status_invalid(client, workspace):
     r = client.post("/api/ws/test-project/feature/test/plan-status", json={"status": "invalid"})
     assert r.status_code == 400
+
+
+def test_set_codex_review_requires_global_flag(client, workspace):
+    response = client.put(_ws_url(workspace, "codex-review"), json={"enabled": True})
+    assert response.status_code == 409
+
+
+def test_set_codex_review_updates_workspace(client, workspace):
+    from core.db import get_db
+
+    db = get_db()
+    set_codex_enabled(db, True)
+    db.commit()
+    db.close()
+
+    response = client.put(_ws_url(workspace, "codex-review"), json={"enabled": True})
+    assert response.status_code == 200
+    assert response.get_json()["codex_review_enabled"] is True
+
+    state = client.get(_ws_url(workspace, "state")).get_json()
+    assert state["codex_review_enabled"] is True
 
 
 # ── Can-modify endpoint ──────────────────────────────────────────────────────

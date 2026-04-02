@@ -1,6 +1,6 @@
 # Codex Guidance
 
-This repository is Claude-first. The only Codex workflow currently supported here is the bounded phase-1 preparation run launched by the admin panel.
+This repository is Claude-first. The Codex workflows currently supported here are the bounded phase-1 preparation run and the bounded phase-4 agentic review run launched by the admin panel.
 
 When running the Codex phase-1 workflow:
 
@@ -10,4 +10,12 @@ When running the Codex phase-1 workflow:
 - stop at phase `1.4`
 - do not start planning or implementation
 
-The phase-1 parent prompt lives at `.codex/prompts/phase1.md`. The intended subagent role cards live under `.codex/agents/`.
+When running the Codex review workflow:
+
+- stay read-only
+- use the `workspace` MCP server for all persisted findings
+- use reviewer subagents; do not review the whole codebase directly in the parent agent
+- run only during phase `4.0`
+- do not edit files or advance the phase yourself
+
+The Codex parent prompts live under `.codex/prompts/`. The intended subagent role cards live under `.codex/agents/`.

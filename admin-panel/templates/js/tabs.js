@@ -19,6 +19,7 @@ async function refreshTabData() {
     LOCK_DATA.working_dir = stateData.working_dir || null;
     LOCK_DATA.sessions = stateData.sessions || [];
     if (typeof updateCodexPhase1ButtonVisibility === 'function') updateCodexPhase1ButtonVisibility();
+    if (typeof updateCodexWorkspaceSettings === 'function') updateCodexWorkspaceSettings();
   } catch(e) { console.warn('Refresh state failed:', e.message); }
   try {
     var diffData = await apiGetDiff(ctx.projectId, ctx.branch, state.diffSource);

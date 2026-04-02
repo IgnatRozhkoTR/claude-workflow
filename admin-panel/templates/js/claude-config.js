@@ -55,6 +55,80 @@ function saveClaudeCommand() {
   });
 }
 
+function _codexReviewBadgeClass(status) {
+  if (status === 'completed') return 'badge badge-success';
+  if (status === 'running') return 'badge badge-warning';
+  if (status === 'failed') return 'badge badge-danger';
+  return 'badge';
+}
+
+function _codexReviewStatusLabel(status) {
+  if (status === 'completed') return t('status.codexReviewCompleted');
+  if (status === 'running') return t('status.codexReviewRunning');
+  if (status === 'failed') return t('status.codexReviewFailed');
+  return t('status.codexReviewIdle');
+}
+
+function updateCodexWorkspaceSettings() {
+  var card = document.getElementById('codexSettingsCard');
+  if (!card) return;
+
+  var globallyEnabled = !!LOCK_DATA.codex_globally_enabled;
+  card.style.display = globallyEnabled ? '' : 'none';
+  if (!globallyEnabled) return;
+
+  var checkbox = document.getElementById('codexReviewCheck');
+  if (checkbox) checkbox.checked = !!LOCK_DATA.codex_review_enabled;
+
+  var statusRow = document.getElementById('codexReviewStatusRow');
+  if (!statusRow) return;
+
+  var status = LOCK_DATA.codex_review_status || 'idle';
+  var shouldShowStatus = !!LOCK_DATA.codex_review_enabled || status === 'running' || status === 'failed' || status === 'completed';
+  if (!shouldShowStatus) {
+    statusRow.style.display = 'none';
+    statusRow.innerHTML = '';
+    return;
+  }
+
+  var errorHtml = '';
+  if (status === 'failed' && LOCK_DATA.codex_review_last_error) {
+    errorHtml = '<div style="margin-top: 6px;">' + escapeHtml(LOCK_DATA.codex_review_last_error) + '</div>';
+  }
+
+  statusRow.style.display = 'block';
+  statusRow.innerHTML =
+    '<span style="margin-right: 8px;">' + t('config.codexReviewStatus') + '</span>' +
+    '<span class="' + _codexReviewBadgeClass(status) + '">' + _codexReviewStatusLabel(status) + '</span>' +
+    errorHtml;
+}
+
+async function toggleCodexReview(enabled) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+
+  var checkbox = document.getElementById('codexReviewCheck');
+  var previousEnabled = !!LOCK_DATA.codex_review_enabled;
+
+  if (checkbox) checkbox.disabled = true;
+  try {
+    var result = await apiPut(
+      '/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/codex-review',
+      { enabled: !!enabled }
+    );
+    LOCK_DATA.codex_review_enabled = !!result.codex_review_enabled;
+    LOCK_DATA.codex_review_status = result.codex_review_status || 'idle';
+    LOCK_DATA.codex_review_last_error = result.codex_review_last_error || '';
+    updateCodexWorkspaceSettings();
+  } catch (e) {
+    LOCK_DATA.codex_review_enabled = previousEnabled;
+    if (checkbox) checkbox.checked = previousEnabled;
+    if (typeof showToast === 'function') showToast('Failed to save: ' + e.message);
+  } finally {
+    if (checkbox) checkbox.disabled = false;
+  }
+}
+
 function loadChannelsPreference() {
   var defaultValue = 'plugin:telegram@claude-plugins-official';
   var enabled = localStorage.getItem('channels_enabled') === 'true';

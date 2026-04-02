@@ -64,11 +64,10 @@
     "command": "bash ~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "jdtls@claude-code-lsps": true,
-    "jdtls-lsp@claude-plugins-official": true,
+    "jdtls@claude-code-lsps": false,
+    "jdtls-lsp@claude-plugins-official": false,
     "telegram@claude-plugins-official": true
   },
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true,
-  "model": "sonnet"
+  "skipDangerousModePermissionPrompt": true
 }

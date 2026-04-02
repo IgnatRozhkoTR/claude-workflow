@@ -234,6 +234,26 @@
       </div>
     </div>
 
+    <!-- Codex Settings -->
+    <div class="card collapsed" id="codexSettingsCard" style="display:none;">
+      <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">
+        <span class="card-title" data-i18n="cards.codexSettings">Codex</span>
+        <span class="card-collapse-chevron">&#9660;</span>
+      </div>
+      <div class="card-body">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <label class="ws-checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="codexReviewCheck" onchange="toggleCodexReview(this.checked)" style="margin-top: 2px;">
+            <div>
+              <div data-i18n="config.codexReviewEnabled">Run Codex review during agentic review</div>
+              <div style="color: var(--text-muted); font-size: 0.78rem; margin-top: 2px;" data-i18n="config.codexReviewDescription">Starts a parallel headless Codex review automatically in phase 4.0 and blocks the phase until it completes.</div>
+            </div>
+          </label>
+          <div id="codexReviewStatusRow" style="display:none; font-size: 0.78rem; color: var(--text-muted);"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Git Configuration -->
     <div class="card collapsed">
       <div class="card-header" style="cursor: pointer;" onclick="this.closest('.card').classList.toggle('collapsed')">

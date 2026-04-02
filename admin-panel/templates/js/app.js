@@ -71,6 +71,7 @@ async function initApp() {
   var yoloCheck = document.getElementById('yoloCheck');
   if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
   if (typeof updateCodexPhase1ButtonVisibility === 'function') updateCodexPhase1ButtonVisibility();
+  if (typeof updateCodexWorkspaceSettings === 'function') updateCodexWorkspaceSettings();
 
   if (LOCK_DATA.session_id) {
     var sessionBlock = document.getElementById('sessionBlock');
@@ -191,7 +192,7 @@ var CODEX_PHASE1_VISIBLE_PHASES = {
 };
 
 function canStartCodexPhase1() {
-  return !!LOCK_DATA.codex_phase1_globally_enabled && !!CODEX_PHASE1_VISIBLE_PHASES[LOCK_DATA.phase || '0'];
+  return !!LOCK_DATA.codex_globally_enabled && !!CODEX_PHASE1_VISIBLE_PHASES[LOCK_DATA.phase || '0'];
 }
 
 function updateCodexPhase1ButtonVisibility() {

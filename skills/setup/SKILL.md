@@ -109,13 +109,17 @@ For each custom language configuration:
 
 For each profile that includes LSP configuration (`lsp_server` field in the configuration):
 
-1. Check if the LSP server binary is installed by running the `lsp_install_check_command` from the profile, or `which <lsp_server>` if no check command is provided
-2. If not installed, run the `lsp_install` command from the configuration
+1. Check the profile's `description` field via `workspace_get_verification_profiles`. If it contains setup instructions (look for phrases like "LSP setup requires" or "call `workspace_update_verification_profile`"), follow those instructions now — before smoke-testing:
+   - Execute any discovery or install commands described
+   - Once the required path or value is resolved, call `workspace_update_verification_profile` with the profile's ID and the resolved LSP fields (e.g., updated `lsp_command` and `lsp_args`)
+   - Continue with the updated profile values for all subsequent steps
+2. Check if the LSP server binary is installed by running the `lsp_install_check_command` from the profile (use the updated value if it was just changed), or `which <lsp_server>` if no check command is provided
+3. If not installed, run the `lsp_install` command from the configuration
    - If the install command fails, report clearly: what binary is missing, what was attempted, and what the user must do manually
-3. Smoke-test the server to confirm it runs: try `<lsp_server> --help` or `<lsp_server> --version`
+4. Smoke-test the server to confirm it runs: try `<lsp_server> --help` or `<lsp_server> --version`
    - If the binary exits with a non-zero code but the LSP protocol requires no flags, treat it as passing if the binary is found
    - If the binary is not found at all, report it as a failure
-4. Report LSP server status alongside the profile status: installed / not installed / failed
+5. Report LSP server status alongside the profile status: installed / not installed / failed
 
 For custom profiles with LSP:
 

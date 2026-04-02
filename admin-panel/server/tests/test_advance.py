@@ -1,4 +1,7 @@
 """Tests for advance endpoints (approve/reject) and perform_advance advancers."""
+import advance.orchestrator as orchestrator
+
+from core.global_flags import set_codex_enabled
 from testing_utils import set_phase, add_progress, add_research, add_discussion, add_review_issue, add_criterion, add_comment, make_plan_json
 
 
@@ -313,6 +316,31 @@ def test_agentic_review_passes_with_progress(workspace, project):
     assert result["phase"] == "4.1"
 
 
+def test_agentic_review_blocks_until_codex_review_finishes(workspace, project):
+    from core.db import get_db
+
+    plan = make_plan_json(1)
+    set_phase(
+        workspace["id"], "4.0",
+        plan_json=plan,
+        plan_status="approved",
+        scope_status="approved",
+        codex_review_enabled=1,
+        codex_review_status="running",
+    )
+    add_progress(workspace["id"], "4.0", "Agentic review completed")
+
+    db = get_db()
+    set_codex_enabled(db, True)
+    db.commit()
+    db.close()
+
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"])
+    assert code == 422
+    assert "codex review" in result["error"].lower()
+
+
 # ── AddressFixAdvancer (phase 4.1) ─────────────────────────────────────────────
 
 
@@ -585,6 +613,49 @@ def test_last_commit_passes_with_valid_criteria(workspace, project):
     result, code = perform_advance(ws, project["path"], body={"commit_hash": commit_hash})
     assert code == 200
     assert result["phase"] == "4.0"
+
+
+def test_last_commit_starts_codex_review_when_enabled(workspace, project, monkeypatch):
+    from core.db import get_db
+
+    _setup_execution_phase(workspace["id"], "3.1.4", num_plan_phases=1)
+    add_progress(workspace["id"], "3.1", "Sub-phase 1 complete")
+
+    db = get_db()
+    set_codex_enabled(db, True)
+    db.execute("UPDATE workspaces SET codex_review_enabled = 1 WHERE id = ?", (workspace["id"],))
+    db.execute("UPDATE acceptance_criteria SET validated = 1 WHERE workspace_id = ?", (workspace["id"],))
+    db.commit()
+    db.close()
+
+    add_criterion(
+        workspace["id"],
+        cr_type="custom",
+        status="accepted",
+        details_json=None,
+    )
+    db = get_db()
+    db.execute(
+        "UPDATE acceptance_criteria SET validated = 1 WHERE workspace_id = ?",
+        (workspace["id"],)
+    )
+    db.commit()
+    db.close()
+
+    started = {}
+    monkeypatch.setattr(
+        orchestrator,
+        "maybe_start_codex_review_for_workspace",
+        lambda workspace_id: started.update({"workspace_id": workspace_id}),
+    )
+
+    commit_hash = _make_commit(workspace["working_dir"])
+
+    ws = _get_ws_row(workspace["id"])
+    result, code = perform_advance(ws, project["path"], body={"commit_hash": commit_hash})
+    assert code == 200
+    assert result["phase"] == "4.0"
+    assert started["workspace_id"] == workspace["id"]
 
 
 def test_last_commit_skips_criteria_when_not_last_subphase(workspace, project):

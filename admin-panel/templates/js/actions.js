@@ -174,6 +174,7 @@ async function refreshState() {
     var yoloCheck = document.getElementById('yoloCheck');
     if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
     if (typeof updateCodexPhase1ButtonVisibility === 'function') updateCodexPhase1ButtonVisibility();
+    if (typeof updateCodexWorkspaceSettings === 'function') updateCodexWorkspaceSettings();
 
     updateScopeStatusUI(LOCK_DATA.scope_status || 'pending');
     updatePlanApprovalUI(LOCK_DATA.plan_status || 'pending');

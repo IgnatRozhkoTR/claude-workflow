@@ -10,6 +10,7 @@ from datetime import datetime
 
 from advance.guards import GUARD_ORCHESTRATOR
 from advance.phases import get_phase
+from core.codex import maybe_start_codex_review_for_workspace
 from core.db import get_db_ctx, ws_field
 from core.i18n import t
 from core.terminal import notify_workspace
@@ -191,6 +192,8 @@ def perform_advance(ws, project_path, body=None):
             return {"error": t("advance.error.phaseAlreadyChanged", locale)}, 409
 
         db.commit()
+        if new_phase == "4.0":
+            maybe_start_codex_review_for_workspace(ws["id"])
 
         yolo_enabled = ws_field(ws, "yolo_mode", 0)
         if is_user_gate(new_phase) and yolo_enabled:

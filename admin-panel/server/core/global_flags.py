@@ -1,6 +1,7 @@
 """Helpers for device-scoped feature flags."""
 from datetime import datetime
 
+CODEX_ENABLED_FLAG = "codex_enabled"
 CODEX_PHASE1_FLAG = "codex_phase1_enabled"
 
 
@@ -20,3 +21,19 @@ def set_flag_enabled(db, flag_id, enabled):
         "ON CONFLICT(flag_id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at",
         (flag_id, 1 if enabled else 0, datetime.now().isoformat()),
     )
+
+
+def is_codex_enabled(db, default=False):
+    row = db.execute(
+        "SELECT enabled FROM global_flags WHERE flag_id = ?",
+        (CODEX_ENABLED_FLAG,),
+    ).fetchone()
+    if row is not None:
+        return bool(row["enabled"])
+    return is_flag_enabled(db, CODEX_PHASE1_FLAG, default=default)
+
+
+def set_codex_enabled(db, enabled):
+    # Keep the legacy phase-1 flag in sync so older DBs preserve their current behavior.
+    set_flag_enabled(db, CODEX_ENABLED_FLAG, enabled)
+    set_flag_enabled(db, CODEX_PHASE1_FLAG, enabled)

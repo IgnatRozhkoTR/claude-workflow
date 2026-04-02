@@ -67,6 +67,53 @@ def workspace_create_verification_profile(ws, project, db, locale, name: str, la
 
 @mcp.tool()
 @with_mcp_workspace
+def workspace_update_verification_profile(ws, project, db, locale, profile_id: int,
+                                           description: str = None, lsp_command: str = None,
+                                           lsp_args: str = None,
+                                           lsp_install_check_command: str = None,
+                                           lsp_install_command: str = None,
+                                           lsp_workspace_config: str = None,
+                                           lsp_port: int = None) -> dict:
+    """Update LSP configuration and/or description on an existing verification profile.
+
+    Only fields that are explicitly provided (non-empty string / non-zero int) will be updated.
+    Pass an empty string "" to clear a field.
+
+    - profile_id: ID of the profile to update (from workspace_get_verification_profiles)
+    - description: updated description text
+    - lsp_command: LSP server binary or shell command (e.g. "bash" when wrapping with JAVA_HOME)
+    - lsp_args: JSON array of CLI args (e.g. '["-c", "JAVA_HOME=/path exec jdtls"]')
+    - lsp_install_check_command: command to check if LSP server is installed
+    - lsp_install_command: command to install the LSP server
+    - lsp_workspace_config: JSON workspace config for the LSP server
+    - lsp_port: fixed port (0 = auto)"""
+    if not profile_id:
+        return {"error": "profile_id is required"}
+
+    kwargs = {}
+    if description is not None:
+        kwargs["description"] = description
+    if lsp_command is not None:
+        kwargs["lsp_command"] = lsp_command
+    if lsp_args is not None:
+        kwargs["lsp_args"] = lsp_args
+    if lsp_install_check_command is not None:
+        kwargs["lsp_install_check_command"] = lsp_install_check_command
+    if lsp_install_command is not None:
+        kwargs["lsp_install_command"] = lsp_install_command
+    if lsp_workspace_config is not None:
+        kwargs["lsp_workspace_config"] = lsp_workspace_config
+    if lsp_port is not None:
+        kwargs["lsp_port"] = lsp_port
+
+    result = verification_service.update_profile(db, profile_id, **kwargs)
+    if "ok" in result:
+        db.commit()
+    return result
+
+
+@mcp.tool()
+@with_mcp_workspace
 def workspace_add_verification_step(ws, project, db, locale, profile_id: int, name: str, command: str,
                                      description: str = "", install_check_command: str = "",
                                      install_command: str = "", enabled: bool = True,

@@ -69,16 +69,19 @@ def workspace_resolve_comment(ws, project, db, locale, comment_id: int) -> dict:
 
 @mcp.tool()
 @with_mcp_workspace
-def workspace_submit_review_issue(ws, project, db, locale, file_path: str, line_start: int, line_end: int, severity: str, description: str) -> dict:
+def workspace_submit_review_issue(ws, project, db, locale, file_path: str, line_start: int, line_end: int, severity: str, description: str, reviewer_name: str = "reviewer") -> dict:
     """Submit a code review finding. Only critical and major issues are saved — minor/style issues are dropped.
 
     - file_path: path relative to workspace root
     - line_start: first line of the problematic code
     - line_end: last line of the problematic code
     - severity: 'critical' or 'major' (others rejected)
-    - description: what the issue is and why it matters"""
+    - description: what the issue is and why it matters
+    - reviewer_name: 'reviewer' (default) or 'codex' for Codex-authored findings"""
     if severity not in ("critical", "major"):
         return {"error": t("mcp.error.invalidSeverity", locale)}
+    if reviewer_name not in ("reviewer", "codex"):
+        return {"error": t("mcp.error.invalidReviewerName", locale)}
 
     working_dir = ws["working_dir"]
     full_path = Path(working_dir) / file_path
@@ -94,7 +97,7 @@ def workspace_submit_review_issue(ws, project, db, locale, file_path: str, line_
         return {"error": t("mcp.error.failedToReadFile", locale, error=str(e))}
 
     result = comment_service.submit_review_issue(
-        db, ws["id"], file_path, line_start, line_end, description, author="reviewer"
+        db, ws["id"], file_path, line_start, line_end, description, author=reviewer_name
     )
     db.commit()
     return result

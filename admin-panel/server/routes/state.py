@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 from core.db import get_db, get_db_ctx, ws_field
 from services import comment_service
 from services import discussion_service
+from core.codex import maybe_start_codex_review_for_workspace, stop_codex_review_for_workspace
 from core.decorators import with_workspace
-from core.global_flags import CODEX_PHASE1_FLAG, is_flag_enabled
+from core.global_flags import is_codex_enabled
 from core.helpers import compute_phase_sequence
 from core.i18n import t
 from core.terminal import notify_workspace
@@ -113,7 +114,11 @@ def get_workspace_state(db, ws, project):
         "sessions": sessions,
         "impact_analysis": impact_analysis,
         "yolo_mode": bool(ws_field(ws, "yolo_mode", 0)),
-        "codex_phase1_globally_enabled": is_flag_enabled(db, CODEX_PHASE1_FLAG, default=False),
+        "codex_globally_enabled": is_codex_enabled(db, default=False),
+        "codex_phase1_globally_enabled": is_codex_enabled(db, default=False),
+        "codex_review_enabled": bool(ws_field(ws, "codex_review_enabled", 0)),
+        "codex_review_status": ws_field(ws, "codex_review_status", "idle"),
+        "codex_review_last_error": ws_field(ws, "codex_review_last_error", ""),
     })
 
 
@@ -137,6 +142,33 @@ def set_yolo_mode(db, ws, project):
     db.execute("UPDATE workspaces SET yolo_mode = ? WHERE id = ?", (enabled, ws["id"]))
     db.commit()
     return jsonify({"ok": True, "yolo_mode": bool(enabled)})
+
+
+@bp.route("/api/ws/<project_id>/<path:branch>/codex-review", methods=["PUT"])
+@with_workspace
+def set_codex_review(db, ws, project):
+    body = request.get_json(silent=True) or {}
+    enabled = 1 if body.get("enabled") else 0
+
+    if enabled and not is_codex_enabled(db, default=False):
+        return jsonify({"error": "Codex is disabled in global setup"}), 409
+
+    db.execute("UPDATE workspaces SET codex_review_enabled = ? WHERE id = ?", (enabled, ws["id"]))
+    db.commit()
+
+    if enabled:
+        maybe_start_codex_review_for_workspace(ws["id"])
+    else:
+        stop_codex_review_for_workspace(ws["id"], reset_state=True)
+
+    with get_db_ctx() as fresh_db:
+        fresh = fresh_db.execute("SELECT * FROM workspaces WHERE id = ?", (ws["id"],)).fetchone()
+    return jsonify({
+        "ok": True,
+        "codex_review_enabled": bool(ws_field(fresh, "codex_review_enabled", 0)),
+        "codex_review_status": ws_field(fresh, "codex_review_status", "idle"),
+        "codex_review_last_error": ws_field(fresh, "codex_review_last_error", ""),
+    })
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/scope", methods=["PUT"])
@@ -218,6 +250,10 @@ def set_phase(db, ws, project):
         db.execute("UPDATE workspaces SET gate_nonce = ? WHERE id = ?", (nonce, ws["id"]))
 
     db.commit()
+    if new_phase == "4.0":
+        maybe_start_codex_review_for_workspace(ws["id"])
+    elif old_phase == "4.0" and ws_field(ws, "codex_review_status", "idle") == "running":
+        stop_codex_review_for_workspace(ws["id"], reset_state=True)
     return jsonify({"phase": new_phase, "previous_phase": old_phase})
 
 
