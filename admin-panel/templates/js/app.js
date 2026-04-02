@@ -149,6 +149,12 @@ function fallbackCopy(text) {
   });
 }
 
+function flashButton(btn, text) {
+  var original = btn.textContent;
+  btn.textContent = text;
+  setTimeout(function() { btn.textContent = original; }, 1500);
+}
+
 // ═══════════════════════════════════════════════
 //  TERMINAL COMMANDS
 // ═══════════════════════════════════════════════
