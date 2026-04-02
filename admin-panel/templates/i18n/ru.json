@@ -53,6 +53,7 @@
   "buttons.openWorkspace": "Открыть рабочее пространство",
   "buttons.archive": "Архивировать",
   "buttons.start": "Запустить",
+  "buttons.startPhase1": "Запустить фазу 1",
   "buttons.resume": "Возобновить",
   "buttons.sessions": "Сессии",
   "buttons.saveGitConfig": "Сохранить конфигурацию Git",
@@ -99,6 +100,7 @@
   "labels.instruction": "Инструкция",
   "labels.validationResult": "Результат валидации",
   "labels.claude": "Claude",
+  "labels.codex": "Codex",
 
   "placeholders.enterToken": "Введите токен...",
   "placeholders.develop": "develop",
@@ -442,6 +444,9 @@
   "setup.lspServerLabel": "LSP-сервер (необязательно)",
   "setup.lspCommandPlaceholder": "Исполняемый файл LSP (например gopls, jdtls)",
   "setup.lspInstallCommandPlaceholder": "Команда установки (например go install golang.org/x/tools/gopls@latest)",
+  "setup.deviceFeaturesTitle": "Функции устройства",
+  "setup.codexPhase1Label": "Включить кнопку Codex для фазы 1",
+  "setup.codexPhase1Description": "Показывает в рабочем пространстве кнопку запуска подготовительных фаз 1.0-1.3 через Codex до начала планирования.",
 
   "improvements.openBtn": "Улучшения",
   "improvements.globalTitle": "Улучшения",

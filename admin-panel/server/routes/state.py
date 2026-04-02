@@ -12,6 +12,7 @@ from core.db import get_db, get_db_ctx, ws_field
 from services import comment_service
 from services import discussion_service
 from core.decorators import with_workspace
+from core.global_flags import CODEX_PHASE1_FLAG, is_flag_enabled
 from core.helpers import compute_phase_sequence
 from core.i18n import t
 from core.terminal import notify_workspace
@@ -112,6 +113,7 @@ def get_workspace_state(db, ws, project):
         "sessions": sessions,
         "impact_analysis": impact_analysis,
         "yolo_mode": bool(ws_field(ws, "yolo_mode", 0)),
+        "codex_phase1_globally_enabled": is_flag_enabled(db, CODEX_PHASE1_FLAG, default=False),
     })
 
 

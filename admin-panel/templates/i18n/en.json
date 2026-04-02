@@ -53,6 +53,7 @@
   "buttons.openWorkspace": "Open Workspace",
   "buttons.archive": "Archive",
   "buttons.start": "Start",
+  "buttons.startPhase1": "Start Phase 1",
   "buttons.resume": "Resume",
   "buttons.sessions": "Sessions",
   "buttons.saveGitConfig": "Save Git Config",
@@ -99,6 +100,7 @@
   "labels.instruction": "Instruction",
   "labels.validationResult": "Validation Result",
   "labels.claude": "Claude",
+  "labels.codex": "Codex",
 
   "placeholders.enterToken": "Enter token...",
   "placeholders.develop": "develop",
@@ -442,6 +444,9 @@
   "setup.lspServerLabel": "LSP Server (optional)",
   "setup.lspCommandPlaceholder": "LSP binary (e.g. gopls, jdtls)",
   "setup.lspInstallCommandPlaceholder": "Install command (e.g. go install golang.org/x/tools/gopls@latest)",
+  "setup.deviceFeaturesTitle": "Device Features",
+  "setup.codexPhase1Label": "Enable Codex Phase 1 Button",
+  "setup.codexPhase1Description": "Shows a workspace button for running preparation phases 1.0-1.3 with Codex before planning.",
 
   "improvements.openBtn": "Improvements",
   "improvements.globalTitle": "Improvements",

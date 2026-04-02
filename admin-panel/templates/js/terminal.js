@@ -6,6 +6,18 @@ var fitAddon = null;
 var terminalWs = null;
 var terminalConnected = false;
 
+function _getActiveTerminalKind() {
+  return typeof ACTIVE_TERMINAL_KIND === 'string' && ACTIVE_TERMINAL_KIND ? ACTIVE_TERMINAL_KIND : 'claude';
+}
+
+function _buildTerminalWsUrl(projectId, branch) {
+  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var base = protocol + '//' + window.location.host + '/ws/terminal/' +
+             encodeURIComponent(projectId) + '/' + encodeURIComponent(branch);
+  var kind = _getActiveTerminalKind();
+  return kind && kind !== 'claude' ? base + '/' + encodeURIComponent(kind) : base;
+}
+
 var TERMINAL_THEMES = {
   dark: {
     background: '#1a1a2e',
@@ -220,9 +232,7 @@ function connectTerminal() {
     return;
   }
 
-  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  var wsUrl = protocol + '//' + window.location.host + '/ws/terminal/' +
-              encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch);
+  var wsUrl = _buildTerminalWsUrl(ctx.projectId, ctx.branch);
 
   updateTerminalStatus('connecting');
   if (term) term.writeln('\r\nConnecting to tmux session...');
@@ -261,7 +271,9 @@ function killTerminalSession() {
 
   disconnectTerminal();
 
-  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/kill', {})
+  apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/kill', {
+    kind: _getActiveTerminalKind()
+  })
   .then(function() {
     if (term) term.writeln('\r\n\x1b[33mSession killed.\x1b[0m');
     loadTerminalSessions();
@@ -432,9 +444,7 @@ function connectSplitTerminal() {
 
   if (splitWs && splitWs.readyState === WebSocket.OPEN) return;
 
-  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  var wsUrl = protocol + '//' + window.location.host + '/ws/terminal/' +
-              encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch);
+  var wsUrl = _buildTerminalWsUrl(ctx.projectId, ctx.branch);
 
   updateSplitTerminalStatus('connecting');
 

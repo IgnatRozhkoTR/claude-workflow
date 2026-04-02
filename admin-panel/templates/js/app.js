@@ -14,6 +14,7 @@ async function initApp() {
   _lspProfiles = [];
 
   resetAppState();
+  ACTIVE_TERMINAL_KIND = 'claude';
 
   try {
     const stateData = await apiGetState(ctx.projectId, ctx.branch);
@@ -69,6 +70,7 @@ async function initApp() {
 
   var yoloCheck = document.getElementById('yoloCheck');
   if (yoloCheck) yoloCheck.checked = !!LOCK_DATA.yolo_mode;
+  if (typeof updateCodexPhase1ButtonVisibility === 'function') updateCodexPhase1ButtonVisibility();
 
   if (LOCK_DATA.session_id) {
     var sessionBlock = document.getElementById('sessionBlock');
@@ -170,6 +172,29 @@ function showTerminalDropdown(type, btn) {
 }
 
 function doTerminalAction(endpoint, btnId, mode) {
+  doTerminalActionWithKind(endpoint, btnId, mode, 'claude');
+}
+
+var ACTIVE_TERMINAL_KIND = 'claude';
+var CODEX_PHASE1_VISIBLE_PHASES = {
+  '0': true,
+  '1.0': true,
+  '1.1': true,
+  '1.2': true,
+  '1.3': true
+};
+
+function canStartCodexPhase1() {
+  return !!LOCK_DATA.codex_phase1_globally_enabled && !!CODEX_PHASE1_VISIBLE_PHASES[LOCK_DATA.phase || '0'];
+}
+
+function updateCodexPhase1ButtonVisibility() {
+  var block = document.getElementById('codexPhase1Launch');
+  if (!block) return;
+  block.style.display = canStartCodexPhase1() ? 'flex' : 'none';
+}
+
+function doTerminalActionWithKind(endpoint, btnId, mode, sessionKind) {
   document.querySelectorAll('.btn-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
 
   var ctx = getWorkspaceContext();
@@ -178,15 +203,18 @@ function doTerminalAction(endpoint, btnId, mode) {
   var btn = document.getElementById(btnId);
   if (btn) btn.disabled = true;
 
-  var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
-  var channelsValue = localStorage.getItem('channels_value') || '';
   var body = {};
-  if (channelsEnabled && channelsValue) {
-    body.channels = channelsValue;
+  if ((sessionKind || 'claude') === 'claude') {
+    var channelsEnabled = localStorage.getItem('channels_enabled') === 'true';
+    var channelsValue = localStorage.getItem('channels_value') || '';
+    if (channelsEnabled && channelsValue) {
+      body.channels = channelsValue;
+    }
   }
 
   apiPost('/api/ws/' + encodeURIComponent(ctx.projectId) + '/' + encodeURIComponent(ctx.branch) + '/terminal/' + endpoint, body)
     .then(function(result) {
+      ACTIVE_TERMINAL_KIND = result.kind || sessionKind || 'claude';
       if (mode === 'split') {
         var container = document.getElementById('splitContainer');
         if (container && !container.classList.contains('split-active')) {
@@ -215,11 +243,15 @@ function doTerminalAction(endpoint, btnId, mode) {
 }
 
 function doStart(mode) {
-  doTerminalAction('start', 'startBtn', mode);
+  doTerminalActionWithKind('start', 'startBtn', mode, 'claude');
 }
 
 function doResume(mode) {
-  doTerminalAction('resume', 'resumeBtn', mode);
+  doTerminalActionWithKind('resume', 'resumeBtn', mode, 'claude');
+}
+
+function doCodexPhase1Start(mode) {
+  doTerminalActionWithKind('codex-phase1/start', 'codexPhase1StartBtn', mode, 'codex-phase1');
 }
 
 function doNotify(type) {
@@ -293,4 +325,3 @@ function setupCollapsibleCards() {
     }
   });
 }
-

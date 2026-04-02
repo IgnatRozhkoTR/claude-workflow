@@ -357,7 +357,7 @@ def _setup_checkout_workspace(project_path, branch, source_ref):
 
 
 def _install_worktree_configs(project_path, wt_path):
-    """Copy .claude/ directory into worktree, symlink shared configs, CLAUDE.md, and .mcp.json."""
+    """Copy .claude/ directory into worktree, symlink shared configs, Codex config, and MCP docs."""
     wt_path = Path(wt_path)
     src_claude = Path(project_path) / ".claude"
     dst_claude = wt_path / ".claude"
@@ -397,6 +397,26 @@ def _install_worktree_configs(project_path, wt_path):
         if dst_claude_md.exists() or dst_claude_md.is_symlink():
             dst_claude_md.unlink()
         dst_claude_md.symlink_to(src_claude_md)
+
+    src_agents_md = Path(project_path) / "AGENTS.md"
+    dst_agents_md = wt_path / "AGENTS.md"
+    if src_agents_md.exists():
+        if dst_agents_md.exists() or dst_agents_md.is_symlink():
+            if dst_agents_md.is_dir() and not dst_agents_md.is_symlink():
+                shutil.rmtree(dst_agents_md)
+            else:
+                dst_agents_md.unlink()
+        dst_agents_md.symlink_to(src_agents_md)
+
+    src_codex = Path(project_path) / ".codex"
+    dst_codex = wt_path / ".codex"
+    if src_codex.exists():
+        if dst_codex.exists() or dst_codex.is_symlink():
+            if dst_codex.is_dir() and not dst_codex.is_symlink():
+                shutil.rmtree(dst_codex)
+            else:
+                dst_codex.unlink()
+        dst_codex.symlink_to(src_codex)
 
     _ensure_project_mcp(project_path)
     src_mcp = Path(project_path) / ".mcp.json"

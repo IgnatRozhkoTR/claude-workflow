@@ -177,18 +177,28 @@
   <div class="tab-panel" id="panel-dashboard">
 
     <!-- Commands -->
-    <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
-      <span style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-right: 2px;" data-i18n="labels.claude">Claude</span>
-      <div class="btn-dropdown" style="position: relative; display: inline-block;">
-        <button class="btn btn-sm" id="startBtn" onclick="showTerminalDropdown('start', this)" data-i18n="buttons.start">Start</button>
-        <div class="btn-dropdown-menu" id="startDropdown" style="display:none;">
-          <button class="btn-dropdown-item" onclick="doStart('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
-          <button class="btn-dropdown-item" onclick="doStart('split')" data-i18n="actions.sidePanel">Side panel</button>
-        </div>
-      </div>
-      <div id="sessionsHistoryBlock" style="display:none;">
-        <button class="btn btn-sm" title="Browse session history" id="sessionsHistoryBtn" data-i18n="buttons.sessions">Sessions</button>
-      </div>
+	    <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+	      <span style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-right: 2px;" data-i18n="labels.claude">Claude</span>
+	      <div class="btn-dropdown" style="position: relative; display: inline-block;">
+	        <button class="btn btn-sm" id="startBtn" onclick="showTerminalDropdown('start', this)" data-i18n="buttons.start">Start</button>
+	        <div class="btn-dropdown-menu" id="startDropdown" style="display:none;">
+	          <button class="btn-dropdown-item" onclick="doStart('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
+	          <button class="btn-dropdown-item" onclick="doStart('split')" data-i18n="actions.sidePanel">Side panel</button>
+	        </div>
+	      </div>
+	      <div id="codexPhase1Launch" style="display:none; align-items:center; gap:6px;">
+	        <span style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-left: 6px;" data-i18n="labels.codex">Codex</span>
+	        <div class="btn-dropdown" style="position: relative; display: inline-block;">
+	          <button class="btn btn-sm" id="codexPhase1StartBtn" onclick="showTerminalDropdown('codexPhase1Start', this)" data-i18n="buttons.startPhase1">Start Phase 1</button>
+	          <div class="btn-dropdown-menu" id="codexPhase1StartDropdown" style="display:none;">
+	            <button class="btn-dropdown-item" onclick="doCodexPhase1Start('fullscreen')" data-i18n="actions.fullscreen">Full screen</button>
+	            <button class="btn-dropdown-item" onclick="doCodexPhase1Start('split')" data-i18n="actions.sidePanel">Side panel</button>
+	          </div>
+	        </div>
+	      </div>
+	      <div id="sessionsHistoryBlock" style="display:none;">
+	        <button class="btn btn-sm" title="Browse session history" id="sessionsHistoryBtn" data-i18n="buttons.sessions">Sessions</button>
+	      </div>
       <button class="btn btn-sm btn-outline" onclick="copyWorkspacePath()" id="copyPathBtn" data-i18n="actions.copyPath">Path</button>
     </div>
     <div id="sessionsHistoryDropdown" style="display:none; margin-bottom:12px; padding:8px 12px; background:var(--bg-raised); border:1px solid var(--border); border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;"></div>

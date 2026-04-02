@@ -3,10 +3,10 @@
 // ═══════════════════════════════════════════════
 var AppState = {
   // Server state (populated by applyStateData)
-  lock: {
-    branch: "",
-    phase: "0",
-    status: "active",
+    lock: {
+      branch: "",
+      phase: "0",
+      status: "active",
     scope: {},
     scope_status: "pending",
     plan_status: "pending",
@@ -14,11 +14,12 @@ var AppState = {
     prev_plan_status: "pending",
     plan: null,
     session_id: null,
-    working_dir: null,
-    sessions: [],
-    locale: null,
-    yolo_mode: false
-  },
+      working_dir: null,
+      sessions: [],
+      locale: null,
+      yolo_mode: false,
+      codex_phase1_globally_enabled: false
+    },
   plan: {
     description: "",
     systemDiagram: "",
@@ -115,6 +116,7 @@ function applyStateData(stateData) {
   LOCK_DATA.prev_plan_status = stateData.prev_plan_status || null;
   LOCK_DATA.locale = stateData.locale || null;
   LOCK_DATA.yolo_mode = !!stateData.yolo_mode;
+  LOCK_DATA.codex_phase1_globally_enabled = !!stateData.codex_phase1_globally_enabled;
 
   // Plan — single source is AppState.plan; keep LOCK_DATA.plan as alias
   if (stateData.plan) {
@@ -163,6 +165,7 @@ function resetAppState() {
   LOCK_DATA.sessions = [];
   LOCK_DATA.locale = null;
   LOCK_DATA.yolo_mode = false;
+  LOCK_DATA.codex_phase1_globally_enabled = false;
 
   // Reset plan
   PLAN_DATA.description = "";

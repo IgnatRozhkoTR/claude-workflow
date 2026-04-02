@@ -6,6 +6,7 @@ import os
 import pty
 import re
 import select
+import shlex
 import shutil
 import signal
 import struct
@@ -13,12 +14,16 @@ import subprocess
 import tempfile
 import termios
 import threading
+from pathlib import Path
 
 from core.db import ws_field
 
 logger = logging.getLogger(__name__)
 
 TMUX_NOT_INSTALLED = "tmux is not installed. Run: brew install tmux"
+SESSION_KIND_CLAUDE = "claude"
+SESSION_KIND_CODEX_PHASE1 = "codex-phase1"
+_CODEX_PHASE1_RUNNER = Path(__file__).resolve().parent.parent / "scripts" / "run_codex_phase1.py"
 
 
 def run_pty_websocket(ws, tmux_session_name):
@@ -93,9 +98,12 @@ def sanitize_session_name(name):
     return re.sub(r'[^a-zA-Z0-9_-]', '-', name)[:50]
 
 
-def session_name(project_id, branch):
+def session_name(project_id, branch, kind=SESSION_KIND_CLAUDE):
     """Generate tmux session name for a workspace."""
-    return 'ws-' + sanitize_session_name(project_id + '-' + branch)
+    suffix = ""
+    if kind and kind != SESSION_KIND_CLAUDE:
+        suffix = "-" + kind
+    return 'ws-' + sanitize_session_name(project_id + '-' + branch + suffix)
 
 
 def session_exists(name):
@@ -202,6 +210,11 @@ def build_claude_command(ws, resume=False, channels=None):
     return cmd
 
 
+def build_codex_phase1_command():
+    """Build the command that runs the bounded Codex phase-1 workflow."""
+    return "python3 " + shlex.quote(str(_CODEX_PHASE1_RUNNER))
+
+
 def list_sessions():
     """List all running tmux sessions."""
     if not tmux_available():
@@ -251,9 +264,9 @@ def get_session_command(name):
         return ''
 
 
-def get_active_session(project_id, branch):
+def get_active_session(project_id, branch, kind=SESSION_KIND_CLAUDE):
     """Get info about the workspace's tmux session."""
-    name = session_name(project_id, branch)
+    name = session_name(project_id, branch, kind=kind)
     return {
         'name': name,
         'exists': session_exists(name),
