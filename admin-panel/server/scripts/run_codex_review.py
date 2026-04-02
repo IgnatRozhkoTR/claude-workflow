@@ -57,6 +57,7 @@ def main():
     command = [
         codex_bin,
         "exec",
+        "--full-auto",
         "--sandbox",
         "read-only",
         "--color",
