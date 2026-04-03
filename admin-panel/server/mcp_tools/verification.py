@@ -23,21 +23,25 @@ def workspace_get_verification_results(ws, project, db, locale, phase: str = "",
 
 
 @mcp.tool()
-@with_mcp_workspace
-def workspace_get_verification_profiles(ws, project, db, locale) -> list:
-    """Get all available verification profiles in the system.
+def workspace_get_verification_profiles() -> list:
+    """Get all available verification profiles in the system. NOT workspace-bound — callable from anywhere.
 
     Returns profiles with their steps. Use workspace_assign_verification_profile to assign one to the current project."""
-    return verification_service.get_all_profiles(db)
+    db = get_db()
+    try:
+        return verification_service.get_all_profiles(db)
+    finally:
+        db.close()
 
 
 @mcp.tool()
-@with_mcp_workspace
-def workspace_create_verification_profile(ws, project, db, locale, name: str, language: str, description: str = "",
+def workspace_create_verification_profile(name: str, language: str, description: str = "",
                                            lsp_command: str = "", lsp_args: str = "",
                                            lsp_install_check_command: str = "", lsp_install_command: str = "",
                                            lsp_workspace_config: str = "", lsp_port: int = 0) -> dict:
-    """Create a new verification profile. Use workspace_add_verification_step to add steps after creation.
+    """Create a new verification profile. NOT workspace-bound — callable from anywhere.
+
+    Use workspace_add_verification_step to add steps after creation.
 
     - name: display name (e.g. "Go", "Rust", "Java (Custom)")
     - language: language key (e.g. "go", "rust", "java")
@@ -52,22 +56,25 @@ def workspace_create_verification_profile(ws, project, db, locale, name: str, la
         return {"error": "Name is required"}
     if not language or not language.strip():
         return {"error": "Language is required"}
-    result = verification_service.create_profile(
-        db, name, language, description=description or None,
-        lsp_command=lsp_command or None, lsp_args=lsp_args or None,
-        lsp_install_check_command=lsp_install_check_command or None,
-        lsp_install_command=lsp_install_command or None,
-        lsp_workspace_config=lsp_workspace_config or None,
-        lsp_port=lsp_port if lsp_port else None
-    )
-    if "ok" in result:
-        db.commit()
-    return result
+    db = get_db()
+    try:
+        result = verification_service.create_profile(
+            db, name, language, description=description or None,
+            lsp_command=lsp_command or None, lsp_args=lsp_args or None,
+            lsp_install_check_command=lsp_install_check_command or None,
+            lsp_install_command=lsp_install_command or None,
+            lsp_workspace_config=lsp_workspace_config or None,
+            lsp_port=lsp_port if lsp_port else None
+        )
+        if "ok" in result:
+            db.commit()
+        return result
+    finally:
+        db.close()
 
 
 @mcp.tool()
-@with_mcp_workspace
-def workspace_update_verification_profile(ws, project, db, locale, profile_id: int,
+def workspace_update_verification_profile(profile_id: int,
                                            description: str = None, lsp_command: str = None,
                                            lsp_args: str = None,
                                            lsp_install_check_command: str = None,
@@ -75,6 +82,7 @@ def workspace_update_verification_profile(ws, project, db, locale, profile_id: i
                                            lsp_workspace_config: str = None,
                                            lsp_port: int = None) -> dict:
     """Update LSP configuration and/or description on an existing verification profile.
+    NOT workspace-bound — callable from anywhere.
 
     Only fields that are explicitly provided (non-empty string / non-zero int) will be updated.
     Pass an empty string "" to clear a field.
@@ -106,20 +114,23 @@ def workspace_update_verification_profile(ws, project, db, locale, profile_id: i
     if lsp_port is not None:
         kwargs["lsp_port"] = lsp_port
 
-    result = verification_service.update_profile(db, profile_id, **kwargs)
-    if "ok" in result:
-        db.commit()
-    return result
+    db = get_db()
+    try:
+        result = verification_service.update_profile(db, profile_id, **kwargs)
+        if "ok" in result:
+            db.commit()
+        return result
+    finally:
+        db.close()
 
 
 @mcp.tool()
-@with_mcp_workspace
-def workspace_add_verification_step(ws, project, db, locale, profile_id: int, name: str, command: str,
+def workspace_add_verification_step(profile_id: int, name: str, command: str,
                                      description: str = "", install_check_command: str = "",
                                      install_command: str = "", enabled: bool = True,
                                      sort_order: int = 0, timeout: int = 120,
                                      fail_severity: str = "blocking") -> dict:
-    """Add a verification step to a profile.
+    """Add a verification step to a profile. NOT workspace-bound — callable from anywhere.
 
     - profile_id: which profile to add the step to
     - name: step name (e.g. "Compilation", "Lint")
@@ -132,16 +143,20 @@ def workspace_add_verification_step(ws, project, db, locale, profile_id: int, na
     - fail_severity: 'blocking' (stops advance) or 'warning' (logged only)"""
     if fail_severity not in ("blocking", "warning"):
         return {"error": "fail_severity must be 'blocking' or 'warning'"}
-    result = verification_service.add_step(
-        db, profile_id, name, command,
-        description=description or None,
-        install_check_command=install_check_command or None,
-        install_command=install_command or None,
-        enabled=enabled, sort_order=sort_order, timeout=timeout, fail_severity=fail_severity
-    )
-    if "ok" in result:
-        db.commit()
-    return result
+    db = get_db()
+    try:
+        result = verification_service.add_step(
+            db, profile_id, name, command,
+            description=description or None,
+            install_check_command=install_check_command or None,
+            install_command=install_command or None,
+            enabled=enabled, sort_order=sort_order, timeout=timeout, fail_severity=fail_severity
+        )
+        if "ok" in result:
+            db.commit()
+        return result
+    finally:
+        db.close()
 
 
 @mcp.tool()
