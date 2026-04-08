@@ -27,6 +27,10 @@ _GIT_ADD_RE = re.compile(r'git\s+(-C\s+\S+\s+)?add\s')
 _GIT_ADD_BROAD_RE = re.compile(r'git\s+(-C\s+\S+\s+)?add\s+(-A|--all|\.)(\s|$)')
 _GIT_COMMIT_RE = re.compile(r'git\s+(-C\s+\S+\s+)?commit')
 _GIT_PUSH_RE = re.compile(r'git\s+(-C\s+\S+\s+)?push')
+# History rewrites (git commit --amend, git reset --soft) are intentionally
+# NOT matched here because they are performed server-side by the admin-panel
+# history endpoints (routes/history.py) under strict safety preconditions.
+# Agents must use those endpoints and must NOT run rewrite commands directly.
 _GIT_DESTRUCTIVE_RE = re.compile(r'git\s+(checkout\s+--|restore\s|clean\s|reset\s+--hard)')
 _GH_PR_CREATE_RE = re.compile(r'gh\s+pr\s+create')
 _MCP_MR_CREATE_RE = re.compile(r'mcp.*gitlab.*create_merge_request', re.IGNORECASE)
