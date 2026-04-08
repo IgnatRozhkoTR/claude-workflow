@@ -146,7 +146,7 @@ Agent(
   subagent_type: "plan-advisor",
   run_in_background: true,
   prompt: "You are the plan-advisor in this governed workflow session.
-           Read and follow: ~/.claude-assistant/agents/plan-advisor.md
+           Your role definition is the plan-advisor agent.
            Workspace: {working_dir}
            Your role: assess the codebase, advise on planning, review the execution plan.
            Wait for instructions from the orchestrator."

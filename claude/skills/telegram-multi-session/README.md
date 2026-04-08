@@ -25,7 +25,7 @@ See the [official plugin README](https://github.com/anthropics/claude-plugins-of
 /telegram-multi-session install
 ```
 
-This copies `server.ts` to `~/.claude/channels/telegram/`, installs dependencies, and patches the plugin's `.mcp.json` to use the custom server.
+This copies `server.ts` to the Telegram channel directory (default: `${GOVERNED_WORKFLOW_TELEGRAM_STATE:-<repo>/.local/channels/telegram/}`), installs dependencies, and patches the plugin's `.mcp.json` to use the custom server.
 
 ## Usage
 
@@ -56,7 +56,7 @@ Enable the Channels toggle in the admin panel (Configuration → Device Settings
 
 ## How it works
 
-Each Claude Code session with `--channels` starts its own instance of the MCP server. Sessions register themselves in `~/.claude/channels/telegram/sessions/<name>.json` with their PID. Only one session actively polls Telegram at a time.
+Each Claude Code session with `--channels` starts its own instance of the MCP server. Sessions register themselves in `<tg-state>/sessions/<name>.json` with their PID (where `<tg-state>` is `$GOVERNED_WORKFLOW_TELEGRAM_STATE` or `<repo>/.local/channels/telegram/` by default). Only one session actively polls Telegram at a time.
 
 **Orphan detection:** Every 5 seconds, each session checks a `polling.lock` file. If the lock is stale (the polling session died), a surviving session volunteers to take over. This prevents silent message loss.
 
@@ -68,4 +68,4 @@ The skill is self-contained — `server.ts` is bundled in the skill directory. O
 
 1. Install the Telegram plugin
 2. Run `/telegram-multi-session install`
-3. Create `~/.claude/channels/telegram/.env` with `BOT_TOKEN=<your-token>`
+3. Create `<tg-state>/.env` with `BOT_TOKEN=<your-token>` (default: `<repo>/.local/channels/telegram/.env`)

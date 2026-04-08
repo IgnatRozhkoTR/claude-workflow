@@ -1,8 +1,9 @@
 #!/bin/bash
 # Admin Panel launcher — run directly or via shell alias
-# Setup: chmod +x ~/.claude/admin-panel/start.sh
+# Setup: chmod +x <repo>/admin-panel/start.sh && <repo>/admin-panel/start.sh
 
-SERVER_DIR="$HOME/.claude/admin-panel/server"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVER_DIR="$SCRIPT_DIR/server"
 LOG_FILE="/tmp/admin-panel.log"
 PORT=5111
 
@@ -12,7 +13,7 @@ sleep 0.5
 
 # Start server
 cd "$SERVER_DIR" || { echo "ERROR: $SERVER_DIR not found"; exit 1; }
-VENV_PYTHON="$HOME/.claude/admin-panel/.venv/bin/python3"
+VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
 if [ -x "$VENV_PYTHON" ]; then
   nohup "$VENV_PYTHON" app.py > "$LOG_FILE" 2>&1 &
 else

@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 
+from core.paths import DEFAULT_GIT_RULES
+
 
 # ── GET /api/projects/<id>/git-config ──
 
@@ -121,7 +123,7 @@ def test_get_git_rules_returnsSystemSource_whenSymlinkToSystemDefault(client, pr
     rules_dir.mkdir(parents=True, exist_ok=True)
     rules_path = rules_dir / "git-rules.md"
 
-    system_path = Path("~/.claude/defaults/git-rules.md").expanduser()
+    system_path = DEFAULT_GIT_RULES
     if not system_path.exists():
         system_path.parent.mkdir(parents=True, exist_ok=True)
         system_path.write_text("# System default git rules")
@@ -163,7 +165,7 @@ def test_save_git_rules_shouldReplaceSymlink_whenSymlinkExists(client, project):
     rules_dir.mkdir(parents=True, exist_ok=True)
     rules_path = rules_dir / "git-rules.md"
 
-    system_path = Path("~/.claude/defaults/git-rules.md").expanduser()
+    system_path = DEFAULT_GIT_RULES
     if not system_path.exists():
         system_path.parent.mkdir(parents=True, exist_ok=True)
         system_path.write_text("# System default git rules")

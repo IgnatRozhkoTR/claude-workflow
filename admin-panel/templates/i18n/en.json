@@ -446,7 +446,7 @@
   "setup.removeToolBtn": "Remove",
   "setup.toolPlaceholder": "Tool name (e.g. Build, Lint, Test)",
   "setup.startBtn": "Start Setup",
-  "setup.noModules": "No modules available. Add module directories to ~/.claude/modules/",
+  "setup.noModules": "No modules available. Add module directories to the modules folder of the repo.",
   "setup.noLanguageProfiles": "No language profiles available.",
   "setup.saveModulesFailed": "Failed to save modules",
   "setup.startFailed": "Failed to start setup",

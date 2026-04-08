@@ -5,279 +5,143 @@ description: Install or update the governed workflow + admin panel on a device
 
 # Workflow Migration
 
-Sets up the governed multi-phase workflow on a new device. Assumes `~/.claude/` is already cloned from the repository. Covers prerequisites, database setup, hook configuration, and verification.
+Sets up the governed multi-phase workflow on a new device.
+
+The repository is called **governed-workflow** and can be cloned to any path on disk — `~/governed-workflow`, `/opt/governed-workflow`, or even `~/.claude` if you prefer. Examples below use `<repo>` as a placeholder for whatever path you chose.
 
 **Platform support:** macOS (native), Linux (native), Windows (via WSL2). On Windows, the entire workflow runs inside WSL2 — the browser is the only thing that runs on the Windows side.
 
+---
+
+## Legacy Migration (existing `~/.claude` install)
+
+If you already have an older install cloned directly at `~/.claude`, you have two options:
+
+**Option A — rename in place (recommended):**
+```bash
+mv ~/.claude ~/governed-workflow
+git -C ~/governed-workflow worktree list   # verify worktrees still resolve
+# Update any scripts or aliases that referenced ~/.claude
+```
+If you use git worktrees, update worktree paths:
+```bash
+git -C ~/governed-workflow worktree repair
+```
+
+**Option B — clone fresh:**
+```bash
+git clone <your-repo-url> ~/governed-workflow
+# Migrate your existing admin-panel.db:
+cp ~/.claude/admin-panel/server/admin-panel.db ~/governed-workflow/admin-panel/server/
+```
+
+After either option, update hook paths in any project `.claude/settings.json` files from `~/.claude/hooks/...` to the new location (see Step 4 below).
+
+---
+
 ## Prerequisites Check
 
-Run these checks first. Report any failures and install what's missing.
-
 ```bash
-# Required
 python3 --version    # 3.10+
 git --version
 jq --version
 sqlite3 --version
 tmux -V
 
-# Check Python packages
 python3 -c "import flask; print('flask ok')" 2>&1
 python3 -c "import mcp; print('mcp ok')" 2>&1
 python3 -c "import flask_sock; print('flask_sock ok')" 2>&1
 ```
 
+---
+
 ## Windows Setup (WSL2)
 
-On Windows, the workflow runs entirely inside WSL2. The browser accesses the admin panel via localhost.
+On Windows, the workflow runs entirely inside WSL2. The browser accesses the admin panel via `http://localhost:5111`.
 
-### Prerequisites
+**1. Install WSL2** — PowerShell as Administrator: `wsl --install`. Ubuntu installs by default; restart when prompted.
 
-1. **Windows 10 version 2004+ or Windows 11**
-2. **Administrator access** for WSL installation
+**2. Configure Claude Code** — Windows Terminal → Settings → Startup → Default profile → Ubuntu.
 
-### Step 1: Install WSL2
-
-Open PowerShell as Administrator:
-
-```powershell
-wsl --install
-```
-
-This installs Ubuntu by default. Restart when prompted. After restart, Ubuntu launches and asks for a username and password.
-
-### Step 2: Configure Claude Code to use WSL
-
-Claude Code must run inside WSL, not native Windows. Configure Windows Terminal to open WSL by default:
-- Settings → Startup → Default profile → Ubuntu
-
-### Step 3: Install system dependencies inside WSL
-
+**3. Install system dependencies:**
 ```bash
-sudo apt update && sudo apt install -y \
-  python3 python3-pip \
-  git jq sqlite3 tmux curl \
-  xclip unzip zip
-```
-
-**Note:** `xclip` enables WSL↔Windows clipboard. `unzip`/`zip` are required for SDKMAN.
-
-### Step 4: Install Python packages
-
-Ubuntu 24.04+ uses an externally-managed Python environment. Use `--break-system-packages`:
-
-```bash
+sudo apt update && sudo apt install -y python3 python3-pip git jq sqlite3 tmux curl xclip unzip zip
 pip3 install flask mcp flask-sock --break-system-packages
 ```
 
-Installed binaries land in `~/.local/bin/`. Add to PATH (see Step 6).
-
-### Step 5: Clone the repository inside WSL
-
-**Important:** Clone inside the WSL filesystem (`~/`), NOT on the Windows mount (`/mnt/c/`). The Windows filesystem is slow for git operations.
-
+**4. Clone inside WSL filesystem** (NOT on `/mnt/c/` — too slow for git):
 ```bash
-cd ~
-git clone <your-repo-url> .claude
+git clone <your-repo-url> ~/governed-workflow
 ```
 
-### Step 6: Configure ~/.bashrc for non-interactive shells
-
-Claude Code's Bash tool runs in **non-interactive mode**, which means Ubuntu's default `.bashrc` exits early at the `case $-` guard — skipping any exports after it. All environment variables must go **before** that guard.
-
-Add this block at the very top of `~/.bashrc` (before the `# If not running interactively` comment):
-
+**5. Configure `~/.bashrc` for non-interactive shells** — Claude Code's Bash tool runs non-interactively, so Ubuntu's default `.bashrc` exits early at the `case $-` guard. Put all exports **before** that guard:
 ```bash
-# Environment — must be before interactive guard for Claude Code (non-interactive shells)
 export JAVA_HOME="/home/$USER/.sdkman/candidates/java/current"
-export PATH="$JAVA_HOME/bin:/path/to/maven/bin:$HOME/.local/bin:$PATH"
+export PATH="$JAVA_HOME/bin:$HOME/.local/bin:$PATH"
 export ANTHROPIC_BASE_URL=https://your-proxy-if-any
 ```
 
-Keep the SDKMAN init block at the **end** of `.bashrc` as required by SDKMAN — it handles interactive `sdk` commands but does NOT need to be the source of `JAVA_HOME` since we set it explicitly above.
-
-### Step 7: Install JDKs via SDKMAN (no sudo needed)
-
+**6. Install JDKs via SDKMAN:**
 ```bash
 curl -s "https://get.sdkman.io" | bash
 source ~/.sdkman/bin/sdkman-init.sh
-sdk install java 21.0.7-tem
-sdk install java 17.0.15-tem
-sdk install java 8.0.452-tem
-sdk default java 21.0.7-tem
+sdk install java 21.0.7-tem && sdk default java 21.0.7-tem
 ```
+Corporate SSL issues: create a `-k` curl wrapper in `~/.local/bin/curl`, remove after install.
 
-**Corporate proxy / SSL issues:** If `curl` fails with SSL errors, create a wrapper in `~/.local/bin/curl` that adds `-k`:
+**7. Git credentials** — prefer HTTPS for corporate GitHub orgs:
 ```bash
-echo '#!/bin/bash\n/usr/bin/curl -k "$@"' > ~/.local/bin/curl && chmod +x ~/.local/bin/curl
+gh auth login && gh auth setup-git
 ```
-Remove it after SDKMAN installs successfully (real `unzip`/`zip` must be installed first via apt).
+Install `gh` CLI as a binary if needed (download from GitHub releases into `~/.local/bin/`).
 
-### Step 8: Maven (no sudo needed)
-
-If the project uses Maven wrapper, the `~/.m2/wrapper/dists/` cache already contains Maven after the first build. Add it to PATH explicitly in `~/.bashrc` (before the interactive guard):
-
-```bash
-export PATH="/home/$USER/.m2/wrapper/dists/apache-maven-3.8.6-bin/<hash>/apache-maven-3.8.6/bin:$PATH"
-```
-
-Alternatively install Maven via SDKMAN: `sdk install maven` (requires internet access).
-
-### Step 9: Project code location
-
-Copy or clone projects inside the WSL filesystem:
-
-```bash
-mkdir -p ~/Projects
-# Copy from Windows mount (one-time):
-rsync -a /mnt/c/Users/<winuser>/Projects/ ~/Projects/
-# Or clone fresh:
-git clone <repo-url> ~/Projects/my-project
-```
-
-Also copy Maven local repo if needed: `rsync -a /mnt/c/Users/<winuser>/.m2/ ~/.m2/`
-
-### Step 10: Git credentials for GitHub
-
-**Prefer HTTPS over SSH** for corporate GitHub orgs with IP allowlists — SSH connections go through a different network path that may be blocked even when HTTPS works.
-
-```bash
-# Install gh CLI (no sudo needed — binary install)
-VERSION=$(curl -sk https://api.github.com/repos/cli/cli/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
-VER=${VERSION#v}
-curl -skL "https://github.com/cli/cli/releases/download/${VERSION}/gh_${VER}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
-tar -xzf /tmp/gh.tar.gz -C /tmp/
-cp /tmp/gh_*/bin/gh ~/.local/bin/gh && chmod +x ~/.local/bin/gh
-rm -rf /tmp/gh.tar.gz /tmp/gh_*
-
-# Authenticate and configure as git credential helper
-gh auth login
-gh auth setup-git
-```
-
-Then switch all project remotes from SSH to HTTPS:
-```bash
-for dir in ~/Projects/*/; do
-  remote=$(git -C "$dir" remote get-url origin 2>/dev/null)
-  if echo "$remote" | grep -q "git@github.com:"; then
-    https_url=$(echo "$remote" | sed 's|git@github.com:|https://github.com/|')
-    git -C "$dir" remote set-url origin "$https_url"
-  fi
-done
-```
-
-### Step 11: tmux config
-
+**8. tmux config:**
 ```bash
 cat > ~/.tmux.conf << 'EOF'
 set -g mouse on
 set -g history-limit 10000
 bind -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "xclip -selection clipboard"
-bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "xclip -selection clipboard"
 EOF
 ```
 
-### Step 12: Accessing the admin panel from Windows browser
+After WSL setup, continue with **Fresh Install — Setup Steps** below (all steps work identically inside WSL).
 
-The Flask server inside WSL listens on `localhost:5111`. WSL2 shares the network with Windows, so just open `http://localhost:5111` in Chrome on Windows. No port forwarding needed.
+---
 
-**Mirrored networking (optional):** To make WSL share the same IP as Windows (useful for IP allowlists), create `C:\Users\<winuser>\.wslconfig`:
-```ini
-[wsl2]
-networkingMode=mirrored
-```
-Then run `wsl --shutdown` from **PowerShell on Windows** (not from inside WSL) and reopen WSL.
-Note: this changes the local LAN IP but not the corporate NAT/egress IP — it won't help with GitHub org IP allowlists that block corporate egress.
+## Fresh Install — Setup Steps
 
-### After WSL setup
-
-Continue with the **Setup Steps** section below — all steps work identically inside WSL.
-
-### Windows-specific troubleshooting
-
-- **`localhost:5111` not accessible**: Run `ip addr show eth0` in WSL to find its IP. Use that instead.
-- **Slow git/file operations**: Ensure project is in WSL filesystem (`~/Projects/`), not `/mnt/c/`
-- **`pip3 install` fails with "externally-managed-environment"**: Add `--break-system-packages`
-- **`java`/`mvn` not found in Claude Code Bash tool**: Exports are after the interactive guard — move them before `# If not running interactively` in `~/.bashrc`
-- **SSH git fetch blocked by IP allowlist**: Switch remotes to HTTPS and use `gh auth setup-git`
-- **SDKMAN install fails (SSL/unzip errors)**: Install `unzip zip` via apt first; use `-k` curl wrapper for SSL
-- **WSL2 taking too much memory**: Add `memory=4GB` to `~/.wslconfig` under `[wsl2]`
-
-## Setup Steps
-
-### 1. Initialize the database
+### 1. Clone the repo
 
 ```bash
-python3 -c "
-import sys; sys.path.insert(0, '$HOME/.claude/admin-panel/server')
-from db import init_db; init_db()
-print('DB initialized')
-"
+git clone <your-repo-url> ~/governed-workflow   # or any path you prefer
+cd ~/governed-workflow
 ```
 
-### 2. Configure MCP server in each project
+### 2. (Optional) Export repo path
 
-For every project that uses the governed workflow, ensure `.mcp.json` exists in the project root:
-
-```json
-{
-  "mcpServers": {
-    "workspace": {
-      "command": "python3",
-      "args": ["/home/USERNAME/.claude/admin-panel/server/mcp_server.py"],
-      "env": {}
-    }
-  }
-}
-```
-
-The path must be absolute — no `~` or `$HOME`. Add `.mcp.json` to your global gitignore:
+`core/paths.py` auto-detects the repo root when launched from `admin-panel/server/*`, so this is mostly a safety override:
 ```bash
-echo '.mcp.json' >> ~/.gitignore_global
-git config --global core.excludesfile ~/.gitignore_global
+echo 'export GOVERNED_WORKFLOW_REPO=~/governed-workflow' >> ~/.bashrc
 ```
 
-### 3. Start the admin panel server
-
-Use tmux so the server survives terminal closes:
+### 3. Install Python dependencies
 
 ```bash
-tmux new-session -d -s admin-panel "cd ~/.claude/admin-panel/server && python3 app.py"
+cd <repo>/admin-panel
+python3 -m venv .venv
+source .venv/bin/activate
+pip install flask mcp flask-sock
 ```
+Or without a venv: `pip3 install flask mcp flask-sock [--break-system-packages]`
 
-Add a `ccadmin` convenience function to `~/.bashrc` (before the interactive guard):
+### 4. Generate `.claude/settings.json` for the repo's own Claude session
 
+Copy the template if it exists:
 ```bash
-ccadmin() {
-  if pgrep -f "admin-panel/server/app.py" > /dev/null; then
-    echo "Stopping existing admin panel..."
-    pkill -f "admin-panel/server/app.py"
-    sleep 1
-  fi
-  tmux kill-session -t admin-panel 2>/dev/null || true
-  tmux new-session -d -s admin-panel "cd ~/.claude/admin-panel/server && PATH=/home/ig/.local/bin:\$PATH python3 app.py"
-  for i in 1 2 3 4 5; do
-    sleep 1
-    pgrep -f "admin-panel/server/app.py" > /dev/null && echo "Admin panel started on port 5111" && return
-  done
-  echo "Failed to start admin panel — check: tmux attach -t admin-panel"
-}
+cp <repo>/claude/defaults/settings.template.json <repo>/.claude/settings.json
 ```
 
-### 4. Verify hook scripts work
-
-```bash
-echo '{"tool_name":"Write","tool_input":{},"cwd":"/tmp"}' | python3 ~/.claude/hooks/block-orchestrator-writes.py
-echo "exit: $?"  # Should be 0
-
-echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test.txt"},"cwd":"/tmp"}' | python3 ~/.claude/hooks/pre-tool-hook.py
-echo "exit: $?"  # Should be 0
-```
-
-### 5. Verify settings.json has required entries
-
-Check `~/.claude/settings.json` contains:
-
+If no template exists, create `<repo>/.claude/settings.json` with this content — hook commands must use the `${CLAUDE_PROJECT_DIR}` form so they resolve regardless of where the repo is cloned:
 ```json
 {
   "permissions": {
@@ -287,16 +151,16 @@ Check `~/.claude/settings.json` contains:
     "PreToolUse": [
       {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash",
-        "hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/block-orchestrator-writes.py"}]
+        "hooks": [{"type": "command", "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/block-orchestrator-writes.py"}]
       },
       {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash",
-        "hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/pre-tool-hook.py"}]
+        "hooks": [{"type": "command", "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/pre-tool-hook.py"}]
       }
     ],
     "SessionStart": [
       {
-        "hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/session-start.py"}]
+        "hooks": [{"type": "command", "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/session-start.py"}]
       }
     ]
   },
@@ -306,23 +170,105 @@ Check `~/.claude/settings.json` contains:
 }
 ```
 
+### 5. Initialize the database
+
+```bash
+cd <repo>/admin-panel/server
+python3 -c "from db import init_db; init_db(); print('DB initialized')"
+```
+
+### 6. Configure MCP server in each project
+
+For every project that uses the governed workflow, create `.mcp.json` in the project root. Use the absolute expanded path — no `~` or `$HOME`:
+```json
+{
+  "mcpServers": {
+    "workspace": {
+      "command": "/absolute/path/to/governed-workflow/admin-panel/.venv/bin/python3",
+      "args": ["-m", "mcp_server"],
+      "cwd": "/absolute/path/to/governed-workflow/admin-panel/server"
+    }
+  }
+}
+```
+Add `.mcp.json` to your global gitignore:
+```bash
+echo '.mcp.json' >> ~/.gitignore_global
+git config --global core.excludesfile ~/.gitignore_global
+```
+
+### 7. Start the admin panel
+
+Use tmux so the server survives terminal closes:
+```bash
+tmux new-session -d -s admin-panel "cd <repo>/admin-panel/server && python3 app.py"
+```
+
+Convenience shell function (add before the interactive guard in `~/.bashrc`):
+```bash
+REPO=~/governed-workflow   # adjust to your path
+ccadmin() {
+  pkill -f "admin-panel/server/app.py" 2>/dev/null; sleep 1
+  tmux kill-session -t admin-panel 2>/dev/null || true
+  tmux new-session -d -s admin-panel "cd $REPO/admin-panel/server && python3 app.py"
+  for i in 1 2 3 4 5; do
+    sleep 1
+    pgrep -f "admin-panel/server/app.py" > /dev/null && echo "Admin panel started on port 5111" && return
+  done
+  echo "Failed — check: tmux attach -t admin-panel"
+}
+```
+
+### 8. Configure a project in the admin panel
+
+Open `http://localhost:5111` and create a project pointing to your project directory.
+
+### 9. Create a workspace
+
+From the admin panel, create a workspace (branch). The server automatically merges the defaults from `<repo>/claude/defaults/` and `<repo>/codex/` with any project-local `.claude/` and `.codex/` overrides, then writes the merged result into the workspace's `.claude/` and `.codex/` directories.
+
+Verify:
+```bash
+ls <your-project>/.claude/workspaces/<branch>/
+# Should contain merged settings, rules, agents, etc.
+```
+
+---
+
+## Verify Hooks Work
+
+```bash
+echo '{"tool_name":"Write","tool_input":{},"cwd":"/tmp"}' \
+  | python3 <repo>/claude/hooks/block-orchestrator-writes.py
+echo "exit: $?"  # Should be 0
+
+echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test.txt"},"cwd":"/tmp"}' \
+  | python3 <repo>/claude/hooks/pre-tool-hook.py
+echo "exit: $?"  # Should be 0
+```
+
+---
+
 ## Component Inventory
 
 | Component | Path | Purpose |
 |-----------|------|---------|
-| Admin panel server | `~/.claude/admin-panel/server/` | Flask app (port 5111) + SQLite DB |
-| MCP server | `~/.claude/admin-panel/server/mcp_server.py` | 22+ workspace tools via stdio |
-| Orchestrator block hook | `~/.claude/hooks/block-orchestrator-writes.py` | Prevents main agent from writing files in git repos |
-| Phase gate hook | `~/.claude/hooks/pre-tool-hook.py` | Enforces edit/commit/push restrictions per phase |
-| Session start hook | `~/.claude/hooks/session-start.py` | Registers sessions, outputs recovery context |
-| Agent definitions | `~/.claude/agents/*.md` | 16 agent types (researchers, engineers, validators, reviewers) |
-| Workflow skill | `~/.claude/skills/governed-workflow/SKILL.md` | Phase map, rules, MCP tool reference |
-| Plan-preparation skill | `~/.claude/skills/plan-preparation/SKILL.md` | Guides phases 1.0-1.4 (assessment, research, impact analysis) |
-| Planning skill | `~/.claude/skills/planning/SKILL.md` | Guides phase 2.0 (plan structure, scope, criteria) |
-| Stride skill | `~/.claude/skills/stride/SKILL.md` | Lightweight workflow without admin panel |
-| Terminal support | `~/.claude/admin-panel/server/terminal.py` | tmux session management for built-in terminal |
-| Rules | `~/.claude/rules/*.md` | Coding standards, test standards, validation pipeline |
-| Default git rules | `~/.claude/defaults/git-rules.md` | Commit/MR format rules |
+| Admin panel server | `<repo>/admin-panel/server/` | Flask app (port 5111) + SQLite DB |
+| MCP server | `<repo>/admin-panel/server/mcp_server.py` | 31 workspace tools via stdio |
+| Orchestrator block hook | `<repo>/claude/hooks/block-orchestrator-writes.py` | Prevents main agent from writing files in git repos |
+| Phase gate hook | `<repo>/claude/hooks/pre-tool-hook.py` | Enforces edit/commit/push restrictions per phase |
+| Session start hook | `<repo>/claude/hooks/session-start.py` | Registers sessions, outputs recovery context |
+| Agent definitions | `<repo>/claude/agents/` | 16 agent types (researchers, engineers, validators, reviewers) |
+| Workflow skill | `<repo>/claude/skills/governed-workflow/SKILL.md` | Phase map, rules, MCP tool reference |
+| Plan-preparation skill | `<repo>/claude/skills/plan-preparation/SKILL.md` | Guides phases 1.0-1.4 |
+| Planning skill | `<repo>/claude/skills/planning/SKILL.md` | Guides phase 2.0 |
+| Stride skill | `<repo>/claude/skills/stride/SKILL.md` | Lightweight workflow without admin panel |
+| Terminal support | `<repo>/admin-panel/server/terminal.py` | tmux session management for built-in terminal |
+| Rules | `<repo>/claude/rules/*.md` | Coding standards, test standards, validation pipeline |
+| Default git rules | `<repo>/claude/defaults/git-rules.md` | Commit/MR format rules |
+| Migration skill | `<repo>/.claude/skills/workflow-migration/` | This skill — repo-only, not shipped to workspaces |
+
+---
 
 ## Admin Panel Tabs
 
@@ -338,32 +284,38 @@ Check `~/.claude/settings.json` contains:
 | Review | Sidebar | Code review issues |
 | Terminal | Sidebar | Built-in terminal (tmux-based) |
 
+---
+
 ## Dependencies
 
 - **tmux**: `apt install tmux` (Linux/WSL) or `brew install tmux` (macOS)
 - **xclip** (WSL only): `apt install xclip` — clipboard between WSL tmux and Windows
 - **flask-sock**: `pip3 install flask-sock [--break-system-packages]` — WebSocket terminal support
-- **unzip/zip**: `apt install unzip zip` — required for SDKMAN JDK installs
-- **gh CLI**: Install via binary (see Step 10) — used as git credential helper for HTTPS
+- **gh CLI**: for HTTPS git credential helper
+
+---
 
 ## Optional: Telegram Integration
 
-For remote session control via Telegram, install the multi-session Telegram channel:
+For remote session control via Telegram:
 
 1. Create a bot via [@BotFather](https://t.me/BotFather) and get the token
 2. Install Bun runtime: `curl -fsSL https://bun.sh/install | bash`
-3. Install the plugin: `/plugin install telegram@claude-plugins-official`
+3. Install the Claude Code Telegram plugin: `/plugin install telegram@claude-plugins-official`
 4. Configure the token: `/telegram:configure <token>`
-5. Install the multi-session interceptor: `/telegram-multi-session install`
-6. Enable channels in the admin panel: Configuration → Device Settings → toggle Channels on, enter `plugin:telegram@claude-plugins-official`
+5. Enable the module via the admin panel Setup page, or run `/telegram install`
+6. Enable channels in admin panel: Configuration → Device Settings → toggle Channels on
+
+---
 
 ## Troubleshooting
 
-- **MCP server not connecting**: Check `.mcp.json` path is absolute and file exists. Restart Claude Code session after adding `.mcp.json`.
+- **MCP server not connecting**: Check `.mcp.json` path is absolute and file exists. Restart Claude Code after adding `.mcp.json`.
 - **Hook not firing**: Hooks are snapshotted at session start. Restart session after changing `settings.json`.
-- **DB errors**: Delete `~/.claude/admin-panel/server/admin-panel.db` and re-run Step 1 to recreate.
-- **Flask server not starting**: Check port 5111 is free (`lsof -i :5111`). Kill existing process or change port in `app.py`.
+- **DB errors**: Delete `<repo>/admin-panel/server/admin-panel.db` and re-run Step 5 to recreate.
+- **Flask server not starting**: Check port 5111 is free (`lsof -i :5111`).
 - **`java`/`mvn` not found**: Exports are after the `.bashrc` interactive guard — move them above `# If not running interactively`.
 - **pip3 install fails**: Add `--break-system-packages` on Ubuntu 24.04+.
 - **SSH git push/fetch blocked**: Switch to HTTPS + `gh auth setup-git`.
-- **Admin panel paste not working in browser terminal**: The terminal JS needs a `paste` event listener on the container — see `terminal.js` `_createTerminal`.
+- **`localhost:5111` not accessible on Windows**: Run `ip addr show eth0` in WSL to find its IP.
+- **Slow git on Windows**: Ensure project is in WSL filesystem (`~/`), not `/mnt/c/`.

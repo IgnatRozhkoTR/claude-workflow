@@ -25,7 +25,7 @@ def test_list_modules_structure(client):
 
 
 def test_list_modules_contains_telegram(client):
-    """GET /api/modules includes telegram module from ~/.claude/modules/."""
+    """GET /api/modules includes telegram module from the repo modules directory."""
     response = client.get("/api/modules")
     assert response.status_code == 200
     data = response.get_json()

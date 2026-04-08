@@ -446,7 +446,7 @@
   "setup.removeToolBtn": "Удалить",
   "setup.toolPlaceholder": "Название инструмента (например Build, Lint, Test)",
   "setup.startBtn": "Начать настройку",
-  "setup.noModules": "Модули недоступны. Добавьте директории модулей в ~/.claude/modules/",
+  "setup.noModules": "Модули недоступны. Добавьте директории модулей в папку modules репозитория.",
   "setup.noLanguageProfiles": "Языковые профили недоступны.",
   "setup.saveModulesFailed": "Ошибка сохранения модулей",
   "setup.startFailed": "Ошибка запуска настройки",

@@ -24,7 +24,7 @@ Both methods launch Claude Code in an embedded terminal and follow the module's 
 
 ## Creating a Module
 
-1. Create a subdirectory under `~/.claude/modules/<module-id>/`
+1. Create a subdirectory under `<repo>/claude/modules/<module-id>/`
 2. Add a `SKILL.md` with at minimum an `install` section and a `status` section
 3. Add any supporting files the module needs (scripts, server code, configs)
 

@@ -17,9 +17,15 @@ Manages the custom multi-session Telegram server that replaces the default plugi
 server. This skill is **self-contained**: `server.ts` lives inside the skill
 directory and is deployed by the `install` command.
 
-The deployed server lives at `~/.claude/channels/telegram/server.ts` and supports
-multiple Claude Code sessions sharing one Telegram bot, with `/switch` and
-`/sessions` commands from Telegram.
+Throughout this skill, `<tg-state>` refers to the Telegram state directory.
+Resolve it at runtime:
+```bash
+TG_STATE="${GOVERNED_WORKFLOW_TELEGRAM_STATE:-$(python3 -c 'from core.paths import REPO_ROOT; print(REPO_ROOT)')/.local/channels/telegram}"
+```
+If `GOVERNED_WORKFLOW_TELEGRAM_STATE` is not set, the default is `<repo>/.local/channels/telegram/`.
+
+The source `server.ts` lives at `<repo>/claude/modules/telegram/server.ts` and is
+deployed to `<tg-state>/server.ts` by the `install` command.
 
 Arguments passed: (check the args variable from the skill invocation)
 
@@ -34,12 +40,12 @@ Parse the arguments (space-separated). If empty or unrecognized, run status.
 ### `enable`
 
 Enables the custom multi-session server. If the server is already deployed at
-`~/.claude/channels/telegram/server.ts`, skip re-copying and re-installing
+`<tg-state>/server.ts`, skip re-copying and re-installing
 dependencies — just re-patch the `.mcp.json` files. Otherwise run the full
 `install` flow.
 
 Steps:
-1. Check if `~/.claude/channels/telegram/server.ts` exists.
+1. Check if `<tg-state>/server.ts` exists.
    - If it exists: skip to step 3 (re-patch only).
    - If it does not exist: run the full `install` flow (steps 1–7 of the
      `install` section), then continue with step 4 below.
@@ -88,25 +94,25 @@ Steps:
 
 ### No args — `status`
 
-1. Check if custom server exists at `~/.claude/channels/telegram/server.ts`
+1. Check if custom server exists at `<tg-state>/server.ts`
 2. Check if `.mcp.json` in the telegram plugin directory is patched (points to custom server vs default)
-3. Check if `~/.claude/channels/telegram/.env` exists and contains `BOT_TOKEN`
-4. Read all files from `~/.claude/channels/telegram/sessions/`, check PID liveness, list active sessions
+3. Check if `<tg-state>/.env` exists and contains `BOT_TOKEN`
+4. Read all files from `<tg-state>/sessions/`, check PID liveness, list active sessions
 5. Report overall status: installed/not installed, patched/not patched, token present/missing, active sessions
 
 ---
 
 ### `install`
 
-1. Create `~/.claude/channels/telegram/` if it doesn't exist
-2. Copy `server.ts` from the skill directory to `~/.claude/channels/telegram/server.ts`:
+1. Create `<tg-state>/` if it doesn't exist
+2. Copy `server.ts` from the skill directory to `<tg-state>/server.ts`:
    ```bash
-   cp ~/.claude/modules/telegram/server.ts ~/.claude/channels/telegram/server.ts
+   cp <repo>/claude/modules/telegram/server.ts "$TG_STATE/server.ts"
    ```
 3. Install dependencies alongside the server:
    ```bash
-   cp ~/.claude/plugins/cache/claude-plugins-official/telegram/$(ls ~/.claude/plugins/cache/claude-plugins-official/telegram/)/package.json ~/.claude/channels/telegram/
-   cd ~/.claude/channels/telegram && bun install --no-summary
+   cp ~/.claude/plugins/cache/claude-plugins-official/telegram/$(ls ~/.claude/plugins/cache/claude-plugins-official/telegram/)/package.json "$TG_STATE/"
+   cd "$TG_STATE" && bun install --no-summary
    ```
    Note: Bun resolves node_modules relative to the file location, not `--cwd`. Installing dependencies here ensures the server can find grammy and @modelcontextprotocol/sdk.
 4. Find the telegram plugin directory:
@@ -124,12 +130,12 @@ Steps:
      "mcpServers": {
        "telegram": {
          "command": "bun",
-         "args": ["run", "/home/user/.claude/channels/telegram/server.ts"]
+         "args": ["run", "/absolute/path/to/tg-state/server.ts"]
        }
      }
    }
    ```
-   Replace `/home/user` with the actual home directory path (use `$HOME` or `echo ~` in bash to get it).
+   Use the actual expanded path to `<tg-state>/server.ts` (no `~` or env vars — bun requires an absolute literal path).
 
    **Important**: The marketplace source copy is what Claude Code actually reads. If only the cache copy is patched, the fix won't take effect. Always patch both.
 
@@ -140,8 +146,8 @@ Steps:
    ```
 6. Set `autoUpdate: false` for `claude-plugins-official` in `~/.claude/plugins/known_marketplaces.json`.
    Read the file and update (or add) the `autoUpdate` key to `false` for that entry.
-7. Check if `~/.claude/channels/telegram/.env` exists with a `BOT_TOKEN` line. If not, tell the user:
-   > Bot token not found. Create `~/.claude/channels/telegram/.env` with:
+7. Check if `<tg-state>/.env` exists with a `BOT_TOKEN` line. If not, tell the user:
+   > Bot token not found. Create `<tg-state>/.env` with:
    > `BOT_TOKEN=your_token_here`
 8. Confirm installation and tell the user to restart Claude Code sessions for the change to take effect.
 
@@ -153,10 +159,10 @@ Re-patches `.mcp.json` in ALL locations after a plugin update overwrites them.
 Does NOT re-copy `server.ts` unless `--force` is passed.
 
 Steps:
-1. If `--force` flag is present, copy `server.ts` from `~/.claude/modules/telegram/server.ts` to `~/.claude/channels/telegram/server.ts`
-2. If `~/.claude/channels/telegram/node_modules` is missing, re-run bun install:
+1. If `--force` flag is present, copy `server.ts` from `<repo>/claude/modules/telegram/server.ts` to `<tg-state>/server.ts`
+2. If `<tg-state>/node_modules` is missing, re-run bun install:
    ```bash
-   cd ~/.claude/channels/telegram && bun install --no-summary
+   cd "$TG_STATE" && bun install --no-summary
    ```
 3. Patch `.mcp.json` in ALL locations (same as install step 5). For each location, unlock first,
    write the custom-server config, then re-lock:
@@ -182,7 +188,7 @@ Deploys the latest `server.ts` from the skill directory, overwriting the current
 deployed one. Use this after editing the source file in the skill directory.
 
 Steps:
-1. Copy `~/.claude/modules/telegram/server.ts` to `~/.claude/channels/telegram/server.ts`
+1. Copy `<repo>/claude/modules/telegram/server.ts` to `<tg-state>/server.ts`
 2. Confirm the update. Remind user to restart Claude Code sessions.
 
 ---
@@ -215,7 +221,7 @@ Steps:
 
 ### `sessions`
 
-1. Read all files from `~/.claude/channels/telegram/sessions/`
+1. Read all files from `<tg-state>/sessions/`
 2. For each, parse JSON and check if PID is still alive (`kill -0 <pid>`)
 3. Display: session name, PID, uptime, alive/dead status
 4. Clean up dead session files (delete them)
@@ -260,7 +266,7 @@ The tool is available as `mcp__plugin_telegram_telegram__set_session_name`.
 
 - **`Cannot find module '@modelcontextprotocol/sdk/server/index.js'`**: Dependencies are missing. Run:
   ```bash
-  cd ~/.claude/channels/telegram && bun install --no-summary
+  cd "$TG_STATE" && bun install --no-summary
   ```
   This happens if the install step was skipped or node_modules was deleted.
 - **Bot stops responding but sessions show as alive**: If the session that was
@@ -279,10 +285,10 @@ This skill is self-contained. `server.ts` is bundled inside the skill directory
 so no external source is needed on a new device.
 
 To set up on a new device:
-1. Transfer the `~/.claude/skills/telegram-multi-session/` directory to the new machine
+1. The module ships with the repo at `<repo>/claude/modules/telegram/`
 2. Make sure the telegram plugin is installed (`plugin:telegram@claude-plugins-official`)
 3. Run `/telegram-multi-session install` — this also installs dependencies automatically
-4. Create `~/.claude/channels/telegram/.env` with `BOT_TOKEN=your_token_here` if not transferred
+4. Create `<tg-state>/.env` with `BOT_TOKEN=your_token_here` if not transferred
 
-Note: `node_modules/`, `bun.lock`, and `package.json` in `~/.claude/channels/telegram/` are NOT
+Note: `node_modules/`, `bun.lock`, and `package.json` in `<tg-state>/` are NOT
 transferred between devices — they are regenerated by the install command.
