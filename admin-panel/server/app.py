@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Workspace Control -- Flask backend for admin panel."""
+import os
 import sys
 from pathlib import Path
 
@@ -7,7 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from flask import Flask, jsonify
 from core.db import init_db
+from core.paths import DEFAULT_TOOLS_DIR
 from routes import register_blueprints
+
+os.environ.setdefault("GOVERNED_WORKFLOW_TOOLS_DIR", str(DEFAULT_TOOLS_DIR))
 
 
 def create_app():

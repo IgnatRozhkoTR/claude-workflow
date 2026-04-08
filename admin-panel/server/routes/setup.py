@@ -93,6 +93,28 @@ def _format_custom_languages(custom_languages):
     return result
 
 
+def _build_setup_prompt(modules, modules_to_disable, preset_profiles_with_lsp, custom_languages_with_lsp):
+    """Build the Claude Code prompt for the setup skill."""
+    skill_path = DEFAULT_SKILLS_DIR / "setup" / "SKILL.md"
+    prompt_lines = [
+        f"Read the setup skill at {skill_path} and follow its instructions.",
+        "",
+        "Configuration:",
+        "- Modules to enable: " + json.dumps(modules),
+        "- Modules to disable: " + json.dumps(modules_to_disable),
+        "- Preset verification profiles to assign: " + json.dumps(preset_profiles_with_lsp),
+        "- Custom verification profiles to create: " + json.dumps(custom_languages_with_lsp),
+        "",
+        "Complete the setup and report the results.",
+    ]
+    return "\n".join(prompt_lines).strip()
+
+
+def _build_prompt_for_test():
+    """Return a minimal setup prompt for testing path resolution only."""
+    return _build_setup_prompt([], [], [], [])
+
+
 def register_setup_ws(app):
     """Register the setup WebSocket route on the Flask app."""
     sock = Sock(app)
@@ -143,18 +165,7 @@ def setup_start():
     create_session(_SETUP_SESSION, home_dir)
     logger.info("setup_start: created tmux session '%s' in %s", _SETUP_SESSION, home_dir)
 
-    prompt_lines = [
-        f"Read the setup skill at {DEFAULT_SKILLS_DIR / 'setup' / 'SKILL.md'} and follow its instructions.",
-        "",
-        "Configuration:",
-        "- Modules to enable: " + json.dumps(modules),
-        "- Modules to disable: " + json.dumps(modules_to_disable),
-        "- Preset verification profiles to assign: " + json.dumps(preset_profiles_with_lsp),
-        "- Custom verification profiles to create: " + json.dumps(custom_languages_with_lsp),
-        "",
-        "Complete the setup and report the results.",
-    ]
-    prompt = "\n".join(prompt_lines).strip()
+    prompt = _build_setup_prompt(modules, modules_to_disable, preset_profiles_with_lsp, custom_languages_with_lsp)
     logger.info("setup_start: prompt constructed (%d chars)", len(prompt))
 
     keys_sent = send_keys(_SETUP_SESSION, 'claude --dangerously-skip-permissions')
