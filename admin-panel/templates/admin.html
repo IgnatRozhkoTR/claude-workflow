@@ -621,7 +621,11 @@
           <span data-i18n="diff.history">History</span>
           <span id="diffHistoryBranchLabel" class="diff-history-branch-label"></span>
           <span id="diffHistorySelectionCount" class="badge badge-info" style="display: none;"></span>
-          <div class="diff-history-panel-actions"></div>
+          <div class="diff-history-panel-actions">
+            <button id="historyRenameBtn" class="btn btn-sm" onclick="historyRename()" disabled title="Rename is only available for the latest local unpushed commit" data-i18n="history.rename">Rename</button>
+            <button id="historyUndoBtn" class="btn btn-sm" onclick="historyUndo()" disabled title="Undo is only available for the latest local unpushed commit" data-i18n="history.undo">Undo</button>
+            <button id="historySquashBtn" class="btn btn-sm" onclick="historySquash()" disabled title="Squash requires a contiguous selection of 2+ local unpushed commits" data-i18n="history.squash">Squash</button>
+          </div>
           <button class="btn btn-sm" onclick="closeHistoryPanel()" data-i18n="buttons.close">Close</button>
         </div>
         <div id="diffHistoryList" class="diff-history-list"></div>

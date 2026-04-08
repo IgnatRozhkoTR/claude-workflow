@@ -462,5 +462,16 @@
 
   "improvements.openBtn": "Improvements",
   "improvements.globalTitle": "Improvements",
-  "improvements.globalSubtitle": "Track workflow and process improvements across all projects."
+  "improvements.globalSubtitle": "Track workflow and process improvements across all projects.",
+
+  "history.rename": "Rename",
+  "history.undo": "Undo",
+  "history.squash": "Squash",
+  "history.dialogs.renamePrompt": "Enter new commit message:",
+  "history.dialogs.undoConfirm": "Undo commit '{subject}'? Changes will be left staged.",
+  "history.dialogs.squashTitle": "Squash {count} commits",
+  "history.dialogs.squashMessage": "Combined commit message:",
+  "history.errors.renameFailed": "Rename failed: {error}",
+  "history.errors.undoFailed": "Undo failed: {error}",
+  "history.errors.squashFailed": "Squash failed: {error}"
 }

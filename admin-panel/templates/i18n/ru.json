@@ -462,5 +462,16 @@
 
   "improvements.openBtn": "Улучшения",
   "improvements.globalTitle": "Улучшения",
-  "improvements.globalSubtitle": "Отслеживайте улучшения рабочего процесса и инструментов по всем проектам."
+  "improvements.globalSubtitle": "Отслеживайте улучшения рабочего процесса и инструментов по всем проектам.",
+
+  "history.rename": "Переименовать",
+  "history.undo": "Отменить",
+  "history.squash": "Сжать",
+  "history.dialogs.renamePrompt": "Введите новое сообщение коммита:",
+  "history.dialogs.undoConfirm": "Отменить коммит '{subject}'? Изменения останутся в индексе.",
+  "history.dialogs.squashTitle": "Сжать коммиты ({count})",
+  "history.dialogs.squashMessage": "Объединённое сообщение:",
+  "history.errors.renameFailed": "Ошибка переименования: {error}",
+  "history.errors.undoFailed": "Ошибка отмены: {error}",
+  "history.errors.squashFailed": "Ошибка сжатия: {error}"
 }

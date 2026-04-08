@@ -193,3 +193,18 @@ function apiGetCommitHistory(projectId, branch) {
   var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history';
   return apiGet(url);
 }
+
+function apiHistoryRename(projectId, branch, message) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/rename';
+  return apiPost(url, { message: message });
+}
+
+function apiHistoryUndo(projectId, branch) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/undo';
+  return apiPost(url, {});
+}
+
+function apiHistorySquash(projectId, branch, commits, message) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/squash';
+  return apiPost(url, { commits: commits, message: message });
+}

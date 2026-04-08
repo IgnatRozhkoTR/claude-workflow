@@ -66,3 +66,47 @@ def test_diff_history_actions_area_exists(html):
     assert panel is not None
     actions = panel.find("div", class_="diff-history-panel-actions")
     assert actions is not None, "diff-history-panel-actions toolbar area not found"
+
+
+def test_rename_button_exists_and_wired(html):
+    btn = html.find("button", attrs={"id": "historyRenameBtn"})
+    assert btn is not None, "historyRenameBtn not found"
+    assert "historyRename()" in (btn.get("onclick") or ""), "historyRenameBtn must call historyRename()"
+    assert btn.get("disabled") is not None, "historyRenameBtn must start disabled"
+
+
+def test_undo_button_exists_and_wired(html):
+    btn = html.find("button", attrs={"id": "historyUndoBtn"})
+    assert btn is not None, "historyUndoBtn not found"
+    assert "historyUndo()" in (btn.get("onclick") or ""), "historyUndoBtn must call historyUndo()"
+    assert btn.get("disabled") is not None, "historyUndoBtn must start disabled"
+
+
+def test_squash_button_exists_and_wired(html):
+    btn = html.find("button", attrs={"id": "historySquashBtn"})
+    assert btn is not None, "historySquashBtn not found"
+    assert "historySquash()" in (btn.get("onclick") or ""), "historySquashBtn must call historySquash()"
+    assert btn.get("disabled") is not None, "historySquashBtn must start disabled"
+
+
+def test_rewrite_buttons_have_i18n_keys(html):
+    rename_btn = html.find("button", attrs={"id": "historyRenameBtn"})
+    undo_btn = html.find("button", attrs={"id": "historyUndoBtn"})
+    squash_btn = html.find("button", attrs={"id": "historySquashBtn"})
+    assert rename_btn is not None
+    assert undo_btn is not None
+    assert squash_btn is not None
+    assert rename_btn.get("data-i18n") == "history.rename", "historyRenameBtn must have data-i18n='history.rename'"
+    assert undo_btn.get("data-i18n") == "history.undo", "historyUndoBtn must have data-i18n='history.undo'"
+    assert squash_btn.get("data-i18n") == "history.squash", "historySquashBtn must have data-i18n='history.squash'"
+
+
+def test_rewrite_buttons_inside_actions_area(html):
+    panel = html.find("div", attrs={"id": "diffHistoryPanel"})
+    assert panel is not None
+    actions = panel.find("div", class_="diff-history-panel-actions")
+    assert actions is not None
+    btn_ids = {btn.get("id") for btn in actions.find_all("button")}
+    assert "historyRenameBtn" in btn_ids, "historyRenameBtn must be inside diff-history-panel-actions"
+    assert "historyUndoBtn" in btn_ids, "historyUndoBtn must be inside diff-history-panel-actions"
+    assert "historySquashBtn" in btn_ids, "historySquashBtn must be inside diff-history-panel-actions"
