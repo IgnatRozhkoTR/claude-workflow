@@ -5,10 +5,11 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request
 
 from core.db import get_db_ctx
+from core.paths import DEFAULT_MODULES_DIR
 
 bp = Blueprint("modules", __name__)
 
-MODULES_DIR = Path(os.path.expanduser("~/.claude/modules"))
+MODULES_DIR = DEFAULT_MODULES_DIR
 
 
 def _parse_frontmatter(text):

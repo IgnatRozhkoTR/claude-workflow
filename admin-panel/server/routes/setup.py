@@ -10,8 +10,9 @@ from flask_sock import Sock
 from core.terminal import session_exists, create_session, send_keys, kill_session, tmux_available, send_prompt_when_ready, run_pty_websocket, TMUX_NOT_INSTALLED
 from core.db import get_db_ctx
 from core.global_flags import is_codex_enabled, set_codex_enabled
+from core.paths import DEFAULT_MODULES_DIR, DEFAULT_SKILLS_DIR
 
-_MODULES_DIR = Path(os.path.expanduser("~/.claude/modules"))
+_MODULES_DIR = DEFAULT_MODULES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ def setup_start():
     logger.info("setup_start: created tmux session '%s' in %s", _SETUP_SESSION, home_dir)
 
     prompt_lines = [
-        "Read the setup skill at ~/.claude/skills/setup/SKILL.md and follow its instructions.",
+        f"Read the setup skill at {DEFAULT_SKILLS_DIR / 'setup' / 'SKILL.md'} and follow its instructions.",
         "",
         "Configuration:",
         "- Modules to enable: " + json.dumps(modules),

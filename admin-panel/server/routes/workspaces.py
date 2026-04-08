@@ -11,11 +11,16 @@ from core.db import get_db, get_db_ctx
 from core.decorators import with_workspace
 from core.helpers import sanitize_branch, workspace_dir, run_git, DEFAULT_SOURCE_BRANCH
 from core.i18n import t
+from core.paths import (
+    DEFAULT_CODEX_DIR,
+    DEFAULT_FUNNEL_TEMPLATE,
+    DEFAULT_GIT_HOOKS_DIR,
+    DEFAULT_MCP_TEMPLATE,
+    hook_command,
+)
 from core.terminal import session_name
 
 bp = Blueprint("workspaces", __name__)
-
-_FUNNEL_TEMPLATE = Path.home() / ".claude" / "defaults" / ".mcp-funnel.json"
 
 
 def _get_gitlab_from_remote(project_path):
@@ -73,9 +78,9 @@ def _generate_mcp_from_remote(project_path):
 def _write_funnel_config(project_path, host, token):
     """Write .mcp-funnel.json from default template + gitlab server config."""
     template = {}
-    if _FUNNEL_TEMPLATE.exists():
+    if DEFAULT_FUNNEL_TEMPLATE.exists():
         try:
-            template = json.loads(_FUNNEL_TEMPLATE.read_text())
+            template = json.loads(DEFAULT_FUNNEL_TEMPLATE.read_text())
         except Exception:
             pass
 
@@ -141,6 +146,10 @@ def _ensure_funnel_config(project_path):
     project_mcp.write_text(json.dumps(mcp_data, indent=2))
 
 
+_SESSION_START_CMD = hook_command("session-start.py")
+_USER_PROMPT_SUBMIT_CMD = hook_command("user-prompt-submit.sh", interpreter="bash")
+_PRE_TOOL_HOOK_CMD = hook_command("pre-tool-hook.py")
+
 _WORKSPACE_HOOKS = {
     "hooks": {
         "SessionStart": [
@@ -148,28 +157,28 @@ _WORKSPACE_HOOKS = {
                 "matcher": "startup|resume",
                 "hooks": [{
                     "type": "command",
-                    "command": "python3 ~/.claude/hooks/session-start.py"
+                    "command": _SESSION_START_CMD,
                 }]
             },
             {
                 "matcher": "compact",
                 "hooks": [{
                     "type": "command",
-                    "command": "python3 ~/.claude/hooks/session-start.py"
+                    "command": _SESSION_START_CMD,
                 }]
             }
         ],
         "UserPromptSubmit": [{
             "hooks": [{
                 "type": "command",
-                "command": "bash ~/.claude/hooks/user-prompt-submit.sh"
+                "command": _USER_PROMPT_SUBMIT_CMD,
             }]
         }],
         "PreToolUse": [{
             "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*gitlab.*",
             "hooks": [{
                 "type": "command",
-                "command": "python3 ~/.claude/hooks/pre-tool-hook.py"
+                "command": _PRE_TOOL_HOOK_CMD,
             }]
         }]
     }
@@ -408,7 +417,7 @@ def _install_worktree_configs(project_path, wt_path):
                 dst_agents_md.unlink()
         dst_agents_md.symlink_to(src_agents_md)
 
-    src_codex = Path.home() / ".claude" / ".codex"
+    src_codex = DEFAULT_CODEX_DIR
     dst_codex = wt_path / ".codex"
     if src_codex.exists():
         if dst_codex.exists() or dst_codex.is_symlink():
@@ -442,7 +451,7 @@ def _ensure_project_mcp(project_path):
     """Ensure .mcp.json exists at project level with funnel config and workspace server."""
     mcp_path = Path(project_path) / ".mcp.json"
     if not mcp_path.exists():
-        system_mcp = Path.home() / ".claude" / ".mcp.json"
+        system_mcp = DEFAULT_MCP_TEMPLATE
         if system_mcp.exists():
             shutil.copy2(system_mcp, mcp_path)
         else:
@@ -456,7 +465,7 @@ def _install_git_hooks(dst_claude, working_dir):
     hooks_dir = dst_claude / "git-hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
 
-    system_hooks = Path.home() / ".claude" / "defaults" / "git-hooks"
+    system_hooks = DEFAULT_GIT_HOOKS_DIR
     if system_hooks.exists():
         for hook_name in ["pre-commit", "pre-push"]:
             src_hook = system_hooks / hook_name

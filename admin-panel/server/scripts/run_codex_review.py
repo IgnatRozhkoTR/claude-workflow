@@ -12,6 +12,7 @@ if str(SERVER_DIR) not in sys.path:
 
 from core.codex import mark_codex_review_completed, mark_codex_review_failed  # noqa: E402
 from core.db import get_db_ctx  # noqa: E402
+from core.paths import DEFAULT_CODEX_DIR  # noqa: E402
 from core.terminal import notify_workspace  # noqa: E402
 
 
@@ -37,7 +38,7 @@ def _parse_args():
 def main():
     args = _parse_args()
     workspace_dir = Path.cwd()
-    prompt_path = Path.home() / ".claude" / ".codex" / "prompts" / "review.md"
+    prompt_path = DEFAULT_CODEX_DIR / "prompts" / "review.md"
     if not prompt_path.exists():
         error = f"Missing Codex review prompt: {prompt_path}"
         print(error, file=sys.stderr)

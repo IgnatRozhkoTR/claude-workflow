@@ -6,9 +6,11 @@ and approval status. Called on every tool use, so performance matters.
 import json
 import os
 import re
+from pathlib import Path
 
 from services import scope_service
 from core.db import ws_field
+from core.paths import REPO_ROOT, STATE_DIR
 
 _EDIT_PHASE_RE = re.compile(r'^3\.\d+\.[02]$|^4\.1$')
 _COMMIT_PHASE_RE = re.compile(r'^3\.\d+\.4$|^4\.1$|^5$')
@@ -35,7 +37,9 @@ _HTTP_BYPASS_RE = re.compile(r'(curl|wget|python3?|ruby|node|fetch).*(localhost|
 _GRADLE_TEST_RE = re.compile(r'gradlew.*test')
 
 _CLAUDE_PATH_RE = re.compile(r'(^|/)\.claude/')
-_CLAUDE_PROTECTED_RE = re.compile(r'(^|/)\.claude/(worktrees|admin-panel)/')
+_WORKTREES_SEGMENT_RE = re.compile(r'(^|/)\.claude/worktrees/')
+
+_ADMIN_PANEL_DIR = str(REPO_ROOT / "admin-panel")
 
 
 def check_tool_permission(ws, tool_name, tool_input, project_path):
@@ -91,9 +95,20 @@ def _is_commit_phase(phase):
 
 
 def _is_claude_metadata(file_path):
-    """Check if path is a .claude/ metadata file (not worktrees or admin-panel)."""
-    return (bool(_CLAUDE_PATH_RE.search(file_path))
-            and not bool(_CLAUDE_PROTECTED_RE.search(file_path)))
+    """Check if path is a .claude/ metadata file (not worktrees or the admin-panel dir).
+
+    Returns True when the path contains a .claude/ segment but is NOT:
+    - inside a project worktree directory (.claude/worktrees/...)
+    - inside the governed-workflow admin-panel directory
+    """
+    if not _CLAUDE_PATH_RE.search(file_path):
+        return False
+    if _WORKTREES_SEGMENT_RE.search(file_path):
+        return False
+    abs_path = os.path.abspath(file_path)
+    if abs_path.startswith(_ADMIN_PANEL_DIR + os.sep) or abs_path == _ADMIN_PANEL_DIR:
+        return False
+    return True
 
 
 def _canonicalize_path(file_path, cwd):
@@ -292,7 +307,8 @@ def _check_bash(ws, command, cwd):
         return _check_file_mod_command(ws, command, cwd)
 
     if _GRADLE_TEST_RE.search(command) and "tee /tmp/gradle-test-output" not in command:
-        state_dir = os.path.expanduser("~/.claude/state")
+        state_dir = str(STATE_DIR)
+        Path(state_dir).mkdir(parents=True, exist_ok=True)
         updated = (
             f'set -o pipefail; ( {command} ) 2>&1 | tee /tmp/gradle-test-output.txt; '
             f'EXITCODE=${{PIPESTATUS[0]}}; '
