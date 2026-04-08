@@ -10,7 +10,33 @@ Only enforces inside Git projects — outside Git, no restrictions apply.
 Handles: Edit, Write, NotebookEdit (direct file tools)
          Bash (file-modifying commands: redirects, sed -i, cp, mv, rm, etc.)
 """
-import json, sys, re, subprocess
+import json, sys, re, subprocess, os
+from pathlib import Path
+
+
+def _resolve_governed_repo_root() -> Path:
+    """Return the governed-workflow repo root without importing admin-panel packages.
+
+    Resolution order:
+    1. GOVERNED_WORKFLOW_REPO env var (absolute path).
+    2. Walk parents of this file looking for a directory that contains both
+       admin-panel/ and claude/hooks/.
+    3. Fallback: two levels up from this file (claude/hooks/../.. == repo root).
+    """
+    env_root = os.environ.get("GOVERNED_WORKFLOW_REPO", "")
+    if env_root:
+        return Path(env_root).resolve()
+
+    this_file = Path(__file__).resolve()
+    for parent in this_file.parents:
+        if (parent / "admin-panel").is_dir() and (parent / "claude" / "hooks").is_dir():
+            return parent
+
+    return this_file.parent.parent
+
+
+_GOVERNED_REPO_ROOT = _resolve_governed_repo_root()
+_ADMIN_PANEL_DIR = _GOVERNED_REPO_ROOT / "admin-panel"
 
 data = json.load(sys.stdin)
 
@@ -27,10 +53,13 @@ except Exception:
 tool_name = data.get("tool_name", "")
 
 # Allow orchestrator to write to .claude/ paths (memory, settings, etc.)
-# BUT NOT .claude/worktrees/ — those contain actual project code
+# BUT NOT .claude/worktrees/ (project code) or the admin-panel source itself.
 if tool_name in ("Edit", "Write", "NotebookEdit"):
     file_path = data.get("tool_input", {}).get("file_path", "")
-    if "/.claude/" in file_path and "/.claude/worktrees/" not in file_path:
+    cwd = data.get("cwd", ".")
+    resolved_fp = Path(os.path.normpath(os.path.join(cwd, file_path))) if file_path else Path()
+    is_admin_panel_path = resolved_fp.is_relative_to(_ADMIN_PANEL_DIR)
+    if "/.claude/" in file_path and "/.claude/worktrees/" not in file_path and not is_admin_panel_path:
         sys.exit(0)
 
 # Allow all Docker commands (docker rm, docker cp, etc. match file-mod patterns)

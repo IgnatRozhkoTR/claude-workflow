@@ -14,10 +14,19 @@ def test_repo_root_contains_admin_panel():
 
 
 def test_default_hooks_dir_exists():
-    from core.paths import DEFAULT_HOOKS_DIR
+    from core.paths import DEFAULT_HOOKS_DIR, REPO_ROOT
+    assert DEFAULT_HOOKS_DIR == REPO_ROOT / "claude" / "hooks", (
+        f"DEFAULT_HOOKS_DIR={DEFAULT_HOOKS_DIR} is not at REPO_ROOT/claude/hooks"
+    )
     assert DEFAULT_HOOKS_DIR.is_dir(), (
         f"DEFAULT_HOOKS_DIR={DEFAULT_HOOKS_DIR} does not exist"
     )
+
+
+def test_payload_layout_directories_exist():
+    from core.paths import REPO_ROOT
+    assert (REPO_ROOT / "claude").is_dir(), f"REPO_ROOT/claude does not exist"
+    assert (REPO_ROOT / "codex").is_dir(), f"REPO_ROOT/codex does not exist"
 
 
 def test_hook_command_contains_no_home_claude():

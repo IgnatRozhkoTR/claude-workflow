@@ -12,10 +12,16 @@ from core.decorators import with_workspace
 from core.helpers import sanitize_branch, workspace_dir, run_git, DEFAULT_SOURCE_BRANCH
 from core.i18n import t
 from core.paths import (
+    DEFAULT_AGENTS_DIR,
     DEFAULT_CODEX_DIR,
+    DEFAULT_DEFAULTS_DIR,
     DEFAULT_FUNNEL_TEMPLATE,
     DEFAULT_GIT_HOOKS_DIR,
+    DEFAULT_HOOKS_DIR,
     DEFAULT_MCP_TEMPLATE,
+    DEFAULT_REPO_AGENTS_MD,
+    DEFAULT_REPO_CLAUDE_MD,
+    DEFAULT_RULES_DIR,
     hook_command,
 )
 from core.terminal import session_name
@@ -186,7 +192,9 @@ _WORKSPACE_HOOKS = {
 
 _MCP_SERVER_PATH = str(Path(__file__).resolve().parent.parent / "mcp_server.py")
 
-_BACKUP_FILES = [".claude/settings.json", ".mcp.json", "CLAUDE.md"]
+_BACKUP_FILES = [".claude/settings.json", ".mcp.json", "CLAUDE.md", "AGENTS.md"]
+
+_BACKUP_DIRS = [".codex", ".claude/agents", ".claude/hooks"]
 
 _SYMLINK_TO_PROJECT = ["rules", "git-config.json"]
 
@@ -208,8 +216,28 @@ def _ensure_workspace_mcp(mcp_path):
         mcp_path.write_text(json.dumps(data, indent=2))
 
 
+def _hook_entries_equal(a, b):
+    """Return True when two hook-array entries are functionally identical."""
+    return a.get("matcher") == b.get("matcher") and a.get("hooks") == b.get("hooks")
+
+
+def _merge_hook_arrays(existing_entries, governed_entries):
+    """Return a merged list: existing entries first, governed entries appended when absent."""
+    result = list(existing_entries)
+    for governed in governed_entries:
+        already_present = any(_hook_entries_equal(governed, e) for e in result)
+        if not already_present:
+            result.append(governed)
+    return result
+
+
 def _write_workspace_settings(settings_path):
-    """Write orchestrator hook settings to the given path."""
+    """Merge governed orchestrator hooks into settings.json at settings_path.
+
+    Reads any pre-existing settings file and merges the governed hook entries
+    into each hook_type array rather than overwriting the entire hooks block.
+    Pre-existing entries and unrelated hook types are preserved.
+    """
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     existing = {}
     if settings_path.exists():
@@ -217,29 +245,143 @@ def _write_workspace_settings(settings_path):
             existing = json.loads(settings_path.read_text())
         except Exception:
             pass
-    existing["hooks"] = _WORKSPACE_HOOKS["hooks"]
+
+    existing_hooks = existing.get("hooks", {})
+    governed_hooks = _WORKSPACE_HOOKS["hooks"]
+
+    merged_hooks = dict(existing_hooks)
+    for hook_type, governed_entries in governed_hooks.items():
+        current = merged_hooks.get(hook_type, [])
+        merged_hooks[hook_type] = _merge_hook_arrays(current, governed_entries)
+
+    existing["hooks"] = merged_hooks
     settings_path.write_text(json.dumps(existing, indent=2))
 
 
 def _backup_project_files(project_path):
-    """Back up project files before workspace modifications (non-worktree mode)."""
+    """Back up project files and directories before workspace modifications (non-worktree mode).
+
+    Idempotent: existing backups are never overwritten so repeat calls are safe.
+    """
     project = Path(project_path)
     for rel in _BACKUP_FILES:
         src = project / rel
         backup = project / (rel + ".pre-workspace")
         if src.exists() and not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, backup)
+    for rel in _BACKUP_DIRS:
+        src = project / rel
+        backup = project / (rel + ".pre-workspace")
+        if src.exists() and src.is_dir() and not backup.exists():
+            shutil.copytree(src, backup)
 
 
 def _restore_project_files(project_path):
-    """Restore backed-up project files on workspace archive (non-worktree mode)."""
+    """Restore backed-up project files and directories on workspace archive (non-worktree mode)."""
     project = Path(project_path)
     for rel in _BACKUP_FILES:
         backup = project / (rel + ".pre-workspace")
         target = project / rel
         if backup.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(backup, target)
             backup.unlink()
+    for rel in _BACKUP_DIRS:
+        backup = project / (rel + ".pre-workspace")
+        target = project / rel
+        if backup.exists() and backup.is_dir():
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(backup, target)
+            shutil.rmtree(backup)
+
+
+_MD_SEPARATOR = "\n\n---\n\n# Governed Workflow Defaults\n\n"
+
+# Repo-default asset directories that are merged into each workspace.
+# Each tuple is (source_dir, destination_subpath_inside_workspace).
+_REPO_DEFAULT_ASSET_DIRS = [
+    (DEFAULT_AGENTS_DIR, Path(".claude") / "agents"),
+    (DEFAULT_HOOKS_DIR, Path(".claude") / "hooks"),
+    (DEFAULT_RULES_DIR, Path(".claude") / "rules"),
+    (DEFAULT_DEFAULTS_DIR, Path(".claude") / "defaults"),
+    (DEFAULT_CODEX_DIR, Path(".codex")),
+]
+
+
+def _concatenate_md(repo_default: Path, project_file: Path, workspace_target: Path):
+    """Write workspace_target as a merged markdown file.
+
+    If both sources exist, project content appears first, followed by the
+    separator and then the repo-default content.  If only one source exists,
+    its content is written directly.  If neither exists, nothing is written.
+    The workspace target is always a regular file, never a symlink.
+    """
+    has_default = repo_default.exists()
+    has_project = project_file.exists()
+
+    if has_project and has_default:
+        content = project_file.read_text() + _MD_SEPARATOR + repo_default.read_text()
+    elif has_project:
+        content = project_file.read_text()
+    elif has_default:
+        content = repo_default.read_text()
+    else:
+        return
+
+    if workspace_target.exists() or workspace_target.is_symlink():
+        workspace_target.unlink()
+    workspace_target.write_text(content)
+
+
+def _merge_project_assets(project_path: str, workspace_path: Path):
+    """Populate workspace .claude/ and .codex/ via a two-pass merge.
+
+    Pass 1 — repo defaults: for each file under the repo default asset dirs,
+    copy it to the equivalent workspace destination ONLY when the destination
+    is missing.  Existing destination files are never overwritten.
+
+    Pass 2 — project-local overrides: if the project has its own .claude/ or
+    .codex/, walk them and write their files over the workspace copies so the
+    project version always wins.
+
+    .claude/worktrees/ is excluded from every pass to prevent recursive copies.
+    """
+    project = Path(project_path)
+
+    # Pass 1: fill missing files from repo defaults
+    for src_dir, dst_rel in _REPO_DEFAULT_ASSET_DIRS:
+        if not src_dir.exists():
+            continue
+        dst_dir = workspace_path / dst_rel
+        for src_file in src_dir.rglob("*"):
+            if not src_file.is_file():
+                continue
+            rel = src_file.relative_to(src_dir)
+            dst_file = dst_dir / rel
+            if dst_file.exists():
+                continue
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+    # Pass 2: project-local content overwrites workspace copies (project wins)
+    for project_subdir, dst_rel in [
+        (project / ".claude", workspace_path / ".claude"),
+        (project / ".codex", workspace_path / ".codex"),
+    ]:
+        if not project_subdir.exists():
+            continue
+        for src_file in project_subdir.rglob("*"):
+            if not src_file.is_file():
+                continue
+            rel = src_file.relative_to(project_subdir)
+            # Never merge content from the worktrees storage root
+            if rel.parts and rel.parts[0] == "worktrees":
+                continue
+            dst_file = dst_rel / rel
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
 
 
 @bp.route("/api/projects/<project_id>/branches", methods=["GET"])
@@ -366,67 +508,36 @@ def _setup_checkout_workspace(project_path, branch, source_ref):
 
 
 def _install_worktree_configs(project_path, wt_path):
-    """Copy .claude/ directory into worktree, symlink shared configs, Codex config, and MCP docs."""
+    """Populate the worktree with a merged .claude/ and .codex/ from repo defaults and project."""
     wt_path = Path(wt_path)
-    src_claude = Path(project_path) / ".claude"
     dst_claude = wt_path / ".claude"
+    src_claude = Path(project_path) / ".claude"
 
-    if src_claude.exists():
-        dst_claude.mkdir(parents=True, exist_ok=True)
-        for item in src_claude.iterdir():
-            if item.name == "worktrees":
-                continue
-            dst_item = dst_claude / item.name
-            if dst_item.exists() or dst_item.is_symlink():
-                if dst_item.is_dir() and not dst_item.is_symlink():
-                    shutil.rmtree(dst_item)
+    # a) Merge repo defaults + project-local content into .claude/ and .codex/
+    _merge_project_assets(project_path, wt_path)
+
+    # b) Re-establish rules/ and git-config.json as symlinks back to project root
+    for rel in _SYMLINK_TO_PROJECT:
+        dst = dst_claude / rel
+        src = src_claude / rel
+        if src.exists():
+            if dst.exists() or dst.is_symlink():
+                if dst.is_dir() and not dst.is_symlink():
+                    shutil.rmtree(dst)
                 else:
-                    dst_item.unlink()
-            if item.is_dir():
-                shutil.copytree(item, dst_item, symlinks=True)
-            else:
-                shutil.copy2(item, dst_item)
+                    dst.unlink()
+            dst.symlink_to(src)
 
-        for rel in _SYMLINK_TO_PROJECT:
-            dst = dst_claude / rel
-            src = src_claude / rel
-            if src.exists():
-                if dst.exists() or dst.is_symlink():
-                    if dst.is_dir() and not dst.is_symlink():
-                        shutil.rmtree(dst)
-                    else:
-                        dst.unlink()
-                dst.symlink_to(src)
-
+    # c) Merge governed hooks into workspace settings.json
     _write_workspace_settings(dst_claude / "settings.json")
 
-    src_claude_md = Path(project_path) / "CLAUDE.md"
-    dst_claude_md = wt_path / "CLAUDE.md"
-    if src_claude_md.exists():
-        if dst_claude_md.exists() or dst_claude_md.is_symlink():
-            dst_claude_md.unlink()
-        dst_claude_md.symlink_to(src_claude_md)
+    # d) Write CLAUDE.md and AGENTS.md as real concatenated files in the worktree
+    _concatenate_md(DEFAULT_REPO_CLAUDE_MD, Path(project_path) / "CLAUDE.md", wt_path / "CLAUDE.md")
+    _concatenate_md(DEFAULT_REPO_AGENTS_MD, Path(project_path) / "AGENTS.md", wt_path / "AGENTS.md")
 
-    src_agents_md = Path(project_path) / "AGENTS.md"
-    dst_agents_md = wt_path / "AGENTS.md"
-    if src_agents_md.exists():
-        if dst_agents_md.exists() or dst_agents_md.is_symlink():
-            if dst_agents_md.is_dir() and not dst_agents_md.is_symlink():
-                shutil.rmtree(dst_agents_md)
-            else:
-                dst_agents_md.unlink()
-        dst_agents_md.symlink_to(src_agents_md)
+    # e) .codex/ is already populated by _merge_project_assets — no symlink needed.
 
-    src_codex = DEFAULT_CODEX_DIR
-    dst_codex = wt_path / ".codex"
-    if src_codex.exists():
-        if dst_codex.exists() or dst_codex.is_symlink():
-            if dst_codex.is_dir() and not dst_codex.is_symlink():
-                shutil.rmtree(dst_codex)
-            else:
-                dst_codex.unlink()
-        dst_codex.symlink_to(src_codex)
-
+    # f) Symlink .mcp.json to the project-level file (shared across all worktrees)
     _ensure_project_mcp(project_path)
     src_mcp = Path(project_path) / ".mcp.json"
     dst_mcp = wt_path / ".mcp.json"
@@ -435,15 +546,51 @@ def _install_worktree_configs(project_path, wt_path):
             dst_mcp.unlink()
         dst_mcp.symlink_to(src_mcp)
 
+    # g) Install phase-gated git hooks into the worktree
     _install_git_hooks(dst_claude, str(wt_path))
 
 
 def _install_checkout_configs(project_path):
-    """Write workspace settings and ensure MCP config for non-worktree mode."""
+    """Apply workspace config for checkout (non-worktree) mode.
+
+    The project directory IS the user's permanent root, so this mode is
+    conservative: it backs everything up first, then fills in only missing
+    pieces from repo defaults without overwriting existing files.
+    CLAUDE.md and AGENTS.md are left alone if they already exist.
+    """
     _backup_project_files(project_path)
-    settings_path = Path(project_path) / ".claude" / "settings.json"
+
+    project = Path(project_path)
+
+    # Fill missing repo-default files — never overwrite existing project files
+    for src_dir, dst_rel in _REPO_DEFAULT_ASSET_DIRS:
+        if not src_dir.exists():
+            continue
+        dst_dir = project / dst_rel
+        for src_file in src_dir.rglob("*"):
+            if not src_file.is_file():
+                continue
+            rel = src_file.relative_to(src_dir)
+            dst_file = dst_dir / rel
+            if dst_file.exists():
+                continue
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+    # Merge governed hooks into settings.json (union, never overwrite)
+    settings_path = project / ".claude" / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     _write_workspace_settings(settings_path)
+
+    # CLAUDE.md / AGENTS.md: copy repo default only when the project has neither
+    for repo_default, rel_name in [
+        (DEFAULT_REPO_CLAUDE_MD, "CLAUDE.md"),
+        (DEFAULT_REPO_AGENTS_MD, "AGENTS.md"),
+    ]:
+        target = project / rel_name
+        if not target.exists() and repo_default.exists():
+            shutil.copy2(repo_default, target)
+
     _ensure_project_mcp(project_path)
 
 
