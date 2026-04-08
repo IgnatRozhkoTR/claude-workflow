@@ -268,3 +268,200 @@ def test_get_diff_branch_mode_explicit(client, workspace):
     assert r.status_code == 200
     assert r.json["mode"] == "branch"
     assert isinstance(r.json["files"], list)
+
+
+# ---------------------------------------------------------------------------
+# History endpoint tests
+# ---------------------------------------------------------------------------
+
+def _make_origin_ref(working_dir, source_branch="develop"):
+    """Pin origin/<source_branch> to the current HEAD so future commits are 'ahead'."""
+    import subprocess
+    from testing_utils import GIT_ENV
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=working_dir, capture_output=True, text=True, env=GIT_ENV
+    )
+    sha = result.stdout.strip()
+    subprocess.run(
+        ["git", "update-ref", f"refs/remotes/origin/{source_branch}", sha],
+        cwd=working_dir, check=True, capture_output=True, env=GIT_ENV
+    )
+    return sha
+
+
+def test_history_endpoint_returns_commits_for_simple_branch(client, workspace):
+    wd = workspace["working_dir"]
+    _make_origin_ref(wd)
+
+    Path(wd).joinpath("a.py").write_text("x = 1\n")
+    _git(wd, "add", "a.py")
+    _git(wd, "commit", "-m", "First ahead commit")
+
+    Path(wd).joinpath("b.py").write_text("y = 2\n")
+    _git(wd, "add", "b.py")
+    _git(wd, "commit", "-m", "Second ahead commit")
+
+    r = client.get("/api/ws/test-project/feature/test/history")
+    assert r.status_code == 200
+    data = r.json
+    assert data["source_branch"] == "develop"
+    assert len(data["commits"]) == 2
+    subjects = [c["subject"] for c in data["commits"]]
+    assert "First ahead commit" in subjects
+    assert "Second ahead commit" in subjects
+    for commit in data["commits"]:
+        assert commit["ahead_of_origin"] is True
+        assert len(commit["sha"]) == 12
+        assert len(commit["full_sha"]) == 40
+        assert commit["author_name"] == "Test"
+        assert commit["author_email"] == "test@test.com"
+        assert commit["author_date"]
+
+
+def test_history_endpoint_empty_when_no_new_commits(client, workspace):
+    wd = workspace["working_dir"]
+    _make_origin_ref(wd)
+
+    r = client.get("/api/ws/test-project/feature/test/history")
+    assert r.status_code == 200
+    data = r.json
+    assert data["commits"] == []
+    assert data["source_branch"] == "develop"
+
+
+def test_history_endpoint_handles_commit_with_special_chars(client, workspace):
+    wd = workspace["working_dir"]
+    _make_origin_ref(wd)
+
+    Path(wd).joinpath("c.py").write_text("pass\n")
+    _git(wd, "add", "c.py")
+    import subprocess
+    from testing_utils import GIT_ENV
+    subprocess.run(
+        ["git", "commit", "-m", 'Subject with "quotes"', "-m", "Body line one\nBody line two"],
+        cwd=wd, check=True, capture_output=True, env=GIT_ENV
+    )
+
+    r = client.get("/api/ws/test-project/feature/test/history")
+    assert r.status_code == 200
+    commits = r.json["commits"]
+    assert len(commits) == 1
+    c = commits[0]
+    assert '"quotes"' in c["subject"]
+    assert c["body"]
+
+
+# ---------------------------------------------------------------------------
+# Diff mode=commit tests
+# ---------------------------------------------------------------------------
+
+def _commit_file(working_dir, filename, content, message):
+    """Create, stage and commit a file; return the full SHA."""
+    import subprocess
+    from testing_utils import GIT_ENV
+    Path(working_dir).joinpath(filename).write_text(content)
+    _git(working_dir, "add", filename)
+    _git(working_dir, "commit", "-m", message)
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=working_dir, capture_output=True, text=True, env=GIT_ENV
+    )
+    return result.stdout.strip()
+
+
+def test_diff_mode_commit_returns_commit_diff(client, workspace):
+    wd = workspace["working_dir"]
+    _commit_file(wd, "first.py", "a = 1\n", "First commit")
+    sha2 = _commit_file(wd, "second.py", "b = 2\n", "Second commit")
+
+    r = client.get(f"/api/ws/test-project/feature/test/diff?mode=commit&commit={sha2}")
+    assert r.status_code == 200
+    data = r.json
+    assert data["mode"] == "commit"
+    assert data["commit"] == sha2
+    paths = [f["path"] for f in data["files"]]
+    assert "second.py" in paths
+    assert "first.py" not in paths
+
+
+def test_diff_mode_commit_missing_sha_returns_400(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=commit")
+    assert r.status_code == 400
+    assert "commit" in r.json["error"].lower()
+
+
+def test_diff_mode_commit_unknown_sha_returns_404(client, workspace):
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=commit&commit=deadbeef1234")
+    assert r.status_code == 404
+
+
+def test_diff_mode_commit_not_in_history_returns_400(client, workspace, tmp_path):
+    wd = workspace["working_dir"]
+
+    # Create a separate repo with a commit that is not an ancestor of wd HEAD.
+    other_repo = tmp_path / "other"
+    other_repo.mkdir()
+    import subprocess
+    from testing_utils import GIT_ENV
+    subprocess.run(["git", "init"], cwd=str(other_repo), check=True, capture_output=True, env=GIT_ENV)
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "Orphan commit"],
+        cwd=str(other_repo), check=True, capture_output=True, env=GIT_ENV
+    )
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(other_repo), capture_output=True, text=True, env=GIT_ENV
+    )
+    orphan_sha = result.stdout.strip()
+
+    # Fetch the orphan commit object into wd using git fetch.
+    subprocess.run(
+        ["git", "fetch", str(other_repo), "HEAD"],
+        cwd=wd, check=True, capture_output=True, env=GIT_ENV
+    )
+
+    r = client.get(f"/api/ws/test-project/feature/test/diff?mode=commit&commit={orphan_sha}")
+    assert r.status_code == 400
+    assert "ancestor" in r.json["error"].lower()
+
+
+def test_diff_mode_branch_still_works(client, workspace):
+    wd = workspace["working_dir"]
+    # Pin origin/develop before adding the commit so the new file appears in diff.
+    _make_origin_ref(wd)
+    _commit_file(wd, "branch_file.py", "z = 99\n", "Branch commit")
+
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=branch")
+    assert r.status_code == 200
+    data = r.json
+    assert data["mode"] == "branch"
+    paths = [f["path"] for f in data["files"]]
+    assert "branch_file.py" in paths
+
+
+def test_diff_mode_uncommitted_still_works(client, workspace):
+    wd = workspace["working_dir"]
+    Path(wd).joinpath("staged.py").write_text("s = 1\n")
+    _git(wd, "add", "staged.py")
+
+    r = client.get("/api/ws/test-project/feature/test/diff?mode=uncommitted")
+    assert r.status_code == 200
+    data = r.json
+    assert data["mode"] == "uncommitted"
+    paths = [f["path"] for f in data["files"]]
+    assert "staged.py" in paths
+
+
+def test_diff_mode_commit_does_not_include_untracked(client, workspace):
+    wd = workspace["working_dir"]
+    sha = _commit_file(wd, "tracked.py", "t = 1\n", "Tracked commit")
+
+    # Add an untracked file that should NOT appear in commit mode.
+    Path(wd).joinpath("untracked_extra.py").write_text("u = 99\n")
+
+    r = client.get(f"/api/ws/test-project/feature/test/diff?mode=commit&commit={sha}")
+    assert r.status_code == 200
+    paths = [f["path"] for f in r.json["files"]]
+    assert "tracked.py" in paths
+    assert "untracked_extra.py" not in paths
