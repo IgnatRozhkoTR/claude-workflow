@@ -180,8 +180,16 @@ function apiReadFile(projectId, branch, filePath, startLine, endLine, absolute) 
   return apiGet(url);
 }
 
-function apiGetDiff(projectId, branch, mode) {
+function apiGetDiff(projectId, branch, mode, commit) {
   var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/diff';
-  if (mode && mode !== 'branch') url += '?mode=' + encodeURIComponent(mode);
+  var q = [];
+  if (mode && mode !== 'branch') q.push('mode=' + encodeURIComponent(mode));
+  if (commit) q.push('commit=' + encodeURIComponent(commit));
+  if (q.length) url += '?' + q.join('&');
+  return apiGet(url);
+}
+
+function apiGetCommitHistory(projectId, branch) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history';
   return apiGet(url);
 }

@@ -67,6 +67,7 @@
   "buttons.revokeApproval": "Отозвать одобрение",
   "buttons.revokeRejection": "Отозвать отклонение",
   "buttons.restore": "↩ Восстановить",
+  "buttons.close": "Закрыть",
   "buttons.viewFile": "Просмотреть файл",
   "buttons.goToFileViewer": "Открыть в просмотре файлов",
   "buttons.backToProjects": "Назад к проектам",
@@ -292,6 +293,9 @@
   "diff.inline": "Inline",
   "diff.branch": "Branch",
   "diff.uncommitted": "Uncommitted",
+  "diff.commit": "Коммит",
+  "diff.history": "История",
+  "diff.historyToggle": "История",
 
   "explorer.projectFiles": "Файлы проекта",
   "explorer.selectFile": "Выберите файл для просмотра содержимого",

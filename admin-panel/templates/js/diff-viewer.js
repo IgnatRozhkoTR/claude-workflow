@@ -361,18 +361,49 @@ async function setDiffSource(mode) {
   localStorage.setItem('diff_diffSource', mode);
   state.diffSource = mode;
   document.querySelectorAll('#diffSourceToggle .toggle-opt').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  const ctx = getWorkspaceContext();
-  if (!ctx) return;
-  try {
-    const diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode);
-    if (diffData && diffData.files) {
-      AppState.diff = diffData;
-      DIFF_DATA = AppState.diff;
+
+  if (mode !== 'commit') {
+    state.activeCommit = null;
+    const ctx = getWorkspaceContext();
+    if (!ctx) return;
+    try {
+      const diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode);
+      if (diffData && diffData.files) {
+        AppState.diff = diffData;
+        DIFF_DATA = AppState.diff;
+      }
+    } catch (e) {
+      console.warn('Diff API unavailable:', e.message);
     }
-  } catch (e) {
-    console.warn('Diff API unavailable:', e.message);
+    renderFileList();
+    return;
   }
-  renderFileList();
+
+  if (state.historyCommits.length === 0) {
+    await loadCommitHistory();
+  }
+
+  if (!state.activeCommit && state.historyCommits.length > 0) {
+    state.activeCommit = state.historyCommits[0].full_sha;
+  }
+
+  openHistoryPanel();
+
+  if (state.activeCommit) {
+    const ctx = getWorkspaceContext();
+    if (!ctx) return;
+    try {
+      const diffData = await apiGetDiff(ctx.projectId, ctx.branch, 'commit', state.activeCommit);
+      if (diffData && diffData.files) {
+        AppState.diff = diffData;
+        DIFF_DATA = AppState.diff;
+      }
+    } catch (e) {
+      console.warn('Diff API unavailable:', e.message);
+    }
+    renderFileList();
+    renderHistoryPanel();
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -395,4 +426,172 @@ EventBus.on('state:refreshed', function() {
 EventBus.on('comments:changed', function() {
   renderFileList();
   if (state.selectedFile) renderDiff(state.selectedFile);
+});
+
+// ═══════════════════════════════════════════════
+//  COMMIT HISTORY PANEL
+// ═══════════════════════════════════════════════
+
+async function loadCommitHistory() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  state.historyLoading = true;
+  state.historyError = null;
+  try {
+    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch);
+    state.historyCommits = data.commits || [];
+    state.historySourceBranch = data.source_branch || null;
+    renderHistoryPanel();
+  } catch (e) {
+    state.historyError = e.message;
+    renderHistoryPanel();
+  } finally {
+    state.historyLoading = false;
+  }
+}
+
+function renderHistoryPanel() {
+  var list = document.getElementById('diffHistoryList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  var branchLabel = document.getElementById('diffHistoryBranchLabel');
+  if (branchLabel && state.historySourceBranch) {
+    branchLabel.textContent = 'ahead of origin/' + state.historySourceBranch;
+  } else if (branchLabel) {
+    branchLabel.textContent = '';
+  }
+
+  if (state.historyLoading) {
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'diff-history-loading';
+    loadingEl.textContent = t('explorer.loading') || 'Loading...';
+    list.appendChild(loadingEl);
+    return;
+  }
+
+  if (state.historyError) {
+    var errorEl = document.createElement('div');
+    errorEl.className = 'diff-history-error';
+    errorEl.textContent = state.historyError;
+    list.appendChild(errorEl);
+    return;
+  }
+
+  state.historyCommits.forEach(function(commit) {
+    var row = document.createElement('div');
+    var isActive = commit.full_sha === state.activeCommit;
+    var isSelected = state.selectedCommits.indexOf(commit.full_sha) !== -1;
+    var cls = 'diff-history-row';
+    if (isActive) cls += ' active';
+    if (isSelected) cls += ' selected';
+    row.className = cls;
+
+    var aheadDot = commit.ahead_of_origin ? '<span class="ahead-marker" title="Ahead of origin"></span>' : '';
+    var sha = document.createElement('span');
+    sha.className = 'commit-sha';
+    sha.innerHTML = aheadDot + escapeHtml(commit.short_sha || commit.full_sha.substring(0, 7));
+
+    var subject = document.createElement('span');
+    subject.className = 'commit-subject';
+    subject.textContent = commit.subject || '';
+    subject.title = commit.subject || '';
+
+    var author = document.createElement('span');
+    author.className = 'commit-author';
+    author.textContent = commit.author || '';
+
+    var date = document.createElement('span');
+    date.className = 'commit-date';
+    date.textContent = commit.date ? formatRelativeDate(commit.date) : '';
+
+    row.appendChild(sha);
+    row.appendChild(subject);
+    row.appendChild(author);
+    row.appendChild(date);
+
+    row.addEventListener('click', function(e) {
+      selectCommit(commit.full_sha, e);
+    });
+
+    list.appendChild(row);
+  });
+
+  updateSelectionCountDisplay();
+}
+
+async function selectCommit(fullSha, event) {
+  if (event && (event.metaKey || event.ctrlKey)) {
+    var idx = state.selectedCommits.indexOf(fullSha);
+    if (idx === -1) {
+      state.selectedCommits.push(fullSha);
+    } else {
+      state.selectedCommits.splice(idx, 1);
+    }
+    renderHistoryPanel();
+    return;
+  }
+
+  state.selectedCommits = [];
+  state.activeCommit = fullSha;
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var diffData = await apiGetDiff(ctx.projectId, ctx.branch, 'commit', fullSha);
+    if (diffData && diffData.files) {
+      AppState.diff = diffData;
+      DIFF_DATA = AppState.diff;
+    }
+  } catch (e) {
+    console.warn('Commit diff unavailable:', e.message);
+  }
+
+  renderFileList();
+  renderHistoryPanel();
+}
+
+function updateSelectionCountDisplay() {
+  var countEl = document.getElementById('diffHistorySelectionCount');
+  if (!countEl) return;
+  var count = state.selectedCommits.length;
+  if (count > 0) {
+    countEl.textContent = count + ' selected';
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+}
+
+function openHistoryPanel() {
+  state.historyPanelOpen = true;
+  localStorage.setItem('diff_historyPanelOpen', 'true');
+  var panel = document.getElementById('diffHistoryPanel');
+  if (panel) panel.style.display = '';
+  if (state.historyCommits.length === 0) {
+    loadCommitHistory();
+  }
+}
+
+function toggleHistoryPanel() {
+  if (state.historyPanelOpen) {
+    closeHistoryPanel();
+  } else {
+    openHistoryPanel();
+  }
+}
+
+function closeHistoryPanel() {
+  state.historyPanelOpen = false;
+  localStorage.setItem('diff_historyPanelOpen', 'false');
+  var panel = document.getElementById('diffHistoryPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (state.historyPanelOpen) {
+    var panel = document.getElementById('diffHistoryPanel');
+    if (panel) panel.style.display = '';
+    loadCommitHistory();
+  }
 });

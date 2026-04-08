@@ -67,6 +67,7 @@
   "buttons.revokeApproval": "Revoke Approval",
   "buttons.revokeRejection": "Revoke Rejection",
   "buttons.restore": "↩ Restore",
+  "buttons.close": "Close",
   "buttons.viewFile": "View File",
   "buttons.goToFileViewer": "Go to file viewer",
   "buttons.backToProjects": "Back to projects",
@@ -292,6 +293,9 @@
   "diff.inline": "Inline",
   "diff.branch": "Branch",
   "diff.uncommitted": "Uncommitted",
+  "diff.commit": "Commit",
+  "diff.history": "History",
+  "diff.historyToggle": "History",
 
   "explorer.projectFiles": "Project Files",
   "explorer.selectFile": "Select a file to view its contents",

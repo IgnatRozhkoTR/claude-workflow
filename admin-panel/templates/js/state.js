@@ -53,7 +53,14 @@ var AppState = {
     fileView: localStorage.getItem('diff_fileView') || 'tree',
     diffSource: localStorage.getItem('diff_diffSource') || 'branch',
     selectedFile: null,
-    theme: 'dark'
+    theme: 'dark',
+    historyPanelOpen: localStorage.getItem('diff_historyPanelOpen') === 'true',
+    historyCommits: [],
+    historyLoading: false,
+    historyError: null,
+    selectedCommits: [],
+    activeCommit: null,
+    historySourceBranch: null
   }
 };
 
