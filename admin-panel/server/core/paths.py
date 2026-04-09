@@ -38,7 +38,7 @@ DEFAULT_GIT_RULES = DEFAULT_DEFAULTS_DIR / "git-rules.md"
 DEFAULT_GIT_HOOKS_DIR = DEFAULT_DEFAULTS_DIR / "git-hooks"
 
 DEFAULT_REPO_CLAUDE_MD = REPO_ROOT / "claude" / "CLAUDE.md"
-DEFAULT_REPO_AGENTS_MD = REPO_ROOT / "claude" / "AGENTS.md"
+DEFAULT_REPO_AGENTS_MD = REPO_ROOT / "codex" / "AGENTS.md"
 
 STATE_DIR: Path = Path(
     os.environ.get("GOVERNED_WORKFLOW_STATE_DIR") or REPO_ROOT / ".local" / "state"
