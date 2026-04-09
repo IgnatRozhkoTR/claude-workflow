@@ -158,77 +158,146 @@ def list_files(db, ws, project):
     return jsonify(result)
 
 
+_LOG_FORMAT = "%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%b%x1e"
+
+
+def _parse_log(raw, ahead_shas):
+    commits = []
+    for record in raw.split("\x1e"):
+        record = record.strip("\n")
+        if not record:
+            continue
+        parts = record.split("\x00", 6)
+        if len(parts) < 6:
+            continue
+        full_sha = parts[0]
+        sha = parts[1]
+        subject = parts[2]
+        author_name = parts[3]
+        author_email = parts[4]
+        author_date = parts[5]
+        body = parts[6].strip() if len(parts) > 6 else ""
+        commits.append({
+            "sha": sha,
+            "full_sha": full_sha,
+            "subject": subject,
+            "body": body,
+            "author_name": author_name,
+            "author_email": author_email,
+            "author_date": author_date,
+            "ahead_of_origin": full_sha in ahead_shas,
+        })
+    return commits
+
+
+def _ahead_shas(working_dir, ref):
+    ok, out, _ = run_git(working_dir, "log", "--pretty=format:%H", f"{ref}..HEAD")
+    if not ok:
+        return set()
+    return {line.strip() for line in out.splitlines() if line.strip()}
+
+
+def _try_history_refs(working_dir, source_branch, log_format):
+    """Try candidate ref expressions in order; return (raw_log, ahead_shas_set) for the first success."""
+    candidates = [
+        f"origin/{source_branch}..HEAD",
+        f"{source_branch}..HEAD",
+        None,
+    ]
+    for ref_expr in candidates:
+        if ref_expr is not None:
+            ok, raw, _ = run_git(working_dir, "log", "--abbrev=12", f"--format={log_format}", ref_expr)
+            if ok:
+                ahead = _ahead_shas(working_dir, ref_expr.split("..")[0])
+                return raw, ahead
+        else:
+            ok, raw, _ = run_git(working_dir, "log", "--abbrev=12", f"--format={log_format}", "--max-count=200")
+            if not ok:
+                return "", set()
+            ok_rev, out_rev, _ = run_git(working_dir, "rev-list", "--max-count=200", "HEAD")
+            all_shas = {line.strip() for line in out_rev.splitlines() if line.strip()} if ok_rev else set()
+            return raw, all_shas
+    return "", set()
+
+
 @bp.route("/api/ws/<project_id>/<path:branch>/history", methods=["GET"])
 @with_workspace
 def get_history(db, ws, project):
     working_dir = ws["working_dir"]
     source_branch = ws["source_branch"] or DEFAULT_SOURCE_BRANCH
 
-    log_format = "%H%x00%h%x00%s%x00%an%x00%ae%x00%aI%x00%b%x1e"
-
-    def _parse_log(raw, ahead_shas):
-        commits = []
-        for record in raw.split("\x1e"):
-            record = record.strip("\n")
-            if not record:
-                continue
-            parts = record.split("\x00", 6)
-            if len(parts) < 6:
-                continue
-            full_sha = parts[0]
-            sha = parts[1]
-            subject = parts[2]
-            author_name = parts[3]
-            author_email = parts[4]
-            author_date = parts[5]
-            body = parts[6].strip() if len(parts) > 6 else ""
-            commits.append({
-                "sha": sha,
-                "full_sha": full_sha,
-                "subject": subject,
-                "body": body,
-                "author_name": author_name,
-                "author_email": author_email,
-                "author_date": author_date,
-                "ahead_of_origin": full_sha in ahead_shas,
-            })
-        return commits
-
-    def _ahead_shas(working_dir, ref):
-        ok, out, _ = run_git(working_dir, "log", "--pretty=format:%H", f"{ref}..HEAD")
-        if not ok:
-            return set()
-        return {line.strip() for line in out.splitlines() if line.strip()}
-
-    ok, raw, _ = run_git(
-        working_dir, "log", "--abbrev=12", f"--format={log_format}",
-        f"origin/{source_branch}..HEAD"
-    )
-    if ok:
-        ahead = _ahead_shas(working_dir, f"origin/{source_branch}")
-        commits = _parse_log(raw, ahead)
-        return jsonify({"commits": commits, "source_branch": source_branch})
-
-    ok, raw, _ = run_git(
-        working_dir, "log", "--abbrev=12", f"--format={log_format}",
-        f"{source_branch}..HEAD"
-    )
-    if ok:
-        ahead = _ahead_shas(working_dir, source_branch)
-        commits = _parse_log(raw, ahead)
-        return jsonify({"commits": commits, "source_branch": source_branch})
-
-    ok, raw, _ = run_git(
-        working_dir, "log", "--abbrev=12", f"--format={log_format}",
-        "--max-count=200"
-    )
-    if not ok:
-        return jsonify({"commits": [], "source_branch": source_branch})
-
-    ok_rev, out_rev, _ = run_git(working_dir, "rev-list", "--max-count=200", "HEAD")
-    all_shas = {line.strip() for line in out_rev.splitlines() if line.strip()} if ok_rev else set()
-    commits = _parse_log(raw, all_shas)
+    raw, ahead = _try_history_refs(working_dir, source_branch, _LOG_FORMAT)
+    commits = _parse_log(raw, ahead)
     return jsonify({"commits": commits, "source_branch": source_branch})
+
+
+def _diff_for_commit(working_dir, sha):
+    """Validate sha and return parsed diff files list, or an error tuple."""
+    if not sha:
+        return jsonify({"error": "commit query parameter is required for mode=commit"}), 400
+
+    ok_cat, _, _ = run_git(working_dir, "cat-file", "-e", f"{sha}^{{commit}}")
+    if not ok_cat:
+        return jsonify({"error": "commit not found"}), 404
+
+    ok_anc, _, _ = run_git(working_dir, "merge-base", "--is-ancestor", sha, "HEAD")
+    if not ok_anc:
+        return jsonify({"error": "commit is not an ancestor of HEAD"}), 400
+
+    ok, diff_output, _ = run_git(working_dir, "show", "--format=", "--patch", sha)
+    return _parse_diff(diff_output if ok else "")
+
+
+def _diff_for_branch(working_dir, source_branch):
+    """Return diff output against the source branch, trying origin first then local fallbacks."""
+    for ref in (f"origin/{source_branch}", source_branch, "HEAD", None):
+        if ref is not None:
+            ok, diff_output, _ = run_git(working_dir, "diff", ref)
+        else:
+            ok, diff_output, _ = run_git(working_dir, "diff")
+        if ok:
+            return diff_output
+    return ""
+
+
+def _untracked_files_diff(working_dir, mode, tracked_paths):
+    """Return synthetic diff entries for untracked (new) files not already in tracked_paths."""
+    new_paths = set()
+    ok_ls, ls_out, _ = run_git(working_dir, "ls-files", "--others", "--exclude-standard")
+    if ok_ls:
+        new_paths.update(line.strip() for line in ls_out.splitlines() if line.strip())
+
+    if mode == "branch":
+        # Also include staged new files not yet in the tracked diff
+        ok_cached, cached_out, _ = run_git(working_dir, "diff", "--cached", "--name-only")
+        if ok_cached:
+            new_paths.update(line.strip() for line in cached_out.splitlines() if line.strip())
+
+    entries = []
+    for rel_path in new_paths:
+        if rel_path in tracked_paths:
+            continue
+        file_path = Path(working_dir) / rel_path
+        try:
+            content = file_path.read_text()
+        except (OSError, UnicodeDecodeError):
+            continue
+        content_lines = content.splitlines()
+        diff_lines = [
+            f"diff --git a/{rel_path} b/{rel_path}",
+            "new file mode 100644",
+            "--- /dev/null",
+            f"+++ b/{rel_path}",
+            f"@@ -0,0 +1,{len(content_lines)} @@",
+        ] + ["+" + l for l in content_lines]
+        entries.append({
+            "path": rel_path,
+            "additions": len(content_lines),
+            "deletions": 0,
+            "diff": "\n".join(diff_lines),
+            "status": "new",
+        })
+    return entries
 
 
 @bp.route("/api/ws/<project_id>/<path:branch>/diff", methods=["GET"])
@@ -239,83 +308,24 @@ def get_diff(db, ws, project):
 
     mode = request.args.get("mode", "branch")
     if mode not in ("branch", "uncommitted", "commit"):
-        mode = "branch"
+        return jsonify({"error": f"unknown mode '{mode}', expected: branch, uncommitted, commit"}), 400
 
     if mode == "commit":
         sha = request.args.get("commit", "").strip()
-        if not sha:
-            return jsonify({"error": "commit query parameter is required for mode=commit"}), 400
+        result = _diff_for_commit(working_dir, sha)
+        if isinstance(result, tuple):
+            return result
+        return jsonify({"files": result, "mode": "commit", "commit": sha})
 
-        ok_cat, _, _ = run_git(working_dir, "cat-file", "-e", f"{sha}^{{commit}}")
-        if not ok_cat:
-            return jsonify({"error": "commit not found"}), 404
-
-        ok_anc, _, _ = run_git(working_dir, "merge-base", "--is-ancestor", sha, "HEAD")
-        if not ok_anc:
-            return jsonify({"error": "commit is not an ancestor of HEAD"}), 400
-
-        ok, diff_output, _ = run_git(working_dir, "show", "--format=", "--patch", sha)
-        if not ok:
-            diff_output = ""
-
-        files = _parse_diff(diff_output)
-        return jsonify({"files": files, "mode": "commit", "commit": sha})
-
-    if mode == "uncommitted":
+    if mode == "branch":
+        diff_output = _diff_for_branch(working_dir, source_branch)
+    else:
         ok, diff_output, _ = run_git(working_dir, "diff", "HEAD")
         if not ok:
             diff_output = ""
-    else:
-        # Diff against remote source branch (local ref may be stale in worktrees)
-        ok, diff_output, _ = run_git(working_dir, "diff", f"origin/{source_branch}")
-        if not ok:
-            ok, diff_output, _ = run_git(working_dir, "diff", source_branch)
-        if not ok:
-            ok, diff_output, _ = run_git(working_dir, "diff", "HEAD")
-        if not ok:
-            ok, diff_output, _ = run_git(working_dir, "diff")
 
     files = _parse_diff(diff_output)
-    tracked_paths = {f["path"] for f in files}
-
-    if mode in ("branch", "uncommitted"):
-        # Include untracked (new) files as synthetic diffs.
-        # git status --porcelain shows untracked directories as "?? dirname/" instead of
-        # listing individual files, so we use ls-files --others for complete coverage.
-        new_paths = set()
-        ok_ls, ls_out, _ = run_git(working_dir, "ls-files", "--others", "--exclude-standard")
-        if ok_ls:
-            new_paths.update(line.strip() for line in ls_out.splitlines() if line.strip())
-
-        if mode == "branch":
-            ok_cached, cached_out, _ = run_git(working_dir, "diff", "--cached", "--name-only")
-            if ok_cached:
-                new_paths.update(line.strip() for line in cached_out.splitlines() if line.strip())
-
-        for rel_path in new_paths:
-            if rel_path in tracked_paths:
-                continue
-            file_path = Path(working_dir) / rel_path
-            try:
-                content = file_path.read_text()
-            except (OSError, UnicodeDecodeError):
-                continue
-            content_lines = content.splitlines()
-            diff_lines = [
-                f"diff --git a/{rel_path} b/{rel_path}",
-                "new file mode 100644",
-                "--- /dev/null",
-                f"+++ b/{rel_path}",
-                f"@@ -0,0 +1,{len(content_lines)} @@",
-            ] + ["+" + l for l in content_lines]
-            files.append({
-                "path": rel_path,
-                "additions": len(content_lines),
-                "deletions": 0,
-                "diff": "\n".join(diff_lines),
-                "status": "new",
-            })
-
+    files.extend(_untracked_files_diff(working_dir, mode, {f["path"] for f in files}))
     return jsonify({"files": files, "mode": mode})
 
 

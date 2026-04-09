@@ -53,7 +53,7 @@ def _get_gitlab_from_remote(project_path):
         try:
             with open(config_path) as f:
                 token = json.load(f).get("token", "")
-        except Exception:
+        except (json.JSONDecodeError, ValueError, OSError):
             pass
 
     return host, token
@@ -87,7 +87,7 @@ def _write_funnel_config(project_path, host, token):
     if DEFAULT_FUNNEL_TEMPLATE.exists():
         try:
             template = json.loads(DEFAULT_FUNNEL_TEMPLATE.read_text())
-        except Exception:
+        except (json.JSONDecodeError, ValueError, OSError):
             pass
 
     template["servers"] = {
@@ -118,7 +118,7 @@ def _ensure_funnel_config(project_path):
 
     try:
         mcp_data = json.loads(project_mcp.read_text())
-    except Exception:
+    except (json.JSONDecodeError, ValueError, OSError):
         return
 
     servers = mcp_data.get("mcpServers", {})
@@ -205,7 +205,7 @@ def _ensure_workspace_mcp(mcp_path):
     if mcp_path.exists():
         try:
             data = json.loads(mcp_path.read_text())
-        except Exception:
+        except (json.JSONDecodeError, ValueError, OSError):
             pass
     servers = data.setdefault("mcpServers", {})
     if "workspace" not in servers:
@@ -243,7 +243,7 @@ def _write_workspace_settings(settings_path):
     if settings_path.exists():
         try:
             existing = json.loads(settings_path.read_text())
-        except Exception:
+        except (json.JSONDecodeError, ValueError, OSError):
             pass
 
     existing_hooks = existing.get("hooks", {})
@@ -335,6 +335,23 @@ def _concatenate_md(repo_default: Path, project_file: Path, workspace_target: Pa
     workspace_target.write_text(content)
 
 
+def _fill_missing_repo_defaults(target_root: Path):
+    """Copy each missing file from repo default asset dirs into target_root. Never overwrites."""
+    for src_dir, dst_rel in _REPO_DEFAULT_ASSET_DIRS:
+        if not src_dir.exists():
+            continue
+        dst_dir = target_root / dst_rel
+        for src_file in src_dir.rglob("*"):
+            if not src_file.is_file():
+                continue
+            rel = src_file.relative_to(src_dir)
+            dst_file = dst_dir / rel
+            if dst_file.exists():
+                continue
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+
 def _merge_project_assets(project_path: str, workspace_path: Path):
     """Populate workspace .claude/ and .codex/ via a two-pass merge.
 
@@ -351,19 +368,7 @@ def _merge_project_assets(project_path: str, workspace_path: Path):
     project = Path(project_path)
 
     # Pass 1: fill missing files from repo defaults
-    for src_dir, dst_rel in _REPO_DEFAULT_ASSET_DIRS:
-        if not src_dir.exists():
-            continue
-        dst_dir = workspace_path / dst_rel
-        for src_file in src_dir.rglob("*"):
-            if not src_file.is_file():
-                continue
-            rel = src_file.relative_to(src_dir)
-            dst_file = dst_dir / rel
-            if dst_file.exists():
-                continue
-            dst_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_file, dst_file)
+    _fill_missing_repo_defaults(workspace_path)
 
     # Pass 2: project-local content overwrites workspace copies (project wins)
     for project_subdir, dst_rel in [
@@ -563,19 +568,7 @@ def _install_checkout_configs(project_path):
     project = Path(project_path)
 
     # Fill missing repo-default files — never overwrite existing project files
-    for src_dir, dst_rel in _REPO_DEFAULT_ASSET_DIRS:
-        if not src_dir.exists():
-            continue
-        dst_dir = project / dst_rel
-        for src_file in src_dir.rglob("*"):
-            if not src_file.is_file():
-                continue
-            rel = src_file.relative_to(src_dir)
-            dst_file = dst_dir / rel
-            if dst_file.exists():
-                continue
-            dst_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_file, dst_file)
+    _fill_missing_repo_defaults(project)
 
     # Merge governed hooks into settings.json (union, never overwrite)
     settings_path = project / ".claude" / "settings.json"

@@ -121,8 +121,7 @@ The repo can be cloned to any path on disk (`~/governed-workflow`, `/opt/governe
 │   │   ├── governed-workflow/ #   Full orchestrated workflow (/governed-workflow)
 │   │   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
 │   │   ├── planning/     #     Planning phase 2.0 (/planning)
-│   │   ├── setup/        #     Setup wizard for modules and profiles
-│   │   └── stride/       #     Lightweight version without backend (/stride)
+│   │   └── setup/        #     Setup wizard for modules and profiles
 │   ├── rules/            #   Coding standards, test standards, validation pipeline
 │   └── defaults/         #   Git rules template, settings template
 ├── codex/                # Codex payload (agents, prompts, config)
@@ -134,12 +133,3 @@ The repo can be cloned to any path on disk (`~/governed-workflow`, `/opt/governe
 
 Clone the repo to any directory, then see [admin-panel/README.md](admin-panel/README.md) for installation, API reference, and MCP tool documentation. For a full step-by-step install including Windows/WSL, use the `/workflow-migration` skill.
 
-## Two Workflow Modes
-
-| | Governed (`/governed-workflow`) | Stride (`/stride`) |
-|---|---|---|
-| Backend | Flask + SQLite + MCP server | None |
-| Phase enforcement | Server-validated, scope-locked | Conversational discipline |
-| User gates | 4 hard gates with nonce tokens | Plan approval only |
-| Agent team | 16 specialized roles, persistent teammates | Sub-agents as needed |
-| Best for | High-stakes changes, multi-file refactors | Smaller tasks, quick iterations |

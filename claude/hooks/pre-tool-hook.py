@@ -9,33 +9,9 @@ import sys
 import re
 import os
 from pathlib import Path
+from _repo_root import GOVERNED_REPO_ROOT, ADMIN_PANEL_DIR
 
 API_BASE = "http://localhost:5111"
-
-
-def _resolve_governed_repo_root() -> Path:
-    """Return the governed-workflow repo root without importing admin-panel packages.
-
-    Resolution order:
-    1. GOVERNED_WORKFLOW_REPO env var (absolute path).
-    2. Walk parents of this file looking for a directory that contains both
-       admin-panel/ and claude/hooks/.
-    3. Fallback: two levels up from this file (claude/hooks/../.. == repo root).
-    """
-    env_root = os.environ.get("GOVERNED_WORKFLOW_REPO", "")
-    if env_root:
-        return Path(env_root).resolve()
-
-    this_file = Path(__file__).resolve()
-    for parent in this_file.parents:
-        if (parent / "admin-panel").is_dir() and (parent / "claude" / "hooks").is_dir():
-            return parent
-
-    return this_file.parent.parent
-
-
-_GOVERNED_REPO_ROOT = _resolve_governed_repo_root()
-_ADMIN_PANEL_DIR = _GOVERNED_REPO_ROOT / "admin-panel"
 
 def deny(reason):
     full_reason = reason + " Do NOT bypass hooks — ask the user to adjust scope or phase via the admin panel."
@@ -110,7 +86,7 @@ if tool_name in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
     resolved_fp = Path(os.path.normpath(os.path.join(cwd, file_path))) if file_path else Path()
     is_claude_metadata = "/.claude/" in file_path
     is_worktrees_path = "/.claude/worktrees/" in file_path
-    is_admin_panel_path = resolved_fp.is_relative_to(_ADMIN_PANEL_DIR)
+    is_admin_panel_path = resolved_fp.is_relative_to(ADMIN_PANEL_DIR)
     if is_claude_metadata and not is_worktrees_path and not is_admin_panel_path:
         allow()
 

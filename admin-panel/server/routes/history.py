@@ -28,8 +28,9 @@ def _current_branch(working_dir):
 def _ahead_of_origin_shas(working_dir, source_branch) -> list:
     """Return ordered full SHAs for commits ahead of origin/<source_branch>.
 
-    Falls back to all reachable commits (capped at 500) when origin/<source_branch>
-    does not exist. Returns an empty list on total failure.
+    Fail-closed behavior: when origin/<source_branch> does not exist, falls back
+    to <source_branch> as a local ref. If that also doesn't exist, returns an empty
+    list — no commits are considered rewritable until a reference point is established.
     """
     ok, output, _ = run_git(
         working_dir, "log", f"origin/{source_branch}..HEAD", "--format=%H"
@@ -37,9 +38,9 @@ def _ahead_of_origin_shas(working_dir, source_branch) -> list:
     if ok:
         return [line.strip() for line in output.splitlines() if line.strip()]
 
-    # origin/<source_branch> may not exist (brand-new branch)
+    # origin/<source_branch> may not exist; try local ref as fallback
     ok, output, _ = run_git(
-        working_dir, "log", "--format=%H", "--max-count=500", "HEAD"
+        working_dir, "log", f"{source_branch}..HEAD", "--format=%H"
     )
     if ok:
         return [line.strip() for line in output.splitlines() if line.strip()]
@@ -53,6 +54,10 @@ def _is_selection_contiguous(selected_set: set, ahead_list: list) -> tuple:
     ahead_list is ordered newest-first (git log order). We find the slice of
     ahead_list that matches selected_set and verify there are no gaps.
     Returns (False, []) when selection is non-contiguous or not fully in ahead_list.
+
+    Note: contiguity alone does not guarantee safety. Callers that mutate history
+    via reset must separately verify that the selection includes HEAD, to avoid
+    silently discarding commits above the selected range.
     """
     indices = [i for i, sha in enumerate(ahead_list) if sha in selected_set]
     if len(indices) != len(selected_set):
@@ -98,6 +103,26 @@ def _head_sha(working_dir):
     return output.strip() or None
 
 
+def _require_head_unpushed(working_dir, source_branch) -> tuple:
+    """Verify HEAD exists and is a local-unpushed commit.
+
+    Returns (head_sha, ahead_list, None) on success, or
+    (None, None, (response, status_code)) when a guard fails.
+    """
+    head = _head_sha(working_dir)
+    if head is None:
+        return None, None, (jsonify({"ok": False, "error": "could not resolve HEAD"}), 500)
+
+    ahead = _ahead_of_origin_shas(working_dir, source_branch)
+    if head not in ahead:
+        return None, None, (
+            jsonify({"ok": False, "error": "HEAD commit is already pushed — cannot rewrite a pushed commit"}),
+            400,
+        )
+
+    return head, ahead, None
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -119,13 +144,9 @@ def rename_commit(db, ws, project):
         return jsonify({"ok": False, "error": "message must be a non-empty string"}), 400
     message = message.strip()
 
-    head = _head_sha(working_dir)
-    if head is None:
-        return jsonify({"ok": False, "error": "could not resolve HEAD"}), 500
-
-    ahead = _ahead_of_origin_shas(working_dir, source_branch)
-    if head not in ahead:
-        return jsonify({"ok": False, "error": "HEAD commit is already pushed — cannot amend a pushed commit"}), 400
+    head, _, guard_failure = _require_head_unpushed(working_dir, source_branch)
+    if guard_failure is not None:
+        return guard_failure
 
     ok, _, stderr = run_git(working_dir, "commit", "--amend", "-m", message)
     if not ok:
@@ -146,17 +167,13 @@ def undo_commit(db, ws, project):
     if failure is not None:
         return failure
 
-    head = _head_sha(working_dir)
-    if head is None:
-        return jsonify({"ok": False, "error": "could not resolve HEAD"}), 500
+    head, _, guard_failure = _require_head_unpushed(working_dir, source_branch)
+    if guard_failure is not None:
+        return guard_failure
 
     ok_parent, _, _ = run_git(working_dir, "rev-parse", "HEAD~1")
     if not ok_parent:
         return jsonify({"ok": False, "error": "HEAD is the initial commit — nothing to undo"}), 400
-
-    ahead = _ahead_of_origin_shas(working_dir, source_branch)
-    if head not in ahead:
-        return jsonify({"ok": False, "error": "HEAD commit is already pushed — cannot undo a pushed commit"}), 400
 
     ok, _, stderr = run_git(working_dir, "reset", "--soft", "HEAD~1")
     if not ok:
@@ -188,9 +205,11 @@ def squash_commits(db, ws, project):
         return jsonify({"ok": False, "error": "message must be a non-empty string"}), 400
     message = message.strip()
 
-    ahead = _ahead_of_origin_shas(working_dir, source_branch)
-    ahead_set = set(ahead)
+    head, ahead, guard_failure = _require_head_unpushed(working_dir, source_branch)
+    if guard_failure is not None:
+        return guard_failure
 
+    ahead_set = set(ahead)
     selected_set = set(commits)
 
     for sha in selected_set:
@@ -200,6 +219,9 @@ def squash_commits(db, ws, project):
     contiguous, sorted_selection = _is_selection_contiguous(selected_set, ahead)
     if not contiguous:
         return jsonify({"ok": False, "error": "selection must be contiguous"}), 400
+
+    if sorted_selection[0] != head:
+        return jsonify({"ok": False, "error": "selection must include the latest commit (HEAD) — commits above the selection would be lost"}), 400
 
     oldest_sha = sorted_selection[-1]
     parent_ref = f"{oldest_sha}~1"

@@ -357,6 +357,20 @@ function setDiffMode(mode) {
   if (state.selectedFile) renderDiff(state.selectedFile);
 }
 
+async function _loadDiff(mode, commitSha) {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode, commitSha);
+    if (diffData && diffData.files) {
+      AppState.diff = diffData;
+      DIFF_DATA = AppState.diff;
+    }
+  } catch (e) {
+    console.warn('Diff API unavailable:', e.message);
+  }
+}
+
 async function setDiffSource(mode) {
   localStorage.setItem('diff_diffSource', mode);
   state.diffSource = mode;
@@ -364,17 +378,7 @@ async function setDiffSource(mode) {
 
   if (mode !== 'commit') {
     state.activeCommit = null;
-    const ctx = getWorkspaceContext();
-    if (!ctx) return;
-    try {
-      const diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode);
-      if (diffData && diffData.files) {
-        AppState.diff = diffData;
-        DIFF_DATA = AppState.diff;
-      }
-    } catch (e) {
-      console.warn('Diff API unavailable:', e.message);
-    }
+    await _loadDiff(mode);
     renderFileList();
     return;
   }
@@ -390,17 +394,7 @@ async function setDiffSource(mode) {
   openHistoryPanel();
 
   if (state.activeCommit) {
-    const ctx = getWorkspaceContext();
-    if (!ctx) return;
-    try {
-      const diffData = await apiGetDiff(ctx.projectId, ctx.branch, 'commit', state.activeCommit);
-      if (diffData && diffData.files) {
-        AppState.diff = diffData;
-        DIFF_DATA = AppState.diff;
-      }
-    } catch (e) {
-      console.warn('Diff API unavailable:', e.message);
-    }
+    await _loadDiff('commit', state.activeCommit);
     renderFileList();
     renderHistoryPanel();
   }
@@ -536,18 +530,7 @@ async function selectCommit(fullSha, event) {
   state.selectedCommits = [];
   state.activeCommit = fullSha;
 
-  var ctx = getWorkspaceContext();
-  if (!ctx) return;
-  try {
-    var diffData = await apiGetDiff(ctx.projectId, ctx.branch, 'commit', fullSha);
-    if (diffData && diffData.files) {
-      AppState.diff = diffData;
-      DIFF_DATA = AppState.diff;
-    }
-  } catch (e) {
-    console.warn('Commit diff unavailable:', e.message);
-  }
-
+  await _loadDiff('commit', fullSha);
   renderFileList();
   renderHistoryPanel();
 }

@@ -13,29 +13,106 @@ The repository is called **governed-workflow** and can be cloned to any path on 
 
 ---
 
-## Legacy Migration (existing `~/.claude` install)
+## Upgrading from System-Level Install
 
-If you already have an older install cloned directly at `~/.claude`, you have two options:
+### What changed
 
-**Option A — rename in place (recommended):**
+The repo no longer assumes `~/.claude` as its home. Assets moved out of the dot-prefixed system directory:
+
+| Old path | New path |
+|----------|----------|
+| `~/.claude/hooks/` | `<repo>/claude/hooks/` |
+| `~/.claude/agents/` | `<repo>/claude/agents/` |
+| `~/.claude/rules/` | `<repo>/claude/rules/` |
+| `~/.claude/defaults/` | `<repo>/claude/defaults/` |
+| `~/.claude/tools/` | `<repo>/claude/tools/` |
+| `~/.claude/admin-panel/` | `<repo>/admin-panel/` |
+| *(none)* | `<repo>/codex/` (new) |
+
+After migration, `~/.claude` should contain only Claude Code's own config (its own `settings.json`, `CLAUDE.md`, etc.) — no governed-workflow files.
+
+---
+
+### Step 1: Move or clone the repo
+
+**Option A — move in place (recommended if you have the existing DB):**
 ```bash
 mv ~/.claude ~/governed-workflow
-git -C ~/governed-workflow worktree list   # verify worktrees still resolve
-# Update any scripts or aliases that referenced ~/.claude
-```
-If you use git worktrees, update worktree paths:
-```bash
-git -C ~/governed-workflow worktree repair
+cd ~/governed-workflow
+git worktree repair   # fixes worktree paths after the move
 ```
 
-**Option B — clone fresh:**
+**Option B — clone fresh and bring your DB:**
 ```bash
 git clone <your-repo-url> ~/governed-workflow
-# Migrate your existing admin-panel.db:
 cp ~/.claude/admin-panel/server/admin-panel.db ~/governed-workflow/admin-panel/server/
 ```
 
-After either option, update hook paths in any project `.claude/settings.json` files from `~/.claude/hooks/...` to the new location (see Step 4 below).
+---
+
+### Step 2: Run the migration script
+
+The script reads the admin-panel DB, finds all active workspaces, and updates their configuration automatically. Always do a dry-run first:
+
+```bash
+# Preview what would change:
+python3 ~/governed-workflow/.claude/skills/workflow-migration/migrate.py ~/governed-workflow --dry-run
+
+# Apply:
+python3 ~/governed-workflow/.claude/skills/workflow-migration/migrate.py ~/governed-workflow
+```
+
+Replace `~/governed-workflow` with wherever you placed the repo.
+
+---
+
+### Step 3: Verify the repo's own hooks config
+
+If the repo was moved (Option A), its `.claude/settings.json` uses `${CLAUDE_PROJECT_DIR}` — it should already be correct. Confirm:
+
+```bash
+grep CLAUDE_PROJECT_DIR ~/governed-workflow/.claude/settings.json
+```
+
+You should see paths like `${CLAUDE_PROJECT_DIR}/claude/hooks/pre-tool-hook.py`. If not, update them to use that form.
+
+---
+
+### Step 4: Clean up `~/.claude`
+
+After the migration script completes, `~/.claude` should only hold Claude Code's own config. Verify nothing governed-workflow-related remains:
+
+```bash
+ls ~/.claude/
+# Expected: CLAUDE.md  settings.json  (possibly agents/, rules/, defaults/ if you use global overrides)
+# Not expected: admin-panel/  hooks/  tools/
+```
+
+Remove any leftover governed-workflow directories manually:
+```bash
+rm -rf ~/.claude/admin-panel ~/.claude/hooks ~/.claude/tools
+```
+
+---
+
+### What the migration script does
+
+Before modifying any file, the script creates a `.pre-migration` backup (e.g., `settings.json.pre-migration`). Existing backups are never overwritten, making re-runs safe.
+
+For each active workspace the script performs these operations:
+
+1. **`settings.json`** — rewrites hook command paths from `~/.claude/hooks/<name>` to `<new-repo>/claude/hooks/<name>` (absolute path). If the `block-orchestrator-writes.py` PreToolUse hook is missing, it is added.
+2. **`.mcp.json`** — updates the `workspace` MCP server `args` to point at `<new-repo>/admin-panel/server/mcp_server.py`. Symlinked `.mcp.json` files (worktree mode) are resolved and deduplicated — the real file is only written once.
+3. **Hooks** — copies files from `<repo>/claude/hooks/` to `<workspace>/.claude/hooks/`, only when the repo's copy is newer (preserves user customisations).
+4. **Agents / rules / defaults** — copies missing files from `<repo>/claude/{agents,rules,defaults}/` into the workspace; never overwrites existing files (project wins). Skips `rules/` if the destination is a symlink.
+5. **`.codex`** — if `.codex` is a symlink, replaces it with a real directory populated from `<repo>/codex/`. Otherwise copies only missing files (project wins).
+
+After workspaces, the script also iterates projects directly:
+
+6. **Project `.mcp.json`** — updates `<project>/.mcp.json` if it has old admin-panel paths. This catches projects with no active workspaces.
+7. **DB** — updates `verification_steps.command` rows, replacing `~/.claude/tools/` with `${GOVERNED_WORKFLOW_TOOLS_DIR}/`.
+
+If the new repo path resolves to `~/.claude` (in-place upgrade), hook path replacements in `settings.json` are skipped since the absolute path is unchanged. Missing hooks are still added.
 
 ---
 
@@ -262,7 +339,6 @@ echo "exit: $?"  # Should be 0
 | Workflow skill | `<repo>/claude/skills/governed-workflow/SKILL.md` | Phase map, rules, MCP tool reference |
 | Plan-preparation skill | `<repo>/claude/skills/plan-preparation/SKILL.md` | Guides phases 1.0-1.4 |
 | Planning skill | `<repo>/claude/skills/planning/SKILL.md` | Guides phase 2.0 |
-| Stride skill | `<repo>/claude/skills/stride/SKILL.md` | Lightweight workflow without admin panel |
 | Terminal support | `<repo>/admin-panel/server/terminal.py` | tmux session management for built-in terminal |
 | Rules | `<repo>/claude/rules/*.md` | Coding standards, test standards, validation pipeline |
 | Default git rules | `<repo>/claude/defaults/git-rules.md` | Commit/MR format rules |

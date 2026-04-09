@@ -259,12 +259,49 @@ def test_undo_rejects_dirty_tree(client, history_workspace):
 
 
 def test_undo_rejects_initial_commit(client, tmp_path, clean_db):
-    """A repo with a single commit that is also NOT pushed must reject undo (no parent)."""
+    """A repo with a single local-unpushed commit that has no parent must reject undo.
+
+    To satisfy _require_head_unpushed, origin/main must exist but point at an
+    unrelated SHA so that origin/main..HEAD includes our orphan commit.
+    """
+    # Bare origin with its own unrelated commit (different history)
+    bare = tmp_path / "bare_single"
+    bare.mkdir()
+    subprocess.run(["git", "init", "--bare"], cwd=str(bare), check=True, capture_output=True, env=GIT_ENV)
+
     repo = tmp_path / "single"
     repo.mkdir()
     _git(repo, "init")
     _git(repo, "checkout", "-b", "main")
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(bare)],
+        cwd=str(repo), check=True, capture_output=True, env=GIT_ENV
+    )
+
+    # Seed the bare origin with an unrelated commit (so origin/main exists)
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _git(seed, "init")
+    _git(seed, "checkout", "-b", "main")
+    _commit_file(seed, "seed.py", "s = 0\n", "seed-commit")
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(bare)],
+        cwd=str(seed), check=True, capture_output=True, env=GIT_ENV
+    )
+    subprocess.run(
+        ["git", "push", "-u", "origin", "main"],
+        cwd=str(seed), check=True, capture_output=True, env=GIT_ENV
+    )
+
+    # Fetch origin into our repo so origin/main exists (pointing at seed commit)
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=str(repo), check=True, capture_output=True, env=GIT_ENV
+    )
+
+    # Now make the single orphan commit on main (unrelated history)
     _commit_file(repo, "init.py", "x = 1\n", "initial commit")
+    # origin/main..HEAD now includes our orphan commit (unrelated histories)
 
     from core.db import get_db
     db = get_db()
@@ -425,3 +462,96 @@ def test_squash_rejects_empty_message(client, history_workspace):
     )
     assert r.status_code == 400
     assert "message" in r.get_json()["error"].lower()
+
+
+def test_squash_rejects_selection_not_including_head(client, history_workspace):
+    """Squashing a contiguous range that excludes HEAD must be rejected.
+
+    ahead_list = [C3, C2, C1]. Selecting [C2, C1] is contiguous but omits C3
+    (HEAD). The reset would silently discard C3.
+    """
+    repo = history_workspace["working_dir"]
+    pid = history_workspace["project_id"]
+    shas = _local_shas(repo)
+    assert len(shas) == 3  # [C3(HEAD), C2, C1]
+
+    # Select bottom two — contiguous but excludes HEAD (shas[0])
+    bottom_two = shas[1:]  # [C2, C1]
+
+    r = client.post(
+        f"/api/ws/{pid}/develop/history/squash",
+        json={"commits": bottom_two, "message": "bottom squash"},
+    )
+    assert r.status_code == 400
+    error = r.get_json()["error"].lower()
+    assert "head" in error
+
+
+def test_squash_rejects_when_no_origin_ref(client, tmp_path, clean_db):
+    """When origin ref is absent and no local fallback ref exists, no commits are
+    considered unpushed. All mutation endpoints must be rejected (fail-closed)."""
+    repo = tmp_path / "noorigin"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "checkout", "-b", "feature")
+    _commit_file(repo, "a.py", "x = 1\n", "commit-a")
+    _commit_file(repo, "b.py", "y = 2\n", "commit-b")
+    # No remote, no origin/feature ref, no local 'feature' ref to compare against
+    # (we ARE on feature, so feature..HEAD yields nothing — empty set)
+
+    from core.db import get_db
+    db = get_db()
+    now = datetime.now().isoformat()
+    project_id = "noorigin-project"
+    db.execute(
+        "INSERT INTO projects (id, name, path, registered) VALUES (?, ?, ?, ?)",
+        (project_id, "NoOrigin", str(repo), now)
+    )
+    db.execute(
+        "INSERT INTO workspaces (project_id, branch, sanitized_branch, working_dir, "
+        "created, status, phase, scope_json, plan_json, source_branch) "
+        "VALUES (?, ?, ?, ?, ?, 'active', '0', ?, ?, ?)",
+        (
+            project_id, "feature", "feature", str(repo), now,
+            '{"must":[],"may":[]}',
+            '{"description":"","systemDiagram":"","execution":[]}', "develop"
+        )
+    )
+    db.commit()
+    db.close()
+
+    from app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        r = c.post(
+            f"/api/ws/{project_id}/feature/history/rename",
+            json={"message": "should be blocked"},
+        )
+    assert r.status_code == 400
+    assert "pushed" in r.get_json()["error"].lower()
+
+
+def test_ahead_of_origin_shas_uses_local_ref_fallback(tmp_path):
+    """When origin/<branch> doesn't exist but a local ref does, commits between
+    the local ref and HEAD are returned (not all reachable commits)."""
+    import subprocess
+    from routes.history import _ahead_of_origin_shas
+
+    repo = tmp_path / "localfb"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "checkout", "-b", "develop")
+    _commit_file(repo, "base.py", "x = 0\n", "base")
+
+    # Create a local 'develop' ref pointing at the base commit,
+    # then make HEAD advance beyond it on a new branch
+    base_sha = _rev_parse(repo)
+    _git(repo, "checkout", "-b", "feature")
+    _commit_file(repo, "feat.py", "y = 1\n", "feat-commit")
+    feat_sha = _rev_parse(repo)
+
+    # No origin/feature, but local 'develop' exists as the base
+    result = _ahead_of_origin_shas(str(repo), "develop")
+    assert feat_sha in result
+    assert base_sha not in result
