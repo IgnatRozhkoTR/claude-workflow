@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/block-orchestrator-writes.py"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/block-orchestrator-writes.py"
           }
         ]
       },
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/pre-tool-hook.py"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/pre-tool-hook.py"
           }
         ]
       }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/session-start.py"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/claude/hooks/session-start.py"
           }
         ]
       }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/user-prompt-submit.sh"
+            "command": "bash ${CLAUDE_PROJECT_DIR}/claude/hooks/user-prompt-submit.sh"
           }
         ]
       }
@@ -61,7 +61,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline-command.sh"
+    "command": "bash ${CLAUDE_PROJECT_DIR}/statusline-command.sh"
   },
   "enabledPlugins": {
     "jdtls@claude-code-lsps": false,

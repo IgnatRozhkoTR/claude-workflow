@@ -8,6 +8,8 @@ import json
 import sys
 import re
 import os
+from pathlib import Path
+from _repo_root import GOVERNED_REPO_ROOT, ADMIN_PANEL_DIR
 
 API_BASE = "http://localhost:5111"
 
@@ -81,7 +83,11 @@ if tool_name == "Bash":
 
 if tool_name in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
     file_path = tool_input.get("file_path", "")
-    if "/.claude/" in file_path and "/.claude/worktrees/" not in file_path and "/.claude/admin-panel/" not in file_path:
+    resolved_fp = Path(os.path.normpath(os.path.join(cwd, file_path))) if file_path else Path()
+    is_claude_metadata = "/.claude/" in file_path
+    is_worktrees_path = "/.claude/worktrees/" in file_path
+    is_admin_panel_path = resolved_fp.is_relative_to(ADMIN_PANEL_DIR)
+    if is_claude_metadata and not is_worktrees_path and not is_admin_panel_path:
         allow()
 
 # ─── ALLOW DOCKER COMMANDS ───

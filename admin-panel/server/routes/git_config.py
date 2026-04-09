@@ -6,11 +6,12 @@ from flask import Blueprint, jsonify, request
 
 from core.decorators import with_project
 from core.helpers import read_json, write_json
+from core.paths import DEFAULT_GIT_RULES
 
 bp = Blueprint("git_config", __name__)
 
 DEFAULTS_GIT_CONFIG = {"provider": "local", "host": "", "token": "", "default_branch": "develop"}
-SYSTEM_DEFAULT_GIT_RULES = Path("~/.claude/defaults/git-rules.md").expanduser()
+SYSTEM_DEFAULT_GIT_RULES = DEFAULT_GIT_RULES
 
 
 @bp.route("/api/projects/<project_id>/git-config", methods=["GET"])

@@ -597,9 +597,11 @@
         <div class="toggle-group" id="diffSourceToggle">
           <button class="toggle-opt active" data-mode="branch" onclick="setDiffSource('branch')" data-i18n="diff.branch">Branch</button>
           <button class="toggle-opt" data-mode="uncommitted" onclick="setDiffSource('uncommitted')" data-i18n="diff.uncommitted">Uncommitted</button>
+          <button class="toggle-opt" data-mode="commit" onclick="setDiffSource('commit')" data-i18n="diff.commit">Commit</button>
         </div>
         <input type="text" id="diffFileSearch" class="ws-input" placeholder="Filter files..." data-i18n-placeholder="diff.filterFiles" style="flex: 1; max-width: 300px; height: 28px; font-size: 0.75rem;" oninput="filterDiffFiles(this.value)">
-        <button class="btn btn-sm" id="viewFileBtn" style="margin-left: auto; display: none;" onclick="openSelectedFile()" data-i18n="buttons.viewFile">View File</button>
+        <button class="btn btn-sm" id="historyToggleBtn" onclick="toggleHistoryPanel()" data-i18n="diff.historyToggle">History</button>
+        <button class="btn btn-sm" id="viewFileBtn" style="display: none;" onclick="openSelectedFile()" data-i18n="buttons.viewFile">View File</button>
         <span class="badge badge-info" id="diffFileCount">3 files changed</span>
       </div>
       <div class="diff-layout">
@@ -613,6 +615,20 @@
         <div class="diff-content" id="diffContent">
           <div class="diff-placeholder" data-i18n="diff.selectFile">Select a file to view changes</div>
         </div>
+      </div>
+      <div id="diffHistoryPanel" class="diff-history-panel" style="display: none;">
+        <div class="diff-history-panel-header">
+          <span data-i18n="diff.history">History</span>
+          <span id="diffHistoryBranchLabel" class="diff-history-branch-label"></span>
+          <span id="diffHistorySelectionCount" class="badge badge-info" style="display: none;"></span>
+          <div class="diff-history-panel-actions">
+            <button id="historyRenameBtn" class="btn btn-sm" onclick="historyRename()" disabled title="Rename is only available for the latest local unpushed commit" data-i18n="history.rename">Rename</button>
+            <button id="historyUndoBtn" class="btn btn-sm" onclick="historyUndo()" disabled title="Undo is only available for the latest local unpushed commit" data-i18n="history.undo">Undo</button>
+            <button id="historySquashBtn" class="btn btn-sm" onclick="historySquash()" disabled title="Squash requires a contiguous selection of 2+ local unpushed commits" data-i18n="history.squash">Squash</button>
+          </div>
+          <button class="btn btn-sm" onclick="closeHistoryPanel()" data-i18n="buttons.close">Close</button>
+        </div>
+        <div id="diffHistoryList" class="diff-history-list"></div>
       </div>
     </div>
   </div>

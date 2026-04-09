@@ -67,6 +67,7 @@
   "buttons.revokeApproval": "Revoke Approval",
   "buttons.revokeRejection": "Revoke Rejection",
   "buttons.restore": "↩ Restore",
+  "buttons.close": "Close",
   "buttons.viewFile": "View File",
   "buttons.goToFileViewer": "Go to file viewer",
   "buttons.backToProjects": "Back to projects",
@@ -292,6 +293,9 @@
   "diff.inline": "Inline",
   "diff.branch": "Branch",
   "diff.uncommitted": "Uncommitted",
+  "diff.commit": "Commit",
+  "diff.history": "History",
+  "diff.historyToggle": "History",
 
   "explorer.projectFiles": "Project Files",
   "explorer.selectFile": "Select a file to view its contents",
@@ -442,7 +446,7 @@
   "setup.removeToolBtn": "Remove",
   "setup.toolPlaceholder": "Tool name (e.g. Build, Lint, Test)",
   "setup.startBtn": "Start Setup",
-  "setup.noModules": "No modules available. Add module directories to ~/.claude/modules/",
+  "setup.noModules": "No modules available. Add module directories to the modules folder of the repo.",
   "setup.noLanguageProfiles": "No language profiles available.",
   "setup.saveModulesFailed": "Failed to save modules",
   "setup.startFailed": "Failed to start setup",
@@ -458,5 +462,16 @@
 
   "improvements.openBtn": "Improvements",
   "improvements.globalTitle": "Improvements",
-  "improvements.globalSubtitle": "Track workflow and process improvements across all projects."
+  "improvements.globalSubtitle": "Track workflow and process improvements across all projects.",
+
+  "history.rename": "Rename",
+  "history.undo": "Undo",
+  "history.squash": "Squash",
+  "history.dialogs.renamePrompt": "Enter new commit message:",
+  "history.dialogs.undoConfirm": "Undo commit '{subject}'? Changes will be left staged.",
+  "history.dialogs.squashTitle": "Squash {count} commits",
+  "history.dialogs.squashMessage": "Combined commit message:",
+  "history.errors.renameFailed": "Rename failed: {error}",
+  "history.errors.undoFailed": "Undo failed: {error}",
+  "history.errors.squashFailed": "Squash failed: {error}"
 }

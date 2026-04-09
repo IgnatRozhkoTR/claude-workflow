@@ -26,7 +26,7 @@ The setup configuration is passed as the initial prompt. It contains:
 
 For each module in the `modules to enable` list:
 
-1. Read the module's skill file at `~/.claude/modules/<module_id>/SKILL.md`
+1. Read the module's skill file at `<repo>/claude/modules/<module_id>/SKILL.md`
 2. Read the skill thoroughly — understand its `enable` section before doing anything
 3. Follow the `enable` instructions exactly as written in the skill (the `enable` command handles install if needed, then activates the integration)
 4. If the skill defines a `status` command, run it after enabling to verify success
@@ -37,7 +37,7 @@ For each module in the `modules to enable` list:
 
 For each module in the `modules to disable` list:
 
-1. Read the module's skill file at `~/.claude/modules/<module_id>/SKILL.md`
+1. Read the module's skill file at `<repo>/claude/modules/<module_id>/SKILL.md`
 2. Read the skill thoroughly — understand its `disable` section before doing anything
 3. Follow the `disable` instructions exactly as written in the skill
 4. If disabling fails:
@@ -145,7 +145,7 @@ For custom profiles with LSP:
 
 ## Module Directory Structure
 
-Modules live at `~/.claude/modules/`. Each module directory contains:
+Modules live at `<repo>/claude/modules/`. Each module directory contains:
 - `SKILL.md` — The skill definition with install/configure/status instructions
 - Additional files needed by the module (scripts, configs, etc.)
 

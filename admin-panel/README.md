@@ -23,7 +23,7 @@ The admin panel and MCP server for the [governed workflow](../README.md). Flask 
 ### Install
 
 ```bash
-cd ~/.claude/admin-panel
+cd <repo>/admin-panel
 python3 -m venv .venv
 source .venv/bin/activate
 pip install flask mcp flask-sock
@@ -34,6 +34,7 @@ pip install flask mcp flask-sock
 **Option A -- launch script** (starts server in background, opens browser):
 
 ```bash
+cd <repo>/admin-panel
 chmod +x start.sh
 ./start.sh
 ```
@@ -41,7 +42,7 @@ chmod +x start.sh
 **Option B -- direct**:
 
 ```bash
-cd server
+cd <repo>/admin-panel/server
 python3 app.py
 ```
 
@@ -49,15 +50,15 @@ The server starts at http://localhost:5111. The SQLite database is created autom
 
 ### MCP Server
 
-Add to your `.mcp.json`:
+Add to your `.mcp.json` (use absolute expanded paths — no `~` or `$HOME`):
 
 ```json
 {
   "mcpServers": {
     "workspace": {
-      "command": "~/.claude/admin-panel/.venv/bin/python3",
+      "command": "/absolute/path/to/governed-workflow/admin-panel/.venv/bin/python3",
       "args": ["-m", "mcp_server"],
-      "cwd": "~/.claude/admin-panel/server"
+      "cwd": "/absolute/path/to/governed-workflow/admin-panel/server"
     }
   }
 }

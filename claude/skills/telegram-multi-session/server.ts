@@ -3,8 +3,10 @@
  * Telegram channel for Claude Code — multi-session variant.
  *
  * Self-contained MCP server with full access control: pairing, allowlists,
- * group support with mention-triggering. State lives in
- * ~/.claude/channels/telegram/access.json — managed by the /telegram:access skill.
+ * group support with mention-triggering. State lives under the repo's
+ * .local/channels/telegram/ directory (resolved relative to the repo root
+ * that contains this file's claude/skills/ tree). The location can be
+ * overridden with the GOVERNED_WORKFLOW_TELEGRAM_STATE env var.
  *
  * Multi-session: multiple Claude Code sessions can register. Only one polls
  * Telegram at a time. Sessions can be switched via /switch or claim_channel.
@@ -15,6 +17,12 @@
  * to the plugin dir, or install dependencies locally.
  *
  * Telegram's Bot API has no history or search. Reply-only tools.
+ *
+ * Env vars:
+ *   TELEGRAM_BOT_TOKEN          — required, Telegram bot token.
+ *   GOVERNED_WORKFLOW_TELEGRAM_STATE — optional override for the state dir.
+ *   GOVERNED_WORKFLOW_REPO      — optional repo root override (fallback when
+ *                                 the parents[] walk cannot be used).
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -27,10 +35,37 @@ import { Bot, InputFile, GrammyError, type Context } from 'grammy'
 import type { ReactionTypeEmoji } from 'grammy/types'
 import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, statSync, renameSync, realpathSync } from 'fs'
-import { homedir } from 'os'
-import { join, extname, sep } from 'path'
+import { join, extname, sep, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const STATE_DIR = join(homedir(), '.claude', 'channels', 'telegram')
+// Resolve STATE_DIR relative to this file's repo root so the server is
+// relocatable. Walk up from __dirname until we find the directory that
+// contains claude/skills/ (i.e. the repo root). Fall back to
+// GOVERNED_WORKFLOW_REPO or process.cwd() if the walk fails.
+function resolveRepoRoot(): string {
+  if (process.env.GOVERNED_WORKFLOW_REPO) return process.env.GOVERNED_WORKFLOW_REPO
+  try {
+    const thisFile = fileURLToPath(import.meta.url)
+    let dir = dirname(thisFile)
+    for (let i = 0; i < 10; i++) {
+      const parent = dirname(dir)
+      if (parent === dir) break // filesystem root
+      // claude/skills/ lives two levels below the repo root
+      const candidate = dirname(dirname(dir))
+      try {
+        const marker = join(candidate, 'claude', 'skills')
+        // Cheapest existence check: readdirSync throws if absent
+        readdirSync(marker)
+        return candidate
+      } catch { /* not here yet */ }
+      dir = parent
+    }
+  } catch { /* bun/node without import.meta.url support */ }
+  return process.cwd()
+}
+
+const STATE_DIR = process.env.GOVERNED_WORKFLOW_TELEGRAM_STATE
+  || join(resolveRepoRoot(), '.local', 'channels', 'telegram')
 const ACCESS_FILE = join(STATE_DIR, 'access.json')
 const APPROVED_DIR = join(STATE_DIR, 'approved')
 const ENV_FILE = join(STATE_DIR, '.env')
@@ -63,7 +98,6 @@ process.on('uncaughtException', (err) => {
   process.stderr.write(`telegram channel [${SESSION_NAME}]: uncaught exception (kept alive): ${err}\n`)
 })
 
-// Load ~/.claude/channels/telegram/.env into process.env. Real env wins.
 // Plugin-spawned servers don't get an env block — this is where the token lives.
 try {
   for (const line of readFileSync(ENV_FILE, 'utf8').split('\n')) {

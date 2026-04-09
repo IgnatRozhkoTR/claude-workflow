@@ -96,45 +96,40 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 **Telegram integration.** Sessions can be controlled remotely via a Telegram bot. The Telegram module replaces the default plugin with a custom multi-session server, allowing multiple Claude Code sessions to share one bot — each session prefixes replies with its workspace name (e.g., `[mp-72]`). Telegram users can list active sessions with `/sessions` and switch between them with `/switch <name>`. Orphan detection ensures that if the polling session dies, another session auto-recovers within seconds. Setup: `/telegram-multi-session install`. See [modules/telegram/](modules/telegram/) for details.
 
-**Modules.** Self-contained feature packages that live at `~/.claude/modules/`. Each module is a directory containing a `SKILL.md` and any supporting files the module needs. Modules are discoverable — the admin panel scans the directory for available modules. Users enable or disable modules via the Setup page or the Modules card on the dashboard. The system currently ships with the Telegram module for remote session control.
+**Modules.** Self-contained feature packages that live at `<repo>/claude/modules/`. Each module is a directory containing a `SKILL.md` and any supporting files the module needs. Modules are discoverable — the admin panel scans the directory for available modules. Users enable or disable modules via the Setup page or the Modules card on the dashboard. The system currently ships with the Telegram module for remote session control.
 
 **Setup wizard.** Accessible from the project selector page in the admin panel. Configures modules and verification profiles in one go. Launches Claude Code in an embedded terminal and follows the setup skill to install selected modules, verify required tools, and create or assign verification profiles.
 
 ## Repository Structure
 
+The repo can be cloned to any path on disk (`~/governed-workflow`, `/opt/governed-workflow`, `~/.claude`, etc.). The payload directories are:
+
 ```
 ├── admin-panel/          # Flask web app + MCP server (see admin-panel/README.md)
 │   ├── server/           #   Backend: routes, advance logic, MCP tools, tests
 │   └── templates/        #   Frontend: HTML, CSS, JS (vanilla SPA)
-├── agents/               # Agent role definitions (16 specialized roles)
-├── hooks/                # Claude Code hook scripts
-│   ├── pre-tool-hook.py  #   Scope/phase enforcement via Flask API
-│   ├── session-start.py  #   Session registration + context banner via Flask API
-│   ├── block-orchestrator-writes.py  # Prevents orchestrator from direct file edits
-│   └── user-prompt-submit.sh  # Orchestrator role enforcement
-├── modules/              # Self-contained feature packages
-│   └── telegram/         #   Remote session control via Telegram bot
-├── skills/               # Claude Code slash-command skills
-│   ├── governed-workflow/ #   Full orchestrated workflow (/governed-workflow)
-│   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
-│   ├── planning/         #   Planning phase 2.0 (/planning)
-│   ├── setup/            #   Setup wizard for modules and profiles
-│   ├── stride/           #   Lightweight version without backend (/stride)
-│   └── workflow-migration/ # Setup on new devices including Windows/WSL
-├── rules/                # Coding standards, test standards, validation pipeline
-└── defaults/             # Git hook templates, MCP config template
+├── claude/               # Claude Code payload (shipped to workspaces)
+│   ├── agents/           #   Agent role definitions (16 specialized roles)
+│   ├── hooks/            #   Claude Code hook scripts
+│   │   ├── pre-tool-hook.py  #   Scope/phase enforcement via Flask API
+│   │   ├── session-start.py  #   Session registration + context banner via Flask API
+│   │   ├── block-orchestrator-writes.py  # Prevents orchestrator from direct file edits
+│   │   └── user-prompt-submit.sh  # Orchestrator role enforcement
+│   ├── modules/          #   Self-contained feature packages
+│   │   └── telegram/     #     Remote session control via Telegram bot
+│   ├── skills/           #   Claude Code slash-command skills
+│   │   ├── governed-workflow/ #   Full orchestrated workflow (/governed-workflow)
+│   │   ├── plan-preparation/ #   Pre-planning phases 1.0-1.4 (/plan-preparation)
+│   │   ├── planning/     #     Planning phase 2.0 (/planning)
+│   │   └── setup/        #     Setup wizard for modules and profiles
+│   ├── rules/            #   Coding standards, test standards, validation pipeline
+│   └── defaults/         #   Git rules template, settings template
+├── codex/                # Codex payload (agents, prompts, config)
+└── .claude/              # Repo's own Claude Code config (not shipped to workspaces)
+    └── skills/workflow-migration/  # Install/migration skill for this repo
 ```
 
 ## Getting Started
 
-See [admin-panel/README.md](admin-panel/README.md) for setup, installation, API reference, and MCP tool documentation.
+Clone the repo to any directory, then see [admin-panel/README.md](admin-panel/README.md) for installation, API reference, and MCP tool documentation. For a full step-by-step install including Windows/WSL, use the `/workflow-migration` skill.
 
-## Two Workflow Modes
-
-| | Governed (`/governed-workflow`) | Stride (`/stride`) |
-|---|---|---|
-| Backend | Flask + SQLite + MCP server | None |
-| Phase enforcement | Server-validated, scope-locked | Conversational discipline |
-| User gates | 4 hard gates with nonce tokens | Plan approval only |
-| Agent team | 16 specialized roles, persistent teammates | Sub-agents as needed |
-| Best for | High-stakes changes, multi-file refactors | Smaller tasks, quick iterations |

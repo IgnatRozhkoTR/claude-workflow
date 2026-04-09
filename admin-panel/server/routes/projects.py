@@ -10,6 +10,7 @@ from flask import Blueprint, jsonify, request
 from core.db import get_db
 from core.helpers import run_git, write_json
 from core.i18n import t
+from core.paths import DEFAULT_GIT_RULES
 
 bp = Blueprint("projects", __name__)
 
@@ -133,7 +134,7 @@ def _ensure_git_rules_symlink(project_path):
     if rules_path.exists() or rules_path.is_symlink():
         return
 
-    system_default = Path("~/.claude/defaults/git-rules.md").expanduser()
+    system_default = DEFAULT_GIT_RULES
     if not system_default.exists():
         return
 

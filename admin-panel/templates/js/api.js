@@ -180,8 +180,31 @@ function apiReadFile(projectId, branch, filePath, startLine, endLine, absolute) 
   return apiGet(url);
 }
 
-function apiGetDiff(projectId, branch, mode) {
+function apiGetDiff(projectId, branch, mode, commit) {
   var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/diff';
-  if (mode && mode !== 'branch') url += '?mode=' + encodeURIComponent(mode);
+  var q = [];
+  if (mode && mode !== 'branch') q.push('mode=' + encodeURIComponent(mode));
+  if (commit) q.push('commit=' + encodeURIComponent(commit));
+  if (q.length) url += '?' + q.join('&');
   return apiGet(url);
+}
+
+function apiGetCommitHistory(projectId, branch) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history';
+  return apiGet(url);
+}
+
+function apiHistoryRename(projectId, branch, message) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/rename';
+  return apiPost(url, { message: message });
+}
+
+function apiHistoryUndo(projectId, branch) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/undo';
+  return apiPost(url, {});
+}
+
+function apiHistorySquash(projectId, branch, commits, message) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history/squash';
+  return apiPost(url, { commits: commits, message: message });
 }

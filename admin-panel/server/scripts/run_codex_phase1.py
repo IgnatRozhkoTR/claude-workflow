@@ -5,10 +5,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+SERVER_DIR = Path(__file__).resolve().parent.parent
+if str(SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVER_DIR))
+
+from core.paths import DEFAULT_CODEX_DIR  # noqa: E402
+
 
 def main():
     workspace_dir = Path.cwd()
-    prompt_path = Path.home() / ".claude" / ".codex" / "prompts" / "phase1.md"
+    prompt_path = DEFAULT_CODEX_DIR / "prompts" / "phase1.md"
     if not prompt_path.exists():
         print(f"Missing Codex phase-1 prompt: {prompt_path}", file=sys.stderr)
         return 1

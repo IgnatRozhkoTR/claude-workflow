@@ -3,6 +3,11 @@ Idempotent corrections to verification profile seed data:
 - Rename Checkstyle/Ruff/ESLint steps to Format with updated commands.
 - Update SonarScanner commands.
 - Ensure SonarScanner exists on every Java profile.
+
+The Format step for Java uses ${GOVERNED_WORKFLOW_TOOLS_DIR}/google-java-format.jar
+(an env-var-interpolated shell path exported by app.py at startup). This keeps the
+DB portable across installs.  0017_repoint_format_tools.py is the companion
+migration that rewrites any legacy ~/.claude/tools rows written before this change.
 """
 from yoyo import step
 
@@ -10,13 +15,16 @@ from yoyo import step
 def apply_step(conn):
     cursor = conn.cursor()
 
-    # Rename Checkstyle -> Format (Java)
+    # Rename Checkstyle -> Format (Java).
+    # Commands use ${GOVERNED_WORKFLOW_TOOLS_DIR} (exported by app.py at startup)
+    # so the DB remains portable. 0017_repoint_format_tools.py rewrites rows that
+    # still contain the old ~/.claude/tools literal.
     cursor.execute("""
         UPDATE verification_steps SET name = 'Format',
             description = 'Auto-format Java code with google-java-format',
-            command = '{ git diff --name-only --diff-filter=ACMR HEAD~1 -- ''*.java''; git ls-files --others --exclude-standard -- ''*.java''; } | sort -u | xargs -r java -jar ~/.claude/tools/google-java-format.jar --replace',
-            install_check_command = 'test -f ~/.claude/tools/google-java-format.jar',
-            install_command = 'mkdir -p ~/.claude/tools && curl -sL -o ~/.claude/tools/google-java-format.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar',
+            command = '{ git diff --name-only --diff-filter=ACMR HEAD~1 -- ''*.java''; git ls-files --others --exclude-standard -- ''*.java''; } | sort -u | xargs -r java -jar ${GOVERNED_WORKFLOW_TOOLS_DIR}/google-java-format.jar --replace',
+            install_check_command = 'test -f ${GOVERNED_WORKFLOW_TOOLS_DIR}/google-java-format.jar',
+            install_command = 'mkdir -p ${GOVERNED_WORKFLOW_TOOLS_DIR} && curl -sL -o ${GOVERNED_WORKFLOW_TOOLS_DIR}/google-java-format.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar',
             fail_severity = 'blocking'
         WHERE name = 'Checkstyle'
     """)

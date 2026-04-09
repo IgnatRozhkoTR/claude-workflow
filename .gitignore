@@ -7,27 +7,22 @@
 !.github/**
 !README.md
 !CLAUDE.md
+!AGENTS.md
 !settings.json
 !statusline-command.sh
 
 !admin-panel/
 !admin-panel/**
-!agents/
-!agents/**
-!hooks/
-!hooks/**
-!rules/
-!rules/**
-!defaults/
-!defaults/**
-!modules/
-!modules/**
-!skills/
-!skills/**
-skills/code-review/
-skills/evy-sync/
-skills/pack-sessions-skill/
-skills/postman-collection/
+!claude/
+!claude/**
+!codex/
+!codex/**
+claude/skills/code-review/
+claude/skills/evy-sync/
+claude/skills/pack-sessions-skill/
+claude/skills/postman-collection/
+!.claude/skills/workflow-migration/
+!.claude/skills/workflow-migration/**
 
 # Re-exclude unwanted files within included dirs
 **/__pycache__/

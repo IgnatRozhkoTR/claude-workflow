@@ -10,7 +10,9 @@ Only enforces inside Git projects — outside Git, no restrictions apply.
 Handles: Edit, Write, NotebookEdit (direct file tools)
          Bash (file-modifying commands: redirects, sed -i, cp, mv, rm, etc.)
 """
-import json, sys, re, subprocess
+import json, sys, re, subprocess, os
+from pathlib import Path
+from _repo_root import GOVERNED_REPO_ROOT, ADMIN_PANEL_DIR
 
 data = json.load(sys.stdin)
 
@@ -27,10 +29,13 @@ except Exception:
 tool_name = data.get("tool_name", "")
 
 # Allow orchestrator to write to .claude/ paths (memory, settings, etc.)
-# BUT NOT .claude/worktrees/ — those contain actual project code
+# BUT NOT .claude/worktrees/ (project code) or the admin-panel source itself.
 if tool_name in ("Edit", "Write", "NotebookEdit"):
     file_path = data.get("tool_input", {}).get("file_path", "")
-    if "/.claude/" in file_path and "/.claude/worktrees/" not in file_path:
+    cwd = data.get("cwd", ".")
+    resolved_fp = Path(os.path.normpath(os.path.join(cwd, file_path))) if file_path else Path()
+    is_admin_panel_path = resolved_fp.is_relative_to(ADMIN_PANEL_DIR)
+    if "/.claude/" in file_path and "/.claude/worktrees/" not in file_path and not is_admin_panel_path:
         sys.exit(0)
 
 # Allow all Docker commands (docker rm, docker cp, etc. match file-mod patterns)
