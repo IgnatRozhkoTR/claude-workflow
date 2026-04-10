@@ -436,11 +436,64 @@ async function loadCommitHistory() {
     state.historyCommits = data.commits || [];
     state.historySourceBranch = data.source_branch || null;
     renderHistoryPanel();
+    if (state.branches.length === 0) {
+      loadBranches();
+    }
   } catch (e) {
     state.historyError = e.message;
     renderHistoryPanel();
   } finally {
     state.historyLoading = false;
+  }
+}
+
+async function loadBranches() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var data = await apiGetBranches(ctx.projectId, ctx.branch);
+    state.branches = data.branches || [];
+    renderBranchList();
+  } catch (e) {
+    console.warn('Failed to load branches:', e.message);
+  }
+}
+
+function renderBranchList() {
+  var list = document.getElementById('diffBranchList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  state.branches.forEach(function(branch) {
+    var row = document.createElement('div');
+    row.className = 'diff-branch-row';
+    if (branch.current && !state.activeBranch) row.classList.add('active');
+    if (state.activeBranch === branch.ref) row.classList.add('active');
+    row.textContent = branch.name;
+    row.title = branch.ref;
+    row.addEventListener('click', function() {
+      selectBranch(branch.ref, branch.name);
+    });
+    list.appendChild(row);
+  });
+}
+
+async function selectBranch(ref, displayName) {
+  state.activeBranch = ref;
+  state.activeCommit = null;
+  state.selectedCommits = [];
+  renderBranchList();
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch, ref);
+    state.historyCommits = data.commits || [];
+    var label = document.getElementById('diffHistoryBranchLabel');
+    if (label) label.textContent = displayName;
+    renderHistoryPanel();
+  } catch (e) {
+    console.warn('Failed to load branch history:', e.message);
   }
 }
 

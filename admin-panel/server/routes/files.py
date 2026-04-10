@@ -224,11 +224,50 @@ def _try_history_refs(working_dir, source_branch, log_format):
 @with_workspace
 def get_history(db, ws, project):
     working_dir = ws["working_dir"]
-    source_branch = ws["source_branch"] or DEFAULT_SOURCE_BRANCH
 
+    ref_param = request.args.get("ref")
+    if ref_param:
+        ok, raw, _ = run_git(working_dir, "log", "--abbrev=12", f"--format={_LOG_FORMAT}", "--max-count=50", ref_param)
+        if not ok:
+            return jsonify({"commits": [], "source_branch": ref_param})
+        commits = _parse_log(raw, set())
+        return jsonify({"commits": commits, "source_branch": ref_param, "browsing": True})
+
+    source_branch = ws["source_branch"] or DEFAULT_SOURCE_BRANCH
     raw, ahead = _try_history_refs(working_dir, source_branch, _LOG_FORMAT)
     commits = _parse_log(raw, ahead)
     return jsonify({"commits": commits, "source_branch": source_branch})
+
+
+@bp.route("/api/ws/<project_id>/<path:branch>/branches", methods=["GET"])
+@with_workspace
+def get_branches(db, ws, project):
+    working_dir = ws["working_dir"]
+    ok, out, _ = run_git(working_dir, "branch", "-a", "--sort=-committerdate", "--format=%(refname:short)")
+    if not ok:
+        return jsonify({"branches": []})
+
+    current_branch = ws["branch"] or ""
+    branches = []
+    seen = set()
+    for line in out.splitlines():
+        name = line.strip()
+        if not name or name == "HEAD" or "HEAD ->" in name:
+            continue
+        display_name = name
+        if name.startswith("origin/"):
+            display_name = name[7:]
+            if display_name == "HEAD":
+                continue
+        if display_name in seen:
+            continue
+        seen.add(display_name)
+        branches.append({
+            "name": display_name,
+            "ref": name,
+            "current": display_name == current_branch,
+        })
+    return jsonify({"branches": branches})
 
 
 def _diff_for_commit(working_dir, sha):

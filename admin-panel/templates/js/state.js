@@ -60,7 +60,9 @@ var AppState = {
     historyError: null,
     selectedCommits: [],
     activeCommit: null,
-    historySourceBranch: null
+    historySourceBranch: null,
+    branches: [],
+    activeBranch: null
   }
 };
 
