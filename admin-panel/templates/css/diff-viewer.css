@@ -8,6 +8,13 @@
   margin-bottom: 0 !important;
 }
 
+#panel-changes > .card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(100vh - 240px);
+}
+
 .diff-controls {
   display: flex;
   align-items: center;
