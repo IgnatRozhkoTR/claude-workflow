@@ -15,7 +15,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install flask pytest "mcp[cli]" jsonschema
+        run: pip install flask flask-sock pytest "mcp[cli]" jsonschema
 
       - name: Run tests
         run: cd admin-panel/server && python3 -m pytest tests/ -v --tb=short
