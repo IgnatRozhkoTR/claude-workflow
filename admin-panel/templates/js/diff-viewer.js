@@ -618,7 +618,6 @@ function updateSelectionCountDisplay() {
 
 async function openHistoryPanel() {
   state.historyPanelOpen = true;
-  localStorage.setItem('diff_historyPanelOpen', 'true');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = '';
 
@@ -640,19 +639,11 @@ async function toggleHistoryPanel() {
 
 function closeHistoryPanel() {
   state.historyPanelOpen = false;
-  localStorage.setItem('diff_historyPanelOpen', 'false');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = 'none';
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  if (state.historyPanelOpen) {
-    var panel = document.getElementById('diffHistoryPanel');
-    if (panel) panel.style.display = '';
-    loadCommitHistory();
-    loadHistoryBranches();
-  }
-});
+// History panel always starts collapsed. Data loads when user clicks History button.
 
 // ═══════════════════════════════════════════════
 //  HISTORY REWRITE ACTIONS
