@@ -533,6 +533,16 @@ async function selectCommit(fullSha, event) {
   await _loadDiff('commit', fullSha);
   renderFileList();
   renderHistoryPanel();
+
+  // Re-render the currently selected file if it exists in this commit's diff
+  if (state.selectedFile && DIFF_DATA && DIFF_DATA.files) {
+    var fileStillExists = DIFF_DATA.files.some(function(f) {
+      return f.filename === state.selectedFile;
+    });
+    if (fileStillExists) {
+      renderDiff(state.selectedFile);
+    }
+  }
 }
 
 function updateSelectionCountDisplay() {
@@ -552,6 +562,10 @@ function openHistoryPanel() {
   localStorage.setItem('diff_historyPanelOpen', 'true');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = '';
+  if (state.diffSource !== 'commit') {
+    setDiffSource('commit');
+    return;
+  }
   if (state.historyCommits.length === 0) {
     loadCommitHistory();
   }
