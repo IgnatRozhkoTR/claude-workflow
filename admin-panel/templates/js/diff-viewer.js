@@ -433,9 +433,10 @@ async function loadCommitHistory() {
   state.historyLoading = true;
   state.historyError = null;
   try {
-    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch);
+    var ref = state.activeBranch || ctx.branch;
+    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch, ref);
     state.historyCommits = data.commits || [];
-    state.historySourceBranch = data.source_branch || null;
+    state.historySourceBranch = state.activeBranch || ctx.branch;
     renderHistoryPanel();
     if (state.branches.length === 0) {
       loadBranches();
@@ -505,7 +506,7 @@ function renderHistoryPanel() {
 
   var branchLabel = document.getElementById('diffHistoryBranchLabel');
   if (branchLabel && state.historySourceBranch) {
-    branchLabel.textContent = 'ahead of origin/' + state.historySourceBranch;
+    branchLabel.textContent = state.historySourceBranch;
   } else if (branchLabel) {
     branchLabel.textContent = '';
   }
@@ -611,27 +612,25 @@ function updateSelectionCountDisplay() {
   }
 }
 
-function openHistoryPanel() {
+async function openHistoryPanel() {
   state.historyPanelOpen = true;
   localStorage.setItem('diff_historyPanelOpen', 'true');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = '';
 
-  // Always switch to commit mode and load data
   if (state.diffSource !== 'commit') {
-    setDiffSource('commit');
+    await setDiffSource('commit');
   } else {
-    // Already in commit mode — just refresh
-    loadCommitHistory();
+    await loadCommitHistory();
     loadBranches();
   }
 }
 
-function toggleHistoryPanel() {
+async function toggleHistoryPanel() {
   if (state.historyPanelOpen) {
     closeHistoryPanel();
   } else {
-    openHistoryPanel();
+    await openHistoryPanel();
   }
 }
 
@@ -647,6 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var panel = document.getElementById('diffHistoryPanel');
     if (panel) panel.style.display = '';
     loadCommitHistory();
+    loadBranches();
   }
 });
 
