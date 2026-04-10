@@ -279,10 +279,6 @@ def _diff_for_commit(working_dir, sha):
     if not ok_cat:
         return jsonify({"error": "commit not found"}), 404
 
-    ok_anc, _, _ = run_git(working_dir, "merge-base", "--is-ancestor", sha, "HEAD")
-    if not ok_anc:
-        return jsonify({"error": "commit is not an ancestor of HEAD"}), 400
-
     ok, diff_output, _ = run_git(working_dir, "show", "--format=", "--patch", sha)
     return _parse_diff(diff_output if ok else "")
 

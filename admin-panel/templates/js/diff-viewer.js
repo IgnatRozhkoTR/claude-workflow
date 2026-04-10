@@ -362,12 +362,15 @@ async function _loadDiff(mode, commitSha) {
   if (!ctx) return;
   try {
     var diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode, commitSha);
-    if (diffData && diffData.files) {
+    if (diffData) {
       AppState.diff = diffData;
       DIFF_DATA = AppState.diff;
     }
   } catch (e) {
     console.warn('Diff API unavailable:', e.message);
+    // Clear diff data on error so stale files don't linger
+    AppState.diff = { files: [] };
+    DIFF_DATA = AppState.diff;
   }
 }
 
@@ -405,6 +408,7 @@ async function setDiffSource(mode) {
 //  RESIZABLE FILE LIST PANEL
 // ═══════════════════════════════════════════════
 makeResizable('diffResizeHandle', 'diffFileList');
+makeResizable('historyResizeHandle', 'diffBranchList');
 
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.go-to-file-btn');
