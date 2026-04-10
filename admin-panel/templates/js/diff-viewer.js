@@ -392,7 +392,7 @@ async function setDiffSource(mode) {
   }
 
   openHistoryPanel();
-  loadBranches();
+  loadHistoryBranches();
 
   if (state.activeCommit) {
     await _loadDiff('commit', state.activeCommit);
@@ -439,7 +439,7 @@ async function loadCommitHistory() {
     state.historySourceBranch = state.activeBranch || ctx.branch;
     renderHistoryPanel();
     if (state.branches.length === 0) {
-      loadBranches();
+      loadHistoryBranches();
     }
   } catch (e) {
     state.historyError = e.message;
@@ -449,19 +449,19 @@ async function loadCommitHistory() {
   }
 }
 
-async function loadBranches() {
+async function loadHistoryBranches() {
   var ctx = getWorkspaceContext();
   if (!ctx) return;
   try {
     var data = await apiGetBranches(ctx.projectId, ctx.branch);
     state.branches = data.branches || [];
-    renderBranchList();
+    renderHistoryBranches();
   } catch (e) {
     console.warn('Failed to load branches:', e.message);
   }
 }
 
-function renderBranchList() {
+function renderHistoryBranches() {
   var list = document.getElementById('diffBranchList');
   if (!list) return;
   list.innerHTML = '';
@@ -474,17 +474,17 @@ function renderBranchList() {
     row.textContent = branch.name;
     row.title = branch.ref;
     row.addEventListener('click', function() {
-      selectBranch(branch.ref, branch.name);
+      selectHistoryBranch(branch.ref, branch.name);
     });
     list.appendChild(row);
   });
 }
 
-async function selectBranch(ref, displayName) {
+async function selectHistoryBranch(ref, displayName) {
   state.activeBranch = ref;
   state.activeCommit = null;
   state.selectedCommits = [];
-  renderBranchList();
+  renderHistoryBranches();
 
   var ctx = getWorkspaceContext();
   if (!ctx) return;
@@ -622,7 +622,7 @@ async function openHistoryPanel() {
     await setDiffSource('commit');
   } else {
     await loadCommitHistory();
-    loadBranches();
+    loadHistoryBranches();
   }
 }
 
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var panel = document.getElementById('diffHistoryPanel');
     if (panel) panel.style.display = '';
     loadCommitHistory();
-    loadBranches();
+    loadHistoryBranches();
   }
 });
 
