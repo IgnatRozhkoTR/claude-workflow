@@ -15,7 +15,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install flask flask-sock pytest "mcp[cli]" jsonschema beautifulsoup4
+        run: pip install flask flask-sock pytest "mcp[cli]" jsonschema beautifulsoup4 yoyo-migrations
 
       - name: Run tests
         run: cd admin-panel/server && python3 -m pytest tests/ -v --tb=short
