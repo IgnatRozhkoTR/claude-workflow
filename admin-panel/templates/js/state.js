@@ -54,7 +54,7 @@ var AppState = {
     diffSource: localStorage.getItem('diff_diffSource') || 'branch',
     selectedFile: null,
     theme: 'dark',
-    historyPanelOpen: localStorage.getItem('diff_historyPanelOpen') === 'true',
+    historyPanelOpen: false,
     historyCommits: [],
     historyLoading: false,
     historyError: null,

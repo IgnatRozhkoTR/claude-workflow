@@ -436,20 +436,20 @@ async function loadCommitHistory() {
   if (!ctx) return;
   state.historyLoading = true;
   state.historyError = null;
+  renderHistoryPanel();
   try {
     var ref = state.activeBranch || ctx.branch;
     var data = await apiGetCommitHistory(ctx.projectId, ctx.branch, ref);
     state.historyCommits = data.commits || [];
     state.historySourceBranch = state.activeBranch || ctx.branch;
-    renderHistoryPanel();
     if (state.branches.length === 0) {
       loadHistoryBranches();
     }
   } catch (e) {
     state.historyError = e.message;
-    renderHistoryPanel();
   } finally {
     state.historyLoading = false;
+    renderHistoryPanel();
   }
 }
 
