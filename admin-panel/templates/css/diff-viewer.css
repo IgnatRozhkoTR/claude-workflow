@@ -45,8 +45,8 @@
 
 .diff-layout {
   display: flex;
-  height: calc(100vh - 150px);
-  min-height: 400px;
+  flex: 1;
+  min-height: 200px;
   overflow: hidden;
 }
 
