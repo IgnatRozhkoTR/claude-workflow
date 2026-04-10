@@ -392,6 +392,7 @@ async function setDiffSource(mode) {
   }
 
   openHistoryPanel();
+  loadBranches();
 
   if (state.activeCommit) {
     await _loadDiff('commit', state.activeCommit);
@@ -615,12 +616,14 @@ function openHistoryPanel() {
   localStorage.setItem('diff_historyPanelOpen', 'true');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = '';
+
+  // Always switch to commit mode and load data
   if (state.diffSource !== 'commit') {
     setDiffSource('commit');
-    return;
-  }
-  if (state.historyCommits.length === 0) {
+  } else {
+    // Already in commit mode — just refresh
     loadCommitHistory();
+    loadBranches();
   }
 }
 

@@ -609,8 +609,8 @@ td.d2h-code-side-linenumber:hover {
 }
 
 .diff-history-branches {
-  width: 180px;
-  min-width: 140px;
+  width: 250px;
+  min-width: 180px;
   border-right: 1px solid var(--border);
   overflow-y: auto;
   flex-shrink: 0;
