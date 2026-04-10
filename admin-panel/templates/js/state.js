@@ -238,6 +238,10 @@ function makeResizable(handleId, panelId) {
   var panel = document.getElementById(panelId);
   if (!handle || !panel) return;
 
+  var storageKey = 'resize_' + panelId;
+  var saved = localStorage.getItem(storageKey);
+  if (saved) panel.style.width = saved + 'px';
+
   var dragging = false;
   var startX, startWidth;
 
@@ -264,5 +268,6 @@ function makeResizable(handleId, panelId) {
     handle.classList.remove('active');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    localStorage.setItem(storageKey, panel.offsetWidth);
   });
 }
