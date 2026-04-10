@@ -55,9 +55,10 @@ def test_read_file_absolute_path(client, workspace):
 
 
 def test_read_file_absolute_path_outside_workspace(client, workspace):
-    """Absolute path outside workspace working_dir is blocked."""
-    outside_dir = Path(workspace["working_dir"]).parent
-    outside_file = outside_dir / "secret_outside.py"
+    """Absolute path outside workspace and allowed external paths is blocked."""
+    # The workspace defaults to allowing /tmp/ as external path,
+    # so we must test with a path outside both workspace dir AND /tmp/.
+    outside_file = Path(__file__).resolve().parent / "_secret_test_file.py"
     outside_file.write_text("secret = True\n")
     try:
         r = client.get(f"/api/ws/test-project/feature/test/file?path={outside_file}&absolute=true")
