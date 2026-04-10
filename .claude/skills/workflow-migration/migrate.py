@@ -238,6 +238,23 @@ def update_settings_json(
                         hook["command"] = new_cmd
                         changed = True
 
+    # Fix legacy .sh extensions (applies in all modes)
+    for _event, hook_list in hooks_section.items():
+        for hook_group in hook_list:
+            for hook in hook_group.get("hooks", []):
+                cmd = hook.get("command", "")
+                for old_name, new_name in [
+                    ("session-start.sh", "session-start.py"),
+                    ("pre-tool-hook.sh", "pre-tool-hook.py"),
+                    ("block-orchestrator-writes.sh", "block-orchestrator-writes.py"),
+                ]:
+                    if old_name in cmd:
+                        hook["command"] = cmd.replace(old_name, new_name)
+                        if hook["command"].startswith("bash "):
+                            hook["command"] = "python3 " + hook["command"][5:]
+                        changed = True
+                        break
+
     if not _has_block_orchestrator_hook(hooks_section):
         pre_tool_use = hooks_section.setdefault("PreToolUse", [])
         pre_tool_use.insert(0, _make_block_orchestrator_entry(new_hooks_dir))
@@ -295,13 +312,22 @@ def update_mcp_json(
         else:
             new_args.append(arg)
 
+    # Check the command field for old venv paths
+    cmd = workspace_server.get("command", "")
+    if old_admin_panel in cmd or "/.claude/admin-panel" in cmd:
+        workspace_server["command"] = "python3"
+        workspace_server["args"] = ["-m", "mcp_server"]
+        workspace_server["cwd"] = new_cwd
+        changed = True
+    elif changed:
+        workspace_server["args"] = new_args
+
     if not changed:
         return False, "no old paths"
 
-    workspace_server["args"] = new_args
     if "cwd" in workspace_server and (
-        old_admin_panel in workspace_server["cwd"]
-        or "/.claude/admin-panel" in workspace_server["cwd"]
+        old_admin_panel in workspace_server.get("cwd", "")
+        or "/.claude/admin-panel" in workspace_server.get("cwd", "")
     ):
         workspace_server["cwd"] = new_cwd
 
