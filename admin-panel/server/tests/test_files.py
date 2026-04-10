@@ -55,16 +55,16 @@ def test_read_file_absolute_path(client, workspace):
 
 
 def test_read_file_absolute_path_outside_workspace(client, workspace):
-    """Absolute path outside workspace working_dir is blocked."""
-    import tempfile
-    fd, temp_path = tempfile.mkstemp(suffix=".py")
+    """Absolute path outside workspace and allowed external paths is blocked."""
+    # The workspace defaults to allowing /tmp/ as external path,
+    # so we must test with a path outside both workspace dir AND /tmp/.
+    outside_file = Path(__file__).resolve().parent / "_secret_test_file.py"
+    outside_file.write_text("secret = True\n")
     try:
-        os.write(fd, b"secret = True\n")
-        os.close(fd)
-        r = client.get(f"/api/ws/test-project/feature/test/file?path={temp_path}&absolute=true")
+        r = client.get(f"/api/ws/test-project/feature/test/file?path={outside_file}&absolute=true")
         assert r.status_code == 403
     finally:
-        os.unlink(temp_path)
+        outside_file.unlink(missing_ok=True)
 
 
 def test_read_file_absolute_without_flag(client, workspace):

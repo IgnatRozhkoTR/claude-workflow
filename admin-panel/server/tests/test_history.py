@@ -64,6 +64,8 @@ def history_repo(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "checkout", "-b", "develop")
     subprocess.run(
         ["git", "remote", "add", "origin", str(bare)],
