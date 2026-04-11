@@ -1,8 +1,6 @@
 """
 Idempotent corrections to verification profile seed data:
 - Rename Checkstyle/Ruff/ESLint steps to Format with updated commands.
-- Update SonarScanner commands.
-- Ensure SonarScanner exists on every Java profile.
 
 The Format step for Java uses ${GOVERNED_WORKFLOW_TOOLS_DIR}/google-java-format.jar
 (an env-var-interpolated shell path exported by app.py at startup). This keeps the
@@ -50,37 +48,6 @@ def apply_step(conn):
             fail_severity = 'blocking'
         WHERE name = 'ESLint'
     """)
-
-    # Update SonarScanner commands with auto-derived values
-    cursor.execute("""
-        UPDATE verification_steps SET
-            command = 'sonar-scanner -Dsonar.projectKey=$(basename $(pwd)) -Dsonar.organization=${SONAR_ORG:-default} -Dsonar.token=${SONAR_TOKEN} -Dsonar.sources=.',
-            install_check_command = 'which sonar-scanner && test -n "$SONAR_TOKEN"'
-        WHERE name = 'SonarScanner' AND command = 'sonar-scanner'
-    """)
-
-    # Ensure SonarScanner exists on every Java system profile
-    from datetime import datetime
-    now = datetime.now().isoformat()
-
-    cursor.execute(
-        "SELECT id FROM verification_profiles WHERE language = 'java' AND origin = 'system'"
-    )
-    java_profiles = cursor.fetchall()
-    for jp in java_profiles:
-        profile_id = jp[0]
-        cursor.execute(
-            "SELECT id FROM verification_steps WHERE profile_id = ? AND name = 'SonarScanner'",
-            (profile_id,),
-        )
-        if cursor.fetchone() is None:
-            cursor.execute(
-                "INSERT INTO verification_steps (profile_id, name, description, command, install_check_command, "
-                "install_command, enabled, sort_order, timeout, fail_severity, created_at) "
-                'VALUES (?, \'SonarScanner\', \'Run SonarQube analysis\', \'sonar-scanner -Dsonar.projectKey=$(basename $(pwd)) -Dsonar.organization=${SONAR_ORG:-default} -Dsonar.token=${SONAR_TOKEN} -Dsonar.sources=.\', \'which sonar-scanner && test -n "$SONAR_TOKEN"\', '
-                "'brew install sonar-scanner', 0, 2, 300, 'warning', ?)",
-                (profile_id, now),
-            )
 
 
 step(apply_step)

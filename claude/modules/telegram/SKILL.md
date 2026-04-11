@@ -17,12 +17,20 @@ Manages the custom multi-session Telegram server that replaces the default plugi
 server. This skill is **self-contained**: `server.ts` lives inside the skill
 directory and is deployed by the `install` command.
 
-Throughout this skill, `<tg-state>` refers to the Telegram state directory.
-Resolve it at runtime:
+Throughout this skill, `<tg-state>` refers to the Telegram state directory. The
+**canonical location** is always inside the governed-workflow repository, at
+`<repo>/.local/channels/telegram/`. Any other path you may encounter (for example
+under `~/.claude/channels/`) is stale and must not be used — `server.ts`,
+`access.json`, `.env`, and `sessions/` are read from the canonical location only.
+
+Resolve `<tg-state>` at runtime, always preferring the env override and the
+repo-rooted default in that order:
 ```bash
 TG_STATE="${GOVERNED_WORKFLOW_TELEGRAM_STATE:-$(python3 -c 'from core.paths import REPO_ROOT; print(REPO_ROOT)')/.local/channels/telegram}"
 ```
-If `GOVERNED_WORKFLOW_TELEGRAM_STATE` is not set, the default is `<repo>/.local/channels/telegram/`.
+If you ever find yourself reading or writing under `~/.claude/channels/telegram/`,
+stop and re-resolve `<tg-state>` from this skill — that path is not the source of
+truth and edits there have no effect on the running server.
 
 The source `server.ts` lives at `<repo>/claude/modules/telegram/server.ts` and is
 deployed to `<tg-state>/server.ts` by the `install` command.

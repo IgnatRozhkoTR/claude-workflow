@@ -1,18 +1,9 @@
-"""Update Java system profiles with agent setup instructions for jdtls + JDK discovery.
+"""
+Refresh the Java system profile description with the jdtls + JDK version-matching
+guidance. This re-runs the same content as 0016 so existing devices that applied
+the older JDK-17-locked text get the corrected matrix-based text.
 
-The required JDK version depends on the installed jdtls version. The setup agent
-must detect this at install time and adapt — older devices may need JDK 17 while
-newer devices need JDK 21+.
-
-Approximate jdtls -> required JDK matrix (verify by running `jdtls --validate-java-version`
-or by parsing `jdtls`'s startup error if present):
-
-  jdtls < 1.28.0   -> JDK 11+
-  jdtls 1.28-1.37  -> JDK 17+
-  jdtls >= 1.38    -> JDK 21+
-
-When in doubt, run jdtls once with the candidate JAVA_HOME — it will report the
-exact minimum requirement in its error output (e.g. "jdtls requires at least Java 21").
+Idempotent: just rewrites the description column on Java system profiles.
 """
 from yoyo import step
 
@@ -48,11 +39,8 @@ def apply_step(conn):
     )
 
     cursor.execute(
-        "UPDATE verification_profiles SET description = ? WHERE name = 'Java (Gradle)' AND origin = 'system'",
-        (description,)
-    )
-    cursor.execute(
-        "UPDATE verification_profiles SET description = ? WHERE name = 'Java (Maven)' AND origin = 'system'",
+        "UPDATE verification_profiles SET description = ? "
+        "WHERE language = 'java' AND origin = 'system'",
         (description,)
     )
 
