@@ -39,25 +39,25 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/variables.css">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/layout.css">
-<link rel="stylesheet" href="css/phase.css">
-<link rel="stylesheet" href="css/scope.css">
-<link rel="stylesheet" href="css/research.css">
-<link rel="stylesheet" href="css/plan.css">
-<link rel="stylesheet" href="css/cards.css">
-<link rel="stylesheet" href="css/comments-ui.css">
-<link rel="stylesheet" href="css/modals.css">
-<link rel="stylesheet" href="css/context.css">
-<link rel="stylesheet" href="css/diff-viewer.css">
-<link rel="stylesheet" href="css/preplanning.css">
-<link rel="stylesheet" href="css/terminal.css">
-<link rel="stylesheet" href="css/verification.css">
-<link rel="stylesheet" href="css/lsp.css">
-<link rel="stylesheet" href="css/setup.css">
-<link rel="stylesheet" href="css/mobile.css">
-<link rel="stylesheet" href="css/workspace.css">
+<link rel="stylesheet" href="css/variables.css?v=11">
+<link rel="stylesheet" href="css/base.css?v=11">
+<link rel="stylesheet" href="css/layout.css?v=11">
+<link rel="stylesheet" href="css/phase.css?v=11">
+<link rel="stylesheet" href="css/scope.css?v=11">
+<link rel="stylesheet" href="css/research.css?v=11">
+<link rel="stylesheet" href="css/plan.css?v=11">
+<link rel="stylesheet" href="css/cards.css?v=11">
+<link rel="stylesheet" href="css/comments-ui.css?v=11">
+<link rel="stylesheet" href="css/modals.css?v=11">
+<link rel="stylesheet" href="css/context.css?v=11">
+<link rel="stylesheet" href="css/diff-viewer.css?v=11">
+<link rel="stylesheet" href="css/preplanning.css?v=11">
+<link rel="stylesheet" href="css/terminal.css?v=11">
+<link rel="stylesheet" href="css/verification.css?v=11">
+<link rel="stylesheet" href="css/lsp.css?v=11">
+<link rel="stylesheet" href="css/setup.css?v=11">
+<link rel="stylesheet" href="css/mobile.css?v=11">
+<link rel="stylesheet" href="css/workspace.css?v=11">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
@@ -584,7 +584,7 @@
 
   <!-- ─── CODE CHANGES ─── -->
   <div class="tab-panel" id="panel-changes">
-    <div class="card" style="overflow: hidden;">
+    <div class="card">
       <div class="diff-controls">
         <div class="toggle-group" id="viewModeToggle">
           <button class="toggle-opt active" data-mode="tree" onclick="setFileView('tree')" data-i18n="diff.tree">Tree</button>
@@ -617,18 +617,24 @@
         </div>
       </div>
       <div id="diffHistoryPanel" class="diff-history-panel" style="display: none;">
-        <div class="diff-history-panel-header">
-          <span data-i18n="diff.history">History</span>
-          <span id="diffHistoryBranchLabel" class="diff-history-branch-label"></span>
-          <span id="diffHistorySelectionCount" class="badge badge-info" style="display: none;"></span>
-          <div class="diff-history-panel-actions">
-            <button id="historyRenameBtn" class="btn btn-sm" onclick="historyRename()" disabled title="Rename is only available for the latest local unpushed commit" data-i18n="history.rename">Rename</button>
-            <button id="historyUndoBtn" class="btn btn-sm" onclick="historyUndo()" disabled title="Undo is only available for the latest local unpushed commit" data-i18n="history.undo">Undo</button>
-            <button id="historySquashBtn" class="btn btn-sm" onclick="historySquash()" disabled title="Squash requires a contiguous selection of 2+ local unpushed commits" data-i18n="history.squash">Squash</button>
+        <div class="diff-history-body">
+          <div class="diff-history-branches" id="diffBranchList"></div>
+          <div class="diff-resize-handle" id="historyResizeHandle"></div>
+          <div class="diff-history-commits">
+            <div class="diff-history-panel-header">
+              <span data-i18n="diff.history">History</span>
+              <span id="diffHistoryBranchLabel" class="diff-history-branch-label"></span>
+              <span id="diffHistorySelectionCount" class="badge badge-info" style="display: none;"></span>
+              <div class="diff-history-panel-actions">
+                <button id="historyRenameBtn" class="btn btn-sm" onclick="historyRename()" disabled title="Rename is only available for the latest local unpushed commit" data-i18n="history.rename">Rename</button>
+                <button id="historyUndoBtn" class="btn btn-sm" onclick="historyUndo()" disabled title="Undo is only available for the latest local unpushed commit" data-i18n="history.undo">Undo</button>
+                <button id="historySquashBtn" class="btn btn-sm" onclick="historySquash()" disabled title="Squash requires a contiguous selection of 2+ local unpushed commits" data-i18n="history.squash">Squash</button>
+              </div>
+              <button class="btn btn-sm" onclick="closeHistoryPanel()" data-i18n="buttons.close">Close</button>
+            </div>
+            <div id="diffHistoryList" class="diff-history-list"></div>
           </div>
-          <button class="btn btn-sm" onclick="closeHistoryPanel()" data-i18n="buttons.close">Close</button>
         </div>
-        <div id="diffHistoryList" class="diff-history-list"></div>
       </div>
     </div>
   </div>
@@ -760,38 +766,38 @@
   var I18N_MESSAGES = {{ i18n_default | safe }};
   var I18N_LOCALE = localStorage.getItem('admin-panel-locale') || 'en';
 </script>
-<script src="js/event-bus.js"></script>
-<script src="js/i18n.js"></script>
-<script src="js/api.js"></script>
-<script src="js/toast.js"></script>
-<script src="js/state.js"></script>
-<script src="js/review-thread.js"></script>
-<script src="js/review-tab.js"></script>
-<script src="js/comments.js"></script>
-<script src="js/theme.js"></script>
-<script src="js/terminal.js"></script>
-<script src="js/tabs.js"></script>
-<script src="js/phase.js"></script>
-<script src="js/plan.js"></script>
-<script src="js/scope.js"></script>
-<script src="js/tree-utils.js"></script>
-<script src="js/research.js"></script>
-<script src="js/diff-viewer.js"></script>
-<script src="js/monaco-editor.js"></script>
-<script src="js/lsp-shortcuts.js"></script>
-<script src="js/lsp-client.js"></script>
-<script src="js/lsp-controls.js"></script>
-<script src="js/file-explorer.js"></script>
-<script src="js/git-config.js"></script>
-<script src="js/claude-config.js"></script>
-<script src="js/context.js"></script>
-<script src="js/criteria.js"></script>
-<script src="js/preplanning.js"></script>
-<script src="js/verification.js"></script>
-<script src="js/setup.js"></script>
-<script src="js/actions.js"></script>
-<script src="js/app.js"></script>
-<script src="js/workspace.js"></script>
+<script src="js/event-bus.js?v=10"></script>
+<script src="js/i18n.js?v=10"></script>
+<script src="js/api.js?v=10"></script>
+<script src="js/toast.js?v=10"></script>
+<script src="js/state.js?v=10"></script>
+<script src="js/review-thread.js?v=10"></script>
+<script src="js/review-tab.js?v=10"></script>
+<script src="js/comments.js?v=10"></script>
+<script src="js/theme.js?v=10"></script>
+<script src="js/terminal.js?v=10"></script>
+<script src="js/tabs.js?v=10"></script>
+<script src="js/phase.js?v=10"></script>
+<script src="js/plan.js?v=10"></script>
+<script src="js/scope.js?v=10"></script>
+<script src="js/tree-utils.js?v=10"></script>
+<script src="js/research.js?v=10"></script>
+<script src="js/diff-viewer.js?v=10"></script>
+<script src="js/monaco-editor.js?v=10"></script>
+<script src="js/lsp-shortcuts.js?v=10"></script>
+<script src="js/lsp-client.js?v=10"></script>
+<script src="js/lsp-controls.js?v=10"></script>
+<script src="js/file-explorer.js?v=10"></script>
+<script src="js/git-config.js?v=10"></script>
+<script src="js/claude-config.js?v=10"></script>
+<script src="js/context.js?v=10"></script>
+<script src="js/criteria.js?v=10"></script>
+<script src="js/preplanning.js?v=10"></script>
+<script src="js/verification.js?v=10"></script>
+<script src="js/setup.js?v=10"></script>
+<script src="js/actions.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
+<script src="js/workspace.js?v=10"></script>
 
 <div id="diagramOverlay" class="diagram-overlay" style="display:none" onclick="closeDiagramOverlay(event)">
   <div class="diagram-overlay-content" onclick="event.stopPropagation()">

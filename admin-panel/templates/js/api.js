@@ -189,8 +189,14 @@ function apiGetDiff(projectId, branch, mode, commit) {
   return apiGet(url);
 }
 
-function apiGetCommitHistory(projectId, branch) {
+function apiGetCommitHistory(projectId, branch, ref) {
   var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/history';
+  if (ref) url += '?ref=' + encodeURIComponent(ref);
+  return apiGet(url);
+}
+
+function apiGetBranches(projectId, branch) {
+  var url = '/api/ws/' + encodeURIComponent(projectId) + '/' + encodeURIComponent(branch) + '/branches';
   return apiGet(url);
 }
 

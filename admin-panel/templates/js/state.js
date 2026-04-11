@@ -54,13 +54,15 @@ var AppState = {
     diffSource: localStorage.getItem('diff_diffSource') || 'branch',
     selectedFile: null,
     theme: 'dark',
-    historyPanelOpen: localStorage.getItem('diff_historyPanelOpen') === 'true',
+    historyPanelOpen: false,
     historyCommits: [],
     historyLoading: false,
     historyError: null,
     selectedCommits: [],
     activeCommit: null,
-    historySourceBranch: null
+    historySourceBranch: null,
+    branches: [],
+    activeBranch: null
   }
 };
 
@@ -236,6 +238,10 @@ function makeResizable(handleId, panelId) {
   var panel = document.getElementById(panelId);
   if (!handle || !panel) return;
 
+  var storageKey = 'resize_' + panelId;
+  var saved = localStorage.getItem(storageKey);
+  if (saved) panel.style.width = saved + 'px';
+
   var dragging = false;
   var startX, startWidth;
 
@@ -262,5 +268,6 @@ function makeResizable(handleId, panelId) {
     handle.classList.remove('active');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    localStorage.setItem(storageKey, panel.offsetWidth);
   });
 }

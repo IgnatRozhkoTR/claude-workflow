@@ -33,20 +33,14 @@ After migration, `~/.claude` should contain only Claude Code's own config (its o
 
 ---
 
-### Step 1: Move or clone the repo
+### Step 1: Clone fresh and copy the database
 
-**Option A — move in place (recommended if you have the existing DB):**
 ```bash
-mv ~/.claude ~/governed-workflow
-cd ~/governed-workflow
-git worktree repair   # fixes worktree paths after the move
-```
-
-**Option B — clone fresh and bring your DB:**
-```bash
-git clone <your-repo-url> ~/governed-workflow
+git clone https://github.com/IgnatRozhkoTR/governed-workflow.git ~/governed-workflow
 cp ~/.claude/admin-panel/server/admin-panel.db ~/governed-workflow/admin-panel/server/
 ```
+
+This is safer than moving `~/.claude` because it leaves Claude Code's internal data untouched. The only file you need from the old install is the database.
 
 ---
 
@@ -68,7 +62,7 @@ Replace `~/governed-workflow` with wherever you placed the repo.
 
 ### Step 3: Verify the repo's own hooks config
 
-If the repo was moved (Option A), its `.claude/settings.json` uses `${CLAUDE_PROJECT_DIR}` — it should already be correct. Confirm:
+The repo's `.claude/settings.json` uses `${CLAUDE_PROJECT_DIR}` — it should already be correct. Confirm:
 
 ```bash
 grep CLAUDE_PROJECT_DIR ~/governed-workflow/.claude/settings.json
@@ -78,20 +72,45 @@ You should see paths like `${CLAUDE_PROJECT_DIR}/claude/hooks/pre-tool-hook.py`.
 
 ---
 
-### Step 4: Clean up `~/.claude`
+### Step 4: Remove old hooks from global settings
 
-After the migration script completes, `~/.claude` should only hold Claude Code's own config. Verify nothing governed-workflow-related remains:
+The global `~/.claude/settings.json` likely has hook entries pointing at `~/.claude/hooks/` (the old location) and may also have a `statusLine` entry referencing deleted scripts. Both must be removed or they'll break every session:
 
 ```bash
-ls ~/.claude/
-# Expected: CLAUDE.md  settings.json  (possibly agents/, rules/, defaults/ if you use global overrides)
-# Not expected: admin-panel/  hooks/  tools/
+python3 -c "
+import json
+with open('$HOME/.claude/settings.json') as f: d = json.load(f)
+d.pop('hooks', None)
+d.pop('statusLine', None)
+with open('$HOME/.claude/settings.json', 'w') as f: json.dump(d, f, indent=2)
+print('Global hooks removed from ~/.claude/settings.json')
+"
 ```
 
-Remove any leftover governed-workflow directories manually:
+Hooks now live at the **project level** (`<project>/.claude/settings.json`), not globally. The migration script (Step 2) already configures project-level hooks.
+
+Restart all Claude Code sessions after this step.
+
+---
+
+### Step 5: Clean up `~/.claude`
+
+Remove old governed-workflow directories. Keep only Claude Code's own data:
+
 ```bash
-rm -rf ~/.claude/admin-panel ~/.claude/hooks ~/.claude/tools
+rm -rf ~/.claude/admin-panel ~/.claude/hooks ~/.claude/tools \
+       ~/.claude/agents ~/.claude/defaults ~/.claude/modules \
+       ~/.claude/workspace ~/.claude/.github ~/.claude/.codex \
+       ~/.claude/AGENTS.md ~/.claude/README.md ~/.claude/.gitignore \
+       ~/.claude/.env ~/.claude/.mcp.json ~/.claude/statusline-command.sh
 ```
+
+What should remain in `~/.claude/`:
+- `CLAUDE.md`, `rules/` — your global Claude Code config
+- `settings.json` — global settings (hooks removed in Step 4)
+- `projects/`, `sessions/`, `skills/`, `plugins/` — Claude Code internal data
+
+After cleanup, restart the admin panel pointing at the new location.
 
 ---
 
@@ -101,8 +120,8 @@ Before modifying any file, the script creates a `.pre-migration` backup (e.g., `
 
 For each active workspace the script performs these operations:
 
-1. **`settings.json`** — rewrites hook command paths from `~/.claude/hooks/<name>` to `<new-repo>/claude/hooks/<name>` (absolute path). If the `block-orchestrator-writes.py` PreToolUse hook is missing, it is added.
-2. **`.mcp.json`** — updates the `workspace` MCP server `args` to point at `<new-repo>/admin-panel/server/mcp_server.py`. Symlinked `.mcp.json` files (worktree mode) are resolved and deduplicated — the real file is only written once.
+1. **`settings.json`** — rewrites hook command paths from `~/.claude/hooks/<name>` to `<new-repo>/claude/hooks/<name>` (absolute path). If the `block-orchestrator-writes.py` PreToolUse hook is missing, it is added. Also renames legacy `.sh` hook references to `.py` (e.g., `session-start.sh` → `session-start.py`) and updates the runner from `bash` to `python3` — this fix applies in all modes, including in-place upgrades.
+2. **`.mcp.json`** — updates the `workspace` MCP server `args` to point at `<new-repo>/admin-panel/server/mcp_server.py`. Also replaces the `command` field if it references the old admin-panel venv, switching to module invocation (`python3 -m mcp_server`). Symlinked `.mcp.json` files (worktree mode) are resolved and deduplicated — the real file is only written once.
 3. **Hooks** — copies files from `<repo>/claude/hooks/` to `<workspace>/.claude/hooks/`, only when the repo's copy is newer (preserves user customisations).
 4. **Agents / rules / defaults** — copies missing files from `<repo>/claude/{agents,rules,defaults}/` into the workspace; never overwrites existing files (project wins). Skips `rules/` if the destination is a symlink.
 5. **`.codex`** — if `.codex` is a symlink, replaces it with a real directory populated from `<repo>/codex/`. Otherwise copies only missing files (project wins).

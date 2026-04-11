@@ -362,12 +362,15 @@ async function _loadDiff(mode, commitSha) {
   if (!ctx) return;
   try {
     var diffData = await apiGetDiff(ctx.projectId, ctx.branch, mode, commitSha);
-    if (diffData && diffData.files) {
+    if (diffData) {
       AppState.diff = diffData;
       DIFF_DATA = AppState.diff;
     }
   } catch (e) {
     console.warn('Diff API unavailable:', e.message);
+    // Clear diff data on error so stale files don't linger
+    AppState.diff = { files: [] };
+    DIFF_DATA = AppState.diff;
   }
 }
 
@@ -392,6 +395,7 @@ async function setDiffSource(mode) {
   }
 
   openHistoryPanel();
+  loadHistoryBranches();
 
   if (state.activeCommit) {
     await _loadDiff('commit', state.activeCommit);
@@ -404,6 +408,7 @@ async function setDiffSource(mode) {
 //  RESIZABLE FILE LIST PANEL
 // ═══════════════════════════════════════════════
 makeResizable('diffResizeHandle', 'diffFileList');
+makeResizable('historyResizeHandle', 'diffBranchList');
 
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.go-to-file-btn');
@@ -431,16 +436,70 @@ async function loadCommitHistory() {
   if (!ctx) return;
   state.historyLoading = true;
   state.historyError = null;
+  renderHistoryPanel();
   try {
-    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch);
+    var ref = state.activeBranch || ctx.branch;
+    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch, ref);
     state.historyCommits = data.commits || [];
-    state.historySourceBranch = data.source_branch || null;
-    renderHistoryPanel();
+    state.historySourceBranch = state.activeBranch || ctx.branch;
+    if (state.branches.length === 0) {
+      loadHistoryBranches();
+    }
   } catch (e) {
     state.historyError = e.message;
-    renderHistoryPanel();
   } finally {
     state.historyLoading = false;
+    renderHistoryPanel();
+  }
+}
+
+async function loadHistoryBranches() {
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var data = await apiGetBranches(ctx.projectId, ctx.branch);
+    state.branches = data.branches || [];
+    renderHistoryBranches();
+  } catch (e) {
+    console.warn('Failed to load branches:', e.message);
+  }
+}
+
+function renderHistoryBranches() {
+  var list = document.getElementById('diffBranchList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  state.branches.forEach(function(branch) {
+    var row = document.createElement('div');
+    row.className = 'diff-branch-row';
+    if (branch.current && !state.activeBranch) row.classList.add('active');
+    if (state.activeBranch === branch.ref) row.classList.add('active');
+    row.textContent = branch.name;
+    row.title = branch.ref;
+    row.addEventListener('click', function() {
+      selectHistoryBranch(branch.ref, branch.name);
+    });
+    list.appendChild(row);
+  });
+}
+
+async function selectHistoryBranch(ref, displayName) {
+  state.activeBranch = ref;
+  state.activeCommit = null;
+  state.selectedCommits = [];
+  renderHistoryBranches();
+
+  var ctx = getWorkspaceContext();
+  if (!ctx) return;
+  try {
+    var data = await apiGetCommitHistory(ctx.projectId, ctx.branch, ref);
+    state.historyCommits = data.commits || [];
+    var label = document.getElementById('diffHistoryBranchLabel');
+    if (label) label.textContent = displayName;
+    renderHistoryPanel();
+  } catch (e) {
+    console.warn('Failed to load branch history:', e.message);
   }
 }
 
@@ -451,7 +510,7 @@ function renderHistoryPanel() {
 
   var branchLabel = document.getElementById('diffHistoryBranchLabel');
   if (branchLabel && state.historySourceBranch) {
-    branchLabel.textContent = 'ahead of origin/' + state.historySourceBranch;
+    branchLabel.textContent = state.historySourceBranch;
   } else if (branchLabel) {
     branchLabel.textContent = '';
   }
@@ -533,6 +592,16 @@ async function selectCommit(fullSha, event) {
   await _loadDiff('commit', fullSha);
   renderFileList();
   renderHistoryPanel();
+
+  // Re-render the currently selected file if it exists in this commit's diff
+  if (state.selectedFile && DIFF_DATA && DIFF_DATA.files) {
+    var fileStillExists = DIFF_DATA.files.some(function(f) {
+      return f.filename === state.selectedFile;
+    });
+    if (fileStillExists) {
+      renderDiff(state.selectedFile);
+    }
+  }
 }
 
 function updateSelectionCountDisplay() {
@@ -547,38 +616,34 @@ function updateSelectionCountDisplay() {
   }
 }
 
-function openHistoryPanel() {
+async function openHistoryPanel() {
   state.historyPanelOpen = true;
-  localStorage.setItem('diff_historyPanelOpen', 'true');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = '';
-  if (state.historyCommits.length === 0) {
-    loadCommitHistory();
+
+  if (state.diffSource !== 'commit') {
+    await setDiffSource('commit');
+  } else {
+    await loadCommitHistory();
+    loadHistoryBranches();
   }
 }
 
-function toggleHistoryPanel() {
+async function toggleHistoryPanel() {
   if (state.historyPanelOpen) {
     closeHistoryPanel();
   } else {
-    openHistoryPanel();
+    await openHistoryPanel();
   }
 }
 
 function closeHistoryPanel() {
   state.historyPanelOpen = false;
-  localStorage.setItem('diff_historyPanelOpen', 'false');
   var panel = document.getElementById('diffHistoryPanel');
   if (panel) panel.style.display = 'none';
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  if (state.historyPanelOpen) {
-    var panel = document.getElementById('diffHistoryPanel');
-    if (panel) panel.style.display = '';
-    loadCommitHistory();
-  }
-});
+// History panel always starts collapsed. Data loads when user clicks History button.
 
 // ═══════════════════════════════════════════════
 //  HISTORY REWRITE ACTIONS

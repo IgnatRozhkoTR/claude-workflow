@@ -102,7 +102,7 @@ Hexagonal nodes are **user gates** — the workflow pauses until a human approve
 
 ## Repository Structure
 
-The repo can be cloned to any path on disk (`~/governed-workflow`, `/opt/governed-workflow`, `~/.claude`, etc.). The payload directories are:
+The repo can be cloned to any path on disk (`~/governed-workflow`, `/opt/governed-workflow`, etc.). The payload directories are:
 
 ```
 ├── admin-panel/          # Flask web app + MCP server (see admin-panel/README.md)
