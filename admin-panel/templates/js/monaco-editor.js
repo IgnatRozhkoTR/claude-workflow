@@ -115,15 +115,47 @@ function createEditor(container, content, language, filePath) {
       language: language,
       readOnly: true,
       theme: state.theme === 'dark' ? 'vs-dark' : 'vs',
-      automaticLayout: true,
-      minimap: { enabled: true },
+      automaticLayout: false,
+      minimap: { enabled: false },
       scrollBeyondLastLine: false,
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       lineNumbers: 'on',
       renderWhitespace: 'selection',
-      wordWrap: 'on'
+      wordWrap: 'on',
+      scrollbar: {
+        handleMouseWheel: false,
+        alwaysConsumeMouseWheel: false,
+        vertical: 'hidden',
+        horizontal: 'auto'
+      }
     });
+
+    // Grow container to fit all content so outer .diff-content scrolls
+    var resizeToContent = function() {
+      if (!container.isConnected) return;
+      var contentHeight = editor.getContentHeight();
+      if (contentHeight > 0) {
+        container.style.height = contentHeight + 'px';
+        editor.layout({ width: container.clientWidth, height: contentHeight });
+      }
+    };
+    editor.onDidContentSizeChange(resizeToContent);
+    resizeToContent();
+
+    // Respond to outer width changes (window resize, panel resize)
+    var widthObserver = null;
+    if (typeof ResizeObserver !== 'undefined' && container.parentElement) {
+      widthObserver = new ResizeObserver(function() {
+        if (!container.isConnected) return;
+        var contentHeight = editor.getContentHeight();
+        if (contentHeight > 0) {
+          editor.layout({ width: container.clientWidth, height: contentHeight });
+        }
+      });
+      widthObserver.observe(container.parentElement);
+    }
+    editor._widthObserver = widthObserver;
 
     window._monacoEditor = editor;
     window._monacoCurrentFile = filePath;
@@ -138,6 +170,10 @@ function createEditor(container, content, language, filePath) {
 
 function disposeEditor() {
   if (window._monacoEditor) {
+    if (window._monacoEditor._widthObserver) {
+      try { window._monacoEditor._widthObserver.disconnect(); } catch (_) {}
+      window._monacoEditor._widthObserver = null;
+    }
     window._monacoEditor.dispose();
     window._monacoEditor = null;
   }

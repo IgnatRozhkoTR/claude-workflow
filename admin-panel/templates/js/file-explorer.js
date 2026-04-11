@@ -252,12 +252,10 @@ function renderExplorerContent(path, lines, lineNumber) {
 
     var editorContainer = document.createElement('div');
     editorContainer.id = 'monaco-editor-container';
-    editorContainer.style.height = '100%';
     editorContainer.style.width = '100%';
 
     var body = document.createElement('div');
     body.className = 'explorer-file-body monaco-body';
-    body.style.height = 'calc(100% - 40px)';
     body.style.padding = '0';
     body.appendChild(editorContainer);
 

@@ -249,16 +249,17 @@
 }
 
 .monaco-body {
-  overflow: hidden;
+  overflow: visible;
 }
 
 #monaco-editor-container {
-  min-height: 400px;
+  width: 100%;
 }
 
 #explorerContent .explorer-file-body.monaco-body {
-  flex: 1;
-  overflow: hidden;
+  flex: 0 0 auto;
+  overflow: visible;
+  height: auto;
 }
 
 .explorer-markdown {
