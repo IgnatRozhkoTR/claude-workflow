@@ -8,6 +8,38 @@
   margin-bottom: 0 !important;
 }
 
+/* When the Files tab is active, make split-main a flex column
+   so #panel-files can fill it exactly and contain its own overflow.
+   Scoped via :has() so other tabs are untouched. */
+.split-main:has(> #panel-files.tab-panel.active) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+#panel-files.tab-panel.active {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#panel-files > .card {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#panel-files .diff-layout {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
 .diff-controls {
   display: flex;
   align-items: center;

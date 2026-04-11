@@ -727,9 +727,31 @@
 </main>
 
 <div class="term-scroll-controls" id="termScrollControls">
-  <button class="term-scroll-btn" onclick="sendTermEscape()" style="font-size: 12px; font-weight: 600;">ESC</button>
+  <button class="term-scroll-btn" onclick="toggleTermKeysPopover()" style="font-size: 11px; font-weight: 600;">KEYS</button>
   <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(-3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(-3)" onmouseup="stopTermScroll()">&#9650;</button>
   <button class="term-scroll-btn" ontouchstart="event.preventDefault();startTermScroll(3)" ontouchend="stopTermScroll()" onmousedown="startTermScroll(3)" onmouseup="stopTermScroll()">&#9660;</button>
+</div>
+
+<div id="termKeysPopover" style="display: none;">
+  <div class="term-keys-header">
+    <span>Send Keys</span>
+    <button class="term-keys-close" onclick="closeTermKeysPopover()">&#215;</button>
+  </div>
+  <div class="term-keys-row">
+    <input id="termKeysInput" type="text" placeholder="e.g. Ctrl+C, Esc, Tab, Up"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();sendTermKeysFromInput();}">
+    <button class="term-keys-send" onclick="sendTermKeysFromInput()">Send</button>
+  </div>
+  <div class="term-keys-chips">
+    <button class="term-keys-chip" onclick="sendTermKeyToken('Esc')">Esc</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('Tab')">Tab</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('Ctrl+C')">Ctrl+C</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('Ctrl+D')">Ctrl+D</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('↑')">↑</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('↓')">↓</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('←')">←</button>
+    <button class="term-keys-chip" onclick="sendTermKeyToken('→')">→</button>
+  </div>
 </div>
 
 </div>
@@ -837,6 +859,92 @@ function sendTermEscape() {
     splitWs.send('\x1b');
     return;
   }
+}
+function sendTermBytes(bytes) {
+  if (typeof terminalWs !== 'undefined' && terminalWs && terminalWs.readyState === WebSocket.OPEN) {
+    terminalWs.send(bytes);
+    return true;
+  }
+  if (typeof splitWs !== 'undefined' && splitWs && splitWs.readyState === WebSocket.OPEN) {
+    splitWs.send(bytes);
+    return true;
+  }
+  return false;
+}
+function parseKeyToken(token) {
+  if (!token) return '';
+  var t = token.trim();
+  if (!t) return '';
+  var lower = t.toLowerCase();
+  var ctrlMatch = lower.match(/^(?:ctrl\+|\^)([a-z\[\]\\^_?@])$/);
+  if (ctrlMatch) {
+    var ch = ctrlMatch[1];
+    if (ch === '?') return String.fromCharCode(127);
+    var code = ch.toUpperCase().charCodeAt(0) - 64;
+    if (code >= 0 && code <= 31) return String.fromCharCode(code);
+    return '';
+  }
+  switch (lower) {
+    case 'esc':
+    case 'escape': return '\x1b';
+    case 'tab': return '\t';
+    case 'enter':
+    case 'return': return '\r';
+    case 'backspace':
+    case 'bksp': return '\x7f';
+    case 'space': return ' ';
+    case 'up':
+    case '↑': return '\x1b[A';
+    case 'down':
+    case '↓': return '\x1b[B';
+    case 'right':
+    case '→': return '\x1b[C';
+    case 'left':
+    case '←': return '\x1b[D';
+    case 'home': return '\x1b[H';
+    case 'end': return '\x1b[F';
+    case 'pageup':
+    case 'pgup': return '\x1b[5~';
+    case 'pagedown':
+    case 'pgdn': return '\x1b[6~';
+    case 'delete':
+    case 'del': return '\x1b[3~';
+  }
+  return t;
+}
+function sendTermKeyToken(token) {
+  var bytes = parseKeyToken(token);
+  if (bytes) sendTermBytes(bytes);
+}
+function sendTermKeysFromInput() {
+  var el = document.getElementById('termKeysInput');
+  if (!el) return;
+  var raw = el.value || '';
+  if (!raw.trim()) return;
+  var tokens = raw.split(/\s+/);
+  var payload = '';
+  for (var i = 0; i < tokens.length; i++) {
+    payload += parseKeyToken(tokens[i]);
+  }
+  if (payload) sendTermBytes(payload);
+  el.value = '';
+  closeTermKeysPopover();
+}
+function toggleTermKeysPopover() {
+  var p = document.getElementById('termKeysPopover');
+  if (!p) return;
+  var open = p.style.display !== 'none' && p.style.display !== '';
+  if (open) {
+    closeTermKeysPopover();
+  } else {
+    p.style.display = 'flex';
+    var input = document.getElementById('termKeysInput');
+    if (input) setTimeout(function() { input.focus(); }, 50);
+  }
+}
+function closeTermKeysPopover() {
+  var p = document.getElementById('termKeysPopover');
+  if (p) p.style.display = 'none';
 }
 function doTermScroll(delta) {
   var vp = document.querySelector('#terminalContainer .xterm-viewport') ||
