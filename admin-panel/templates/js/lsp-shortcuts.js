@@ -18,7 +18,7 @@ var LSP_SHORTCUT_LABELS = {
 };
 
 var _LSP_ACTION_MAP = {
-  goToDefinition: 'editor.action.goToDefinition',
+  goToDefinition: 'editor.action.revealDefinition',
   findReferences: 'editor.action.referenceSearch.trigger',
   peekDefinition: 'editor.action.peekDefinition',
   showHover: 'editor.action.showHover'

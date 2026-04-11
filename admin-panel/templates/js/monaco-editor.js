@@ -76,6 +76,13 @@ function initMonaco() {
     require(['vs/editor/editor.main'], function() {
       monaco.editor.registerEditorOpener({
         openCodeEditor: function(source, resource, selectionOrPosition) {
+          if (resource.scheme && resource.scheme !== 'file') {
+            if (typeof showToast === 'function') {
+              showToast('External library source (' + resource.scheme + '://) — open the project in your IDE to navigate into it');
+            }
+            return true;
+          }
+
           var path = resource.path;
           var relativePath = (typeof lspUriToPath === 'function')
             ? lspUriToPath(resource.toString())
