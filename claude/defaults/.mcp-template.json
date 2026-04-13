@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mcp-funnel": {
+      "command": "npx",
+      "args": ["-y", "mcp-funnel", "--config", ".mcp-funnel.json"]
+    }
+  }
+}

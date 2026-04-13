@@ -200,7 +200,7 @@ _SYMLINK_TO_PROJECT = ["rules", "git-config.json"]
 
 
 def _ensure_workspace_mcp(mcp_path):
-    """Ensure the workspace MCP server is present in .mcp.json."""
+    """Ensure the workspace MCP server is present and correctly configured in .mcp.json."""
     data = {}
     if mcp_path.exists():
         try:
@@ -208,11 +208,13 @@ def _ensure_workspace_mcp(mcp_path):
         except (json.JSONDecodeError, ValueError, OSError):
             pass
     servers = data.setdefault("mcpServers", {})
-    if "workspace" not in servers:
-        servers["workspace"] = {
-            "command": "python3",
-            "args": [_MCP_SERVER_PATH]
-        }
+    expected = {
+        "command": "python3",
+        "args": [_MCP_SERVER_PATH]
+    }
+    current = servers.get("workspace")
+    if current != expected:
+        servers["workspace"] = expected
         mcp_path.write_text(json.dumps(data, indent=2))
 
 

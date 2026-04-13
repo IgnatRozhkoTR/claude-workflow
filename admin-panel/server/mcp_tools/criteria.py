@@ -25,6 +25,8 @@ def workspace_propose_criteria(ws, project, db, locale, type: str, description: 
         db, ws["id"], type, description, details_json=details_json or None, source="agent"
     )
     if "ok" in result:
+        if ws["yolo_mode"]:
+            db.execute("UPDATE acceptance_criteria SET status = 'accepted' WHERE id = ?", (result["criterion"]["id"],))
         db.commit()
     return result
 

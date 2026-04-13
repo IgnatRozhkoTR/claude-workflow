@@ -17,6 +17,8 @@ def workspace_set_scope(ws, project, db, locale, scope: dict) -> dict:
     'may' directories are permitted but not required."""
     result = scope_service.set_scope(db, ws, scope)
     if "error" not in result:
+        if ws["yolo_mode"]:
+            db.execute("UPDATE workspaces SET scope_status = 'approved' WHERE id = ?", (ws["id"],))
         db.commit()
     return result
 
@@ -58,6 +60,8 @@ def workspace_set_plan(ws, project, db, locale, plan: dict) -> dict:
     Scope is separate from the plan — use workspace_set_scope to define the phase-keyed scope map."""
     result = plan_service.set_plan(db, ws, plan)
     if "ok" in result:
+        if ws["yolo_mode"]:
+            db.execute("UPDATE workspaces SET plan_status = 'approved', scope_status = 'approved' WHERE id = ?", (ws["id"],))
         db.commit()
     return result
 
@@ -89,6 +93,8 @@ def workspace_extend_plan(ws, project, db, locale, subphase: dict, scope: dict, 
     Existing sub-phases and their data are not modified."""
     result = plan_service.extend_plan(db, ws, subphase, scope, diagrams, replace_diagrams)
     if "ok" in result:
+        if ws["yolo_mode"]:
+            db.execute("UPDATE workspaces SET plan_status = 'approved', scope_status = 'approved' WHERE id = ?", (ws["id"],))
         db.commit()
     return result
 
