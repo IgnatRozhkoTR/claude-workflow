@@ -41,7 +41,7 @@ def start_servers(db, ws, project):
     """
     body = request.get_json(silent=True) or {}
     profile_id = body.get("profile_id")
-    workspace_path = project["path"]
+    workspace_path = ws["working_dir"] or project["path"]
 
     if profile_id is not None:
         result = lsp_service.start_lsp_server(db, project["id"], profile_id, workspace_path)
