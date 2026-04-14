@@ -153,6 +153,7 @@ def backup_file(file_path: Path, dry_run: bool) -> bool:
 # Block-orchestrator hook injection
 # ---------------------------------------------------------------------------
 
+# must match BLOCK_ORCHESTRATOR_MATCHER in admin-panel/server/routes/workspaces.py
 BLOCK_ORCHESTRATOR_MATCHER = "Edit|MultiEdit|Write|NotebookEdit|Bash"
 
 

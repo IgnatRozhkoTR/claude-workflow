@@ -280,6 +280,52 @@ class TestWriteWorkspaceSettingsUnion:
         matching = [e for e in data["hooks"]["SessionStart"] if e == governed_entry]
         assert len(matching) == 1
 
+    def test_writeWorkspaceSettings_shouldIncludeBlockOrchestratorHook_whenCreatingFreshSettings(self, tmp_path):
+        settings = tmp_path / ".claude" / "settings.json"
+        _WORKSPACES._write_workspace_settings(settings)
+        data = json.loads(settings.read_text())
+        pre_tool_use = data["hooks"]["PreToolUse"]
+        block_entries = [
+            e for e in pre_tool_use
+            if any("block-orchestrator-writes.py" in h.get("command", "") for h in e.get("hooks", []))
+        ]
+        assert len(block_entries) >= 1
+        assert block_entries[0]["matcher"] == _WORKSPACES.BLOCK_ORCHESTRATOR_MATCHER
+
+    def test_writeWorkspaceSettings_shouldPreserveBlockOrchestratorHook_whenMergingIntoExistingSettings(self, tmp_path):
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        unrelated_entry = {"matcher": "Read", "hooks": [{"type": "command", "command": "python3 /some/other.py"}]}
+        settings.write_text(json.dumps({"hooks": {"PreToolUse": [unrelated_entry]}}))
+        _WORKSPACES._write_workspace_settings(settings)
+        data = json.loads(settings.read_text())
+        pre_tool_use = data["hooks"]["PreToolUse"]
+        matchers = [e["matcher"] for e in pre_tool_use]
+        assert "Read" in matchers
+        block_entries = [
+            e for e in pre_tool_use
+            if any("block-orchestrator-writes.py" in h.get("command", "") for h in e.get("hooks", []))
+        ]
+        assert len(block_entries) >= 1
+
+    def test_writeWorkspaceSettings_shouldNotDuplicateBlockOrchestratorHook_whenSettingsAlreadyContainIt(self, tmp_path):
+        governed_pre_tool_use = _WORKSPACES._WORKSPACE_HOOKS["hooks"]["PreToolUse"]
+        block_entry = next(
+            e for e in governed_pre_tool_use
+            if any("block-orchestrator-writes.py" in h.get("command", "") for h in e.get("hooks", []))
+        )
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text(json.dumps({"hooks": {"PreToolUse": [block_entry]}}))
+        _WORKSPACES._write_workspace_settings(settings)
+        data = json.loads(settings.read_text())
+        pre_tool_use = data["hooks"]["PreToolUse"]
+        block_entries = [
+            e for e in pre_tool_use
+            if any("block-orchestrator-writes.py" in h.get("command", "") for h in e.get("hooks", []))
+        ]
+        assert len(block_entries) == 1
+
 
 class TestBackupRestoreDirectories:
     """Tests for the expanded backup/restore with _BACKUP_DIRS."""

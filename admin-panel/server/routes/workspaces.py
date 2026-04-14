@@ -155,6 +155,9 @@ def _ensure_funnel_config(project_path):
 _SESSION_START_CMD = hook_command("session-start.py")
 _USER_PROMPT_SUBMIT_CMD = hook_command("user-prompt-submit.sh", interpreter="bash")
 _PRE_TOOL_HOOK_CMD = hook_command("pre-tool-hook.py")
+_BLOCK_ORCHESTRATOR_CMD = hook_command("block-orchestrator-writes.py")
+
+BLOCK_ORCHESTRATOR_MATCHER = "Edit|MultiEdit|Write|NotebookEdit|Bash"
 
 _WORKSPACE_HOOKS = {
     "hooks": {
@@ -180,13 +183,22 @@ _WORKSPACE_HOOKS = {
                 "command": _USER_PROMPT_SUBMIT_CMD,
             }]
         }],
-        "PreToolUse": [{
-            "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*gitlab.*",
-            "hooks": [{
-                "type": "command",
-                "command": _PRE_TOOL_HOOK_CMD,
-            }]
-        }]
+        "PreToolUse": [
+            {
+                "matcher": BLOCK_ORCHESTRATOR_MATCHER,
+                "hooks": [{
+                    "type": "command",
+                    "command": _BLOCK_ORCHESTRATOR_CMD,
+                }]
+            },
+            {
+                "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*gitlab.*",
+                "hooks": [{
+                    "type": "command",
+                    "command": _PRE_TOOL_HOOK_CMD,
+                }]
+            }
+        ]
     }
 }
 
