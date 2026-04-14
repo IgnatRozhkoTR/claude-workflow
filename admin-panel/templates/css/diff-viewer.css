@@ -8,11 +8,13 @@
   margin-bottom: 0 !important;
 }
 
-#panel-changes {
+#panel-changes,
+#panel-files {
   height: 100%;
 }
 
-#panel-changes > .card {
+#panel-changes > .card,
+#panel-files > .card {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -69,6 +71,7 @@
   overflow: auto;
   background: var(--bg-raised);
   flex-shrink: 0;
+  height: 100%;
 }
 
 .diff-resize-handle {
